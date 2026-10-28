@@ -1,14 +1,17 @@
 name: Release
 
-# edge:   every merge to main, once CI on it is green (a moving pre-release "edge")
-# stable: every tag vX.Y.Z (cut from main, which CI has already checked)
+# Versions: the next one is in the file VERSION (e.g. 0.3.0).
+# edge:   every merge to main, once CI on it is green: pre-release vX.Y.Z-dev.<run number>
+# stable: every tag vX.Y.Z (cut from main, which CI has already checked); then VERSION moves on
+# Every build gets its own release that never changes afterwards: a single moving "edge" release made
+# GitHub serve cached links to files of an older, deleted build for minutes after each new one.
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
     branches: [main]
   push:
-    tags: ['v*.*.*']
+    tags: ['v*.*.*', '!v*-dev.*']
 
 permissions:
   contents: write
@@ -25,10 +28,16 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'push' && github.sha || github.event.workflow_run.head_sha }}
+
       - name: What to release
         id: what
         run: |
           if [ "${{ github.event_name }}" = push ]; then
+            # A stable tag must name the version in VERSION, so dev builds and the release agree.
+            [ "${GITHUB_REF_NAME#v}" = "$(tr -d '[:space:]' < VERSION)" ] || { echo "tag $GITHUB_REF_NAME does not match VERSION"; exit 1; }
             echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
             echo "channel=stable" >> "$GITHUB_OUTPUT"
             echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
@@ -36,13 +45,10 @@ jobs:
           else
             echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
             echo "channel=edge" >> "$GITHUB_OUTPUT"
-            echo "version=edge-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
-            echo "tag=edge" >> "$GITHUB_OUTPUT"
+            V="$(tr -d '[:space:]' < VERSION)-dev.${{ github.run_number }}"
+            echo "version=$V" >> "$GITHUB_OUTPUT"
+            echo "tag=v$V" >> "$GITHUB_OUTPUT"
           fi
-
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.what.outputs.sha }}
 
       - uses: actions/setup-node@v7
         with:
@@ -85,10 +91,17 @@ jobs:
         if: steps.what.outputs.channel == 'edge'
         run: |
           SHA=${{ steps.what.outputs.sha }}
-          gh release delete edge --cleanup-tag --yes || true
-          gh release create edge dist/* --prerelease --target "$SHA" \
-            --title "Edge ${{ github.run_number }} (${SHA::7})" \
+          TAG=${{ steps.what.outputs.tag }}
+          gh release create "$TAG" dist/* --prerelease --latest=false --target "$SHA" \
+            --title "${{ steps.what.outputs.version }} (${SHA::7})" \
             --notes "Fresh build of main at ${SHA::7}. Changes: https://github.com/${{ github.repository }}/commits/$SHA"
+          # Keep the five newest development builds (rollback targets); drop older ones and the old
+          # "edge" / "edge-N" releases from before semantic versions.
+          gh release list --limit 100 --json tagName -q '.[].tagName' | grep -E '^edge(-[0-9]+)?$' |
+            while read -r old; do gh release delete "$old" --cleanup-tag --yes; done
+          gh release list --limit 100 --json tagName -q '.[].tagName' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-dev\.[0-9]+$' |
+            awk -F'dev.' '{print $2" "$0}' | sort -n -r | tail -n +6 | cut -d' ' -f2 |
+            while read -r old; do gh release delete "$old" --cleanup-tag --yes; done
 
       - name: Publish stable
         if: steps.what.outputs.channel == 'stable'

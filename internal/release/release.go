@@ -3,6 +3,13 @@
 // Every release carries release.json (what it is), SHA256SUMS (checksums of all files) and
 // SHA256SUMS.sig (an Ed25519 signature of SHA256SUMS made in CI). The public key is built into the
 // core and the agent, so a release swapped on GitHub or on the way is refused.
+//
+// Versions follow semantic versioning. The next version is in the file VERSION; every merge to main is a
+// development build of it, vX.Y.Z-dev.N (N is the release workflow's run number, so it only grows), and a
+// tag vX.Y.Z makes the stable release. Each build has its own release that never changes. The newest one
+// is found through the GitHub API, and all files are taken from that one tag. (A single moving "edge"
+// release did not work: GitHub caches download links for minutes, so right after a new build the files
+// came from two different builds, or from one already deleted.)
 package release
 
 import (
@@ -20,6 +27,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -50,7 +59,7 @@ func mustKey(b64 string) ed25519.PublicKey {
 
 // Manifest is release.json.
 type Manifest struct {
-	Version string    `json:"version"` // "0.2.0" or "edge-142"
+	Version string    `json:"version"` // "0.2.0" or "0.3.0-dev.142"
 	Channel string    `json:"channel"`
 	Build   int       `json:"build"`  // grows with every release in both channels
 	Commit  string    `json:"commit"` // short sha
@@ -58,24 +67,73 @@ type Manifest struct {
 	URL     string    `json:"url"` // the release page, for "what changed"
 }
 
-// Base is where a channel's files are downloaded from.
-func Base(channel string) string {
-	if channel == Edge {
-		return "https://github.com/" + Repo + "/releases/download/edge"
-	}
-	return "https://github.com/" + Repo + "/releases/latest/download"
-}
-
-// Client downloads releases. Tests point Base at a local server.
+// Client downloads releases. Tests replace Resolve with a local server.
 type Client struct {
 	HTTP *http.Client
-	Base func(channel string) string
-	Key  ed25519.PublicKey
+	// Resolve returns the download folder of the newest release of a channel,
+	// e.g. https://github.com/metraveer/gridlume/releases/download/v0.3.0-dev.12.
+	Resolve func(ctx context.Context, c *Client, channel string) (string, error)
+	Key     ed25519.PublicKey
 }
 
 // Default is the client for GitHub.
 func Default() *Client {
-	return &Client{HTTP: &http.Client{Timeout: 5 * time.Minute}, Base: Base, Key: PublicKey}
+	return &Client{HTTP: &http.Client{Timeout: 5 * time.Minute}, Resolve: GitHub, Key: PublicKey}
+}
+
+// GitHub finds the newest release of a channel with the GitHub API (no token: 60 requests an hour,
+// and the core asks every 6 hours).
+func GitHub(ctx context.Context, c *Client, channel string) (string, error) {
+	api := "https://api.github.com/repos/" + Repo + "/releases"
+	var tag string
+	if channel == Edge {
+		b, err := c.get(ctx, api+"?per_page=30", 4<<20)
+		if err != nil {
+			return "", err
+		}
+		var list []struct {
+			Tag   string `json:"tag_name"`
+			Draft bool   `json:"draft"`
+		}
+		if err := json.Unmarshal(b, &list); err != nil {
+			return "", err
+		}
+		best := -1
+		for _, r := range list {
+			n, ok := edgeNumber(r.Tag)
+			if ok && !r.Draft && n > best {
+				best, tag = n, r.Tag
+			}
+		}
+		if tag == "" {
+			return "", errors.New("no development builds yet")
+		}
+	} else {
+		b, err := c.get(ctx, api+"/latest", 1<<20)
+		if err != nil {
+			return "", err
+		}
+		var r struct {
+			Tag string `json:"tag_name"`
+		}
+		if err := json.Unmarshal(b, &r); err != nil || r.Tag == "" {
+			return "", errors.New("no stable releases yet")
+		}
+		tag = r.Tag
+	}
+	return "https://github.com/" + Repo + "/releases/download/" + tag, nil
+}
+
+var devTag = regexp.MustCompile(`^v\d+\.\d+\.\d+-dev\.(\d+)$`)
+
+// edgeNumber reads N from a development build's tag "vX.Y.Z-dev.N".
+func edgeNumber(tag string) (int, bool) {
+	m := devTag.FindStringSubmatch(tag)
+	if m == nil {
+		return 0, false
+	}
+	n, err := strconv.Atoi(m[1])
+	return n, err == nil
 }
 
 func (c *Client) get(ctx context.Context, url string, limit int64) ([]byte, error) {
@@ -84,6 +142,9 @@ func (c *Client) get(ctx context.Context, url string, limit int64) ([]byte, erro
 		return nil, err
 	}
 	req.Header.Set("User-Agent", "gridlume-updater")
+	if strings.HasPrefix(url, "https://api.github.com/") {
+		req.Header.Set("Accept", "application/vnd.github+json")
+	}
 	res, err := c.HTTP.Do(req)
 	if err != nil {
 		return nil, err
@@ -98,13 +159,16 @@ func (c *Client) get(ctx context.Context, url string, limit int64) ([]byte, erro
 // Checked is a release whose checksums are signed: file names to their sha256.
 type Checked struct {
 	Manifest
-	channel string
-	sums    map[string]string
+	base string // every file comes from this one release
+	sums map[string]string
 }
 
-// Latest fetches the newest release of a channel and checks its signature and manifest.
+// Latest finds the newest release of a channel and checks its signature and manifest.
 func (c *Client) Latest(ctx context.Context, channel string) (*Checked, error) {
-	base := c.Base(channel)
+	base, err := c.Resolve(ctx, c, channel)
+	if err != nil {
+		return nil, err
+	}
 	sums, err := c.get(ctx, base+"/SHA256SUMS", 1<<20)
 	if err != nil {
 		return nil, err
@@ -117,7 +181,7 @@ func (c *Client) Latest(ctx context.Context, channel string) (*Checked, error) {
 	if err != nil || !ed25519.Verify(c.Key, sums, raw) {
 		return nil, errors.New("release signature is not valid: refusing it")
 	}
-	out := &Checked{channel: channel, sums: parseSums(sums)}
+	out := &Checked{base: base, sums: parseSums(sums)}
 	manifest, err := c.get(ctx, base+"/release.json", 1<<16)
 	if err != nil {
 		return nil, err
@@ -158,7 +222,7 @@ func (r *Checked) verify(name string, data []byte) error {
 // Download saves a file of the release to dir/name after checking it against the signed checksums.
 // The file appears only when it is complete and correct.
 func (c *Client) Download(ctx context.Context, r *Checked, name, dir string) (string, error) {
-	data, err := c.get(ctx, c.Base(r.channel)+"/"+name, 256<<20)
+	data, err := c.get(ctx, r.base+"/"+name, 256<<20)
 	if err != nil {
 		return "", err
 	}

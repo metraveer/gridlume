@@ -46,7 +46,7 @@ func fakeRelease(t *testing.T, tamper bool) (*Client, ed25519.PublicKey) {
 		_, _ = w.Write(b)
 	}))
 	t.Cleanup(srv.Close)
-	return &Client{HTTP: srv.Client(), Base: func(string) string { return srv.URL + "/edge" }, Key: pub}, pub
+	return &Client{HTTP: srv.Client(), Resolve: func(context.Context, *Client, string) (string, error) { return srv.URL + "/edge-7", nil }, Key: pub}, pub
 }
 
 func TestLatestAndDownload(t *testing.T) {
@@ -93,4 +93,25 @@ func TestBuiltInKeyIsValid(t *testing.T) {
 	if len(PublicKey) != ed25519.PublicKeySize {
 		t.Fatal("bad built-in key")
 	}
+}
+
+func TestNewestEdgeIsFoundByNumber(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Not in order, with a draft, a stable one and the old moving "edge" tag mixed in.
+		_, _ = w.Write([]byte(`[{"tag_name":"v0.3.0-dev.9"},{"tag_name":"v0.2.0"},{"tag_name":"v0.3.0-dev.12","draft":true},{"tag_name":"v0.3.0-dev.10"},{"tag_name":"edge"},{"tag_name":"edge-11"}]`))
+	}))
+	defer srv.Close()
+	c := &Client{HTTP: &http.Client{Transport: rewrite{srv.URL}}}
+	base, err := GitHub(context.Background(), c, Edge)
+	if err != nil || !strings.HasSuffix(base, "/releases/download/v0.3.0-dev.10") {
+		t.Fatalf("got %q %v", base, err)
+	}
+}
+
+// rewrite sends every request to a test server.
+type rewrite struct{ to string }
+
+func (r rewrite) RoundTrip(req *http.Request) (*http.Response, error) {
+	u, _ := http.NewRequest(req.Method, r.to+req.URL.Path, nil)
+	return http.DefaultTransport.RoundTrip(u)
 }

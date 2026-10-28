@@ -2,6 +2,8 @@ import { BaseEdge, EdgeLabelRenderer, Handle, NodeResizer, Position, useInternal
 import { useTranslation } from 'react-i18next'
 import type { Link, MapNode, Place } from '../api/types'
 import { Dot, Icon } from '../design'
+import { useNodeLive } from '../state/live'
+import { cardLine } from './format'
 import { canContain, LINK_META, NODE_META } from './model'
 import s from './flow.module.css'
 
@@ -16,10 +18,16 @@ const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left]
 export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData }) {
   const { t } = useTranslation()
   const { node, kids, portal } = data
+  const { agent, snap, state } = useNodeLive(node)
   const meta = NODE_META[node.kind]
-  const sub = node.state === 'planned' ? t('state.planned') : [node.subtitle || node.address, t(`kind.${node.kind}`)].filter(Boolean).join(' · ')
-  const cls = [s.node, meta.small && s.small, selected && s.selected, node.state === 'planned' && s.planned, portal && s.portal].filter(Boolean).join(' ')
-  const tip = [node.name, t(`state.${node.state}`), kids ? t('map.enter.tip') : '', portal ? t('map.portal.tip') : ''].filter(Boolean).join(' · ')
+  // A machine with a connected agent shows its load instead of the static caption.
+  const sub =
+    state === 'planned' ? t('state.planned')
+    : snap ? cardLine(snap)
+    : agent && !agent.online ? t('agent.offline.short')
+    : [node.subtitle || node.address, t(`kind.${node.kind}`)].filter(Boolean).join(' · ')
+  const cls = [s.node, meta.small && s.small, selected && s.selected, state === 'planned' && s.planned, portal && s.portal].filter(Boolean).join(' ')
+  const tip = [node.name, t(`state.${state}`), kids ? t('map.enter.tip') : '', portal ? t('map.portal.tip') : ''].filter(Boolean).join(' · ')
   return (
     <div className={cls} data-tip={tip}>
       {SIDES.map((p) => (
@@ -46,7 +54,7 @@ export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData })
         </button>
       )}
       <span className={s.state}>
-        <Dot state={node.state} />
+        <Dot state={state} />
       </span>
     </div>
   )

@@ -4,6 +4,7 @@ import type { MapNode } from '../api/types'
 import { go } from '../app/route'
 import { Icon, StateBadge } from '../design'
 import { useApp } from '../state/app'
+import { liveState, useLive } from '../state/live'
 import { NODE_META } from './model'
 import s from './NodesPage.module.css'
 
@@ -26,6 +27,7 @@ export function reveal(n: MapNode) {
 export function NodesPage() {
   const { t } = useTranslation()
   const map = useApp((st) => st.map)
+  const agents = useLive((st) => st.agents)
   const [q, setQ] = useState('')
   const name = (id: string | null) => map.nodes.find((n) => n.id === id)?.name
   const place = (id: string | null) => map.places.find((p) => p.id === id)?.name
@@ -69,7 +71,7 @@ export function NodesPage() {
                 <td>{t(`kind.${n.kind}`)}</td>
                 <td className="mono">{n.address || '—'}</td>
                 <td>{n.parentId ? name(n.parentId) : (place(n.placeId) ?? '—')}</td>
-                <td><StateBadge state={n.state} /></td>
+                <td><StateBadge state={liveState(n, agents[n.id])} /></td>
                 <td className={s.num}>{linkCount(n.id)}</td>
               </tr>
             ))}

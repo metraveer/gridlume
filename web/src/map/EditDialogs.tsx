@@ -4,6 +4,7 @@ import { ApiError } from '../api/client'
 import { LINK_KINDS, NODE_KINDS, PLACE_TONES, type Link, type MapNode, type Place } from '../api/types'
 import { Button, Dialog } from '../design'
 import { useApp } from '../state/app'
+import { AgentDialog } from './AgentDialog'
 import { canContain } from './model'
 import s from './EditDialogs.module.css'
 
@@ -202,5 +203,6 @@ export function EditDialogs() {
   if (!editing) return null
   if (editing.kind === 'node') return <NodeDialog initial={editing.node} close={close} />
   if (editing.kind === 'link') return <LinkDialog initial={editing.link} close={close} />
+  if (editing.kind === 'agent') return <AgentDialog nodeId={editing.nodeId} close={close} />
   return <PlaceDialog initial={editing.place} close={close} />
 }

@@ -1,4 +1,4 @@
-import type { Link, MapData, MapNode, Place, SessionInfo, User } from './types'
+import type { Agent, AgentMode, Link, MapData, MapNode, MetricPoint, MetricRange, Place, SessionInfo, Snapshot, User } from './types'
 
 /** An error answer from the core, e.g. { error: "validation", field: "name", code: "required" }. */
 export class ApiError extends Error {
@@ -65,4 +65,11 @@ export const api = {
   createLink: (l: Omit<Link, 'id'>) => request<Link>('POST', '/api/links', l),
   updateLink: (id: string, l: Patch<Link> & { swap?: boolean }) => request<Link>('PATCH', `/api/links/${id}`, l),
   deleteLink: (id: string) => request('DELETE', `/api/links/${id}`),
+
+  agents: () => request<(Agent & { snapshot: Snapshot | null })[]>('GET', '/api/agents'),
+  /** A one-time code for the install command; nodeId "" makes a new node named after the machine. */
+  agentCode: (nodeId: string, mode: AgentMode) => request<{ code: string; expiresAt: number }>('POST', '/api/agents/codes', { nodeId, mode }),
+  unlinkAgent: (id: string) => request('DELETE', `/api/agents/${id}`),
+  metrics: (nodeId: string, series: string[], range: MetricRange) =>
+    request<{ step: number; series: Record<string, MetricPoint[]> }>('GET', `/api/nodes/${nodeId}/metrics?series=${series.join(',')}&range=${range}`),
 }

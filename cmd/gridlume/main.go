@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/metraveer/gridlume/internal/agentlink"
 	"github.com/metraveer/gridlume/internal/devmode"
 	"github.com/metraveer/gridlume/internal/server"
 	"github.com/metraveer/gridlume/internal/store"
@@ -59,6 +60,7 @@ func run(log *slog.Logger, args []string, dev bool) error {
 	addr := fs.String("addr", defaultAddr, "address to listen on")
 	webDir := fs.String("web", "web", "web project folder (dev only)")
 	dataDir := fs.String("data", "data", "folder for the database")
+	agentsDir := fs.String("agents", "", "folder with agent builds for the install script (default: <data>/agents)")
 	_ = fs.Parse(args)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -81,8 +83,16 @@ func run(log *slog.Logger, args []string, dev bool) error {
 	}
 	go purgeSessions(ctx, db)
 
-	opts := server.Options{Dist: web.Dist(), Store: db, SetupCode: setupCode, Log: log}
+	if *agentsDir == "" {
+		*agentsDir = filepath.Join(*dataDir, "agents")
+	}
+	hub := agentlink.New(db, log)
+	go hub.Maintain(ctx)
+
+	opts := server.Options{Dist: web.Dist(), Store: db, SetupCode: setupCode, Hub: hub, AgentsDir: *agentsDir, Log: log}
 	if dev {
+		// Agents installed on other machines download these builds from this core.
+		go devmode.BuildAgents(ctx, *agentsDir, log)
 		ui, err := devmode.Start(ctx, *webDir, log)
 		if err != nil {
 			return err

@@ -10,6 +10,7 @@ export type Editing =
   | { kind: 'node'; node: Partial<MapNode> }
   | { kind: 'link'; link: Partial<Link> }
   | { kind: 'place'; place: Partial<Place> }
+  | { kind: 'agent'; nodeId?: string } // connect a machine: to this node, or as a new one
   | null
 
 type State = {

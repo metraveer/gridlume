@@ -4,9 +4,16 @@ import { TooltipLayer, useScrollHints } from '../design'
 import { ErrorBanner, MapPage } from '../map/MapPage'
 import { NodesPage } from '../map/NodesPage'
 import { useApp } from '../state/app'
+import { startLive } from '../state/live'
 import { DesignPage } from './DesignPage'
 import { useRoute } from './route'
 import { Shell } from './Shell'
+
+/** Live agent data for as long as someone is signed in. */
+function LiveSync() {
+  useEffect(() => startLive(), [])
+  return null
+}
 
 /** First run → owner setup, then sign-in, then the app itself. */
 function Gate() {
@@ -28,6 +35,7 @@ function Gate() {
     <Shell route={route}>
       {route === 'nodes' ? <NodesPage /> : <MapPage />}
       <ErrorBanner />
+      <LiveSync />
     </Shell>
   )
 }

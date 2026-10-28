@@ -60,9 +60,13 @@ func setup(t *testing.T, core string, pub ed25519.PublicKey, connects bool) (*Up
 	bin := filepath.Join(dir, "gridlume-agent")
 	_ = os.WriteFile(bin, []byte("old agent"), 0o755)
 	var calls []string
-	u := &Updater{State: state, Bin: bin, Units: []string{"gridlume-agent"}, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Client: &release.Client{HTTP: http.DefaultClient, Key: pub}, Wait: 3 * time.Second,
+	u := &Updater{State: state, Bin: bin, Units: []string{"gridlume-agent"}, Extra: []string{"gridlume-docker-ro"},
+		Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Client: &release.Client{HTTP: http.DefaultClient, Key: pub}, Wait: 3 * time.Second,
 		Run: func(_ context.Context, name string, args ...string) error {
+			// As on a machine in the "user" mode: there is no proxy unit, and systemctl says so.
+			if strings.Contains(strings.Join(args, " "), "gridlume-docker-ro") {
+				return fmt.Errorf("Unit gridlume-docker-ro.service not found")
+			}
 			calls = append(calls, name+" "+strings.Join(args, " "))
 			// The restarted agent reports the version it runs, as link.Once does after a welcome.
 			if connects || !strings.HasPrefix(readFile(bin), "new") {

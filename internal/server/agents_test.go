@@ -30,7 +30,7 @@ type agentRow struct {
 	Mode     string `json:"mode"`
 	Online   bool   `json:"online"`
 	Snapshot *struct {
-		Cores int `json:"cores"`
+		Threads int `json:"threads"`
 	} `json:"snapshot"`
 }
 
@@ -100,7 +100,7 @@ func TestAgentEnrollConnectUnlink(t *testing.T) {
 	go func() { done <- link.Run(ctx, cfg, "test", slog.New(slog.NewTextHandler(io.Discard, nil))) }()
 	waitFor(t, "the agent to come online with a snapshot", func() bool {
 		l := c.agents()
-		return len(l) == 1 && l[0].Online && l[0].Snapshot != nil && l[0].Snapshot.Cores > 0
+		return len(l) == 1 && l[0].Online && l[0].Snapshot != nil && l[0].Snapshot.Threads > 0
 	})
 
 	// Unlinking drops the connection, and the core then refuses the agent.

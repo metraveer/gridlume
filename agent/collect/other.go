@@ -21,5 +21,5 @@ func Info(version, mode string) agentproto.Info {
 }
 
 func (c *Collector) Snapshot() agentproto.Snapshot {
-	return agentproto.Snapshot{At: time.Now().UnixMilli(), Cores: runtime.NumCPU()}
+	return agentproto.Snapshot{At: time.Now().UnixMilli(), Threads: runtime.NumCPU()}
 }

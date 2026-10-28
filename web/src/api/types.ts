@@ -52,7 +52,8 @@ export type AgentMode = (typeof AGENT_MODES)[number]
 export type Snapshot = {
   at: number // unix ms
   cpu: number // percent
-  cores: number
+  cores: number // physical
+  threads: number // logical processors
   load1: number
   memTotal: number // bytes
   memUsed: number

@@ -59,12 +59,16 @@ func (c *Collector) Snapshot() agentproto.Snapshot {
 	now := time.Now()
 	s := agentproto.Snapshot{At: now.UnixMilli()}
 
-	cpu, cores := parseStat(read("/proc/stat"))
+	cpu, threads := parseStat(read("/proc/stat"))
 	if !c.prevAt.IsZero() {
 		s.CPU = cpuPercent(c.prevCPU, cpu)
 	}
 	c.prevCPU = cpu
-	s.Cores = cores
+	s.Threads = threads
+	s.Cores = physicalCores()
+	if s.Cores == 0 {
+		s.Cores = threads // topology hidden (some VMs): better than nothing
+	}
 	s.Load1 = firstFloat(read("/proc/loadavg"))
 	s.Uptime = uint64(firstFloat(read("/proc/uptime")))
 
@@ -111,6 +115,20 @@ func (c *Collector) Snapshot() agentproto.Snapshot {
 
 	s.Temps = temps()
 	return s
+}
+
+// physicalCores reads the CPU topology from /sys; "2 cores, 4 threads" on a hyper-threaded i3.
+func physicalCores() int {
+	dirs, _ := filepath.Glob("/sys/devices/system/cpu/cpu[0-9]*/topology")
+	pairs := make([]string, 0, len(dirs))
+	for _, d := range dirs {
+		pkg := strings.TrimSpace(read(filepath.Join(d, "physical_package_id")))
+		core := strings.TrimSpace(read(filepath.Join(d, "core_id")))
+		if core != "" {
+			pairs = append(pairs, pkg+"-"+core)
+		}
+	}
+	return countCores(pairs)
 }
 
 // temps reads hwmon sensors (they are readable without root on most machines).

@@ -32,7 +32,7 @@ export function LiveSection({ snap }: { snap: Snapshot }) {
   return (
     <Section title={t('live.now')} help={t('live.now.help')}>
       <div className={s.meters}>
-        <Meter label={t('live.cpu', { n: snap.cores })} value={snap.cpu} text={percent(snap.cpu)} />
+        <Meter label={snap.cores ? t('live.cpu', { cores: snap.cores, threads: snap.threads }) : t('live.cpu.short')} value={snap.cpu} text={percent(snap.cpu)} />
         {snap.memTotal > 0 && <Meter label={t('live.mem')} value={mem} text={`${bytes(t, snap.memUsed)} / ${bytes(t, snap.memTotal)}`} />}
         {snap.swapTotal > 0 && <Meter label={t('live.swap')} value={(100 * snap.swapUsed) / snap.swapTotal} text={`${bytes(t, snap.swapUsed)} / ${bytes(t, snap.swapTotal)}`} />}
         {(snap.disks ?? []).map((d) => (
@@ -42,7 +42,7 @@ export function LiveSection({ snap }: { snap: Snapshot }) {
       <KV
         rows={[
           [t('live.net'), <span className="mono">↓ {rate(t, net.rx)} · ↑ {rate(t, net.tx)}</span>],
-          [t('live.load'), <span className="mono" data-tip={t('live.load.tip', { n: snap.cores })}>{snap.load1.toFixed(2)}</span>],
+          [t('live.load'), <span className="mono" data-tip={t('live.load.tip', { n: snap.threads })}>{snap.load1.toFixed(2)}</span>],
           ...(hottest ? [[t('live.temp'), <span className="mono" data-tip={hottest.name}>{Math.round(hottest.c)} °C</span>] as [string, React.ReactNode]] : []),
           ...(snap.uptime ? [[t('live.uptime'), uptime(t, snap.uptime)] as [string, React.ReactNode]] : []),
         ]}

@@ -18,12 +18,6 @@
   outline: none;
 }
 
-.minimap {
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: rgba(13, 15, 18, 0.85) !important;
-}
-
 .empty {
   position: absolute;
   top: 50%;

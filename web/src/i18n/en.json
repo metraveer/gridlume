@@ -386,7 +386,7 @@
   "settings.updates": "Updates",
   "settings.map": "Map",
   "pref.minimap": "Minimap",
-  "pref.minimap.hint": "A small copy of the map in the bottom right: where you are and where to go.",
+  "pref.minimap.hint": "A small copy of the map in the bottom right: places in their colour, nodes in the colour of their state. Resize it by its top-left corner.",
   "pref.linkLabels": "Labels on links",
   "pref.linkLabels.hint": "Protocol and speed on every line. Off: only on the selected link.",
   "pref.grid": "Dot grid",
@@ -403,5 +403,7 @@
   "menu.linkFrom": "Link from here…",
   "menu.backOut": "Back out",
   "menu.dropTitle": "New node linked to {name}",
-  "app.search.key": "Press / anywhere to search"
+  "app.search.key": "Press / anywhere to search",
+  "overview.label": "Minimap: click a node to go there, drag to move the view",
+  "overview.resize": "Drag to resize. Double-click for the usual size."
 }

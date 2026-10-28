@@ -3,7 +3,6 @@ import {
   BackgroundVariant,
   ConnectionMode,
   MarkerType,
-  MiniMap,
   ReactFlow,
   ReactFlowProvider,
   useEdgesState,
@@ -21,6 +20,7 @@ import { useApp } from '../state/app'
 import { usePrefs } from '../state/prefs'
 import { ItemNodeView, LinkEdgeView, PlaceNodeView, type ItemData, type LinkData, type PlaceData } from './flow'
 import { dropMenu, linkMenu, nodeMenu, paneMenu, placeMenu } from './menus'
+import { Overview } from './Overview'
 import { canContain, levelContent, NODE_META } from './model'
 import s from './MapView.module.css'
 
@@ -222,18 +222,8 @@ function Map() {
         fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
       >
         {prefs.grid && <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#20252b" />}
-        {prefs.minimap && (
-          <MiniMap
-            className={s.minimap}
-            position="bottom-right"
-            // Moves left of the inspector when it is open, so neither covers the other.
-            style={{ right: inspectorOpen ? 356 : 0, transition: 'right 0.15s ease' }}
-            pannable
-            zoomable
-            nodeColor={(n) => (n.type === 'place' ? 'rgba(255,255,255,0.04)' : '#a3abb5')}
-            maskColor="rgba(13,15,18,0.7)"
-          />
-        )}
+        {/* Moves left of the inspector when it is open, so neither covers the other. */}
+        {prefs.minimap && <Overview offset={inspectorOpen ? 356 : 0} />}
       </ReactFlow>
       {menu && <Menu x={menu.x} y={menu.y} items={menu.data} label={t('menu.label')} onClose={closeMenu} />}
 

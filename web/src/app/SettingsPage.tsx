@@ -3,13 +3,69 @@ import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../api/client'
 import type { Channel, SystemInfo } from '../api/types'
 import { Button, KV, Segmented, StateBadge } from '../design'
+import { setLanguage, type Language } from '../i18n'
 import { ago } from '../map/format'
 import { useApp } from '../state/app'
 import s from './SettingsPage.module.css'
 
-/** Settings: for now the version and updates. */
-export function SettingsPage() {
+/** Change the password: the current one is asked again, other sessions end. */
+function PasswordForm() {
   const { t } = useTranslation()
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [repeat, setRepeat] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+  const mismatch = repeat !== '' && repeat !== next
+
+  const submit = async (e: { preventDefault: () => void }) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    setDone(false)
+    try {
+      await api.changePassword(current, next)
+      setCurrent('')
+      setNext('')
+      setRepeat('')
+      setDone(true)
+    } catch (err) {
+      setError(t(err instanceof ApiError ? err.key : 'err.internal'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className={s.form} onSubmit={submit}>
+      <label className={s.field}>
+        <span>{t('account.current')}</span>
+        <input className={s.input} type="password" value={current} onChange={(e) => setCurrent(e.target.value)} required autoComplete="current-password" />
+      </label>
+      <label className={s.field}>
+        <span>{t('account.next')}</span>
+        <input className={s.input} type="password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={10} autoComplete="new-password" />
+        <small>{t('setup.password.hint')}</small>
+      </label>
+      <label className={s.field}>
+        <span>{t('setup.repeat')}</span>
+        <input className={s.input} type="password" value={repeat} onChange={(e) => setRepeat(e.target.value)} required autoComplete="new-password" />
+      </label>
+      {mismatch && <p className={s.warn}>{t('setup.mismatch')}</p>}
+      {error && <p className={s.warn} role="alert">{error}</p>}
+      {done && <p className={s.ok} role="status">{t('account.changed')}</p>}
+      <div>
+        <Button type="submit" variant="primary" disabled={busy || mismatch || !current || !next}>{t('account.change')}</Button>
+      </div>
+    </form>
+  )
+}
+
+/** Settings: account, language, updates. */
+export function SettingsPage() {
+  const { t, i18n } = useTranslation()
+  const user = useApp((st) => st.user)
   const sys = useApp((st) => st.system)
   const owner = useApp((st) => st.user?.role === 'owner')
   const setSystem = useApp((st) => st.setSystem)
@@ -36,12 +92,35 @@ export function SettingsPage() {
     }
   }
 
-  if (!sys) return null
-  const running = sys.pending || sys.last?.state === 'running'
+  const running = sys ? sys.pending || sys.last?.state === 'running' : false
   return (
     <div className={s.page}>
       <h1>{t('settings.title')}</h1>
 
+      {user && (
+        <section className={s.card}>
+          <h2>{t('account.title')}</h2>
+          <KV rows={[[t('auth.username'), user.username], [t('account.role'), t(`role.${user.role}`)]]} />
+          <h3 className={s.sub}>{t('account.password')}</h3>
+          <p className={s.muted}>{t('account.password.lead')}</p>
+          <PasswordForm />
+        </section>
+      )}
+
+      <section className={s.card}>
+        <h2>{t('app.lang')}</h2>
+        <div className={s.row}>
+          <span className={s.muted}>{t('lang.lead')}</span>
+          <Segmented<Language>
+            label={t('app.lang')}
+            value={i18n.language as Language}
+            onChange={(l) => void setLanguage(l)}
+            options={[{ value: 'ru', label: t('lang.ru') }, { value: 'en', label: t('lang.en') }]}
+          />
+        </div>
+      </section>
+
+      {sys && (
       <section className={s.card}>
         <h2>{t('update.title')}</h2>
         <KV
@@ -111,6 +190,7 @@ export function SettingsPage() {
         )}
         {error && <p className={s.warn} role="alert">{error}</p>}
       </section>
+      )}
     </div>
   )
 }

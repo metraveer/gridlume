@@ -51,10 +51,14 @@ it('shows the empty map when signed in, and switches to English', async () => {
   render(<App />)
   expect(await screen.findByText('Схема пока пустая')).toBeTruthy()
   expect(await screen.findByText('Ядро 0.0.0-dev на связи')).toBeTruthy()
+  // The language is switched in Settings.
   await act(async () => {
-    screen.getByRole('button', { name: 'EN' }).click()
+    window.location.hash = '#/settings'
   })
-  expect(screen.getByText('The map is empty')).toBeTruthy()
+  await act(async () => {
+    ;(await screen.findByRole('button', { name: 'English' })).click()
+  })
+  expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Settings')
   await act(async () => {
     await i18n.changeLanguage('ru')
   })

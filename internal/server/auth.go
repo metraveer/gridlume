@@ -219,6 +219,23 @@ func (a *api) authed(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// sessionOnly needs a valid session but, unlike authed, lets viewers write (their own account only).
+func (a *api) sessionOnly(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie(sessionCookie)
+		if err != nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		u, err := a.store.SessionUser(r.Context(), c.Value)
+		if err != nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		next(w, r.WithContext(context.WithValue(r.Context(), userKey, u)))
+	}
+}
+
 // csrf protects the unauthenticated writes (setup, login, logout) the same way.
 func csrf(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

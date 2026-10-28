@@ -63,6 +63,8 @@ func (a *api) routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/setup", csrf(a.setup))
 	mux.HandleFunc("POST /api/login", csrf(a.login))
 	mux.HandleFunc("POST /api/logout", csrf(a.logout))
+	// Viewers may change their own password too: authed would refuse their writes, so check the session here.
+	mux.HandleFunc("POST /api/account/password", csrf(a.sessionOnly(a.changePassword)))
 
 	mux.HandleFunc("GET /api/map", a.authed(a.getMap))
 	mux.HandleFunc("PUT /api/layout", a.authed(a.saveLayout))

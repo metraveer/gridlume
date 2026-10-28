@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Icon, IconButton, Segmented, type IconName } from '../design'
-import { setLanguage, type Language } from '../i18n'
+import { Button, Icon, IconButton, type IconName } from '../design'
 import { NODE_META } from '../map/model'
 import { matches, reveal } from '../map/NodesPage'
 import { useApp } from '../state/app'
@@ -144,7 +143,7 @@ function UserMenu() {
 
 /** Top bar, left rail and the main area. Items of later stages are visible but say when they arrive. */
 export function Shell({ route, children }: { route: Route; children: ReactNode }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   return (
     <div className={s.app}>
       <header className={s.topbar}>
@@ -157,12 +156,6 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
         <span className={s.grow} />
         <UpdateBadge />
         <CoreStatus />
-        <Segmented<Language>
-          label={t('app.lang')}
-          value={i18n.language as Language}
-          onChange={(l) => void setLanguage(l)}
-          options={[{ value: 'ru', label: 'RU' }, { value: 'en', label: 'EN' }]}
-        />
         <UserMenu />
       </header>
 

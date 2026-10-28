@@ -1,6 +1,34 @@
-.page { max-width: 760px; margin: 0 auto; padding: var(--s-8) var(--s-6); }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 720px); gap: var(--s-8); justify-content: center; padding: var(--s-8) var(--s-6); }
 .page { display: grid; gap: var(--s-6); align-content: start; }
-.page h1 { margin: 0; font-size: var(--fs-18); font-weight: 600; }
+
+.nav { display: grid; gap: 2px; align-content: start; position: sticky; top: var(--s-8); }
+.nav h1 { margin: 0 0 var(--s-4); padding: 0 var(--s-3); font-size: var(--fs-18); font-weight: 600; }
+
+.nav button {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 34px;
+  padding: 0 var(--s-3);
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav button svg { color: var(--fg-faint); }
+.nav button:hover { background: var(--bg-panel); color: var(--fg); }
+.nav button[aria-current='page'] { background: var(--bg-raised); color: var(--fg); }
+.dot { width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: var(--lume); }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .nav { position: static; display: flex; flex-wrap: wrap; }
+  .nav h1 { width: 100%; }
+}
 
 .card {
   display: grid;
@@ -33,6 +61,7 @@
 .last { display: grid; gap: var(--s-1, 4px); }
 .controls { display: grid; gap: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--line-soft); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.row > span { display: grid; gap: 2px; }
 .check { display: flex; gap: var(--s-3); cursor: pointer; }
 .check input { margin-top: 3px; accent-color: var(--lume); }
 .check span { display: grid; gap: 2px; }

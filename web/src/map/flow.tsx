@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { Link, MapNode, Place } from '../api/types'
 import { Dot, Icon } from '../design'
 import { useNodeLive } from '../state/live'
+import { usePrefs } from '../state/prefs'
 import { bytes, cardLine, percent } from './format'
 import { canContain, LINK_META, NODE_META } from './model'
 import s from './flow.module.css'
@@ -97,6 +98,7 @@ function exitPoint(a: { x: number; y: number; w: number; h: number }, bx: number
 
 export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: EdgeProps & { data: LinkData }) {
   const { t } = useTranslation()
+  const labels = usePrefs((p) => p.linkLabels)
   const a = useInternalNode(source)
   const b = useInternalNode(target)
   if (!a || !b) return null
@@ -125,16 +127,18 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
         className={[s.edge, s[`edge_${link.kind}`], link.planned && s.edgePlanned, selected && s.edgeSelected].filter(Boolean).join(' ')}
         interactionWidth={16}
       />
-      <EdgeLabelRenderer>
-        <div
-          className={`${s.pill} ${selected ? s.pillSelected : ''} nodrag nopan`}
-          style={{ transform: `translate(-50%, -50%) translate(${mx}px, ${my}px)` }}
-          data-tip={tip}
-          data-edge={id}
-        >
-          {label}
-        </div>
-      </EdgeLabelRenderer>
+      {(labels || selected) && (
+        <EdgeLabelRenderer>
+          <div
+            className={`${s.pill} ${selected ? s.pillSelected : ''} nodrag nopan`}
+            style={{ transform: `translate(-50%, -50%) translate(${mx}px, ${my}px)` }}
+            data-tip={tip}
+            data-edge={id}
+          >
+            {label}
+          </div>
+        </EdgeLabelRenderer>
+      )}
     </>
   )
 }

@@ -13,12 +13,14 @@ import {
   type Node,
 } from '@xyflow/react'
 import '@xyflow/react/dist/base.css'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Place } from '../api/types'
-import { Button } from '../design'
+import { Button, Menu, useMenu, type MenuItem } from '../design'
 import { useApp } from '../state/app'
+import { usePrefs } from '../state/prefs'
 import { ItemNodeView, LinkEdgeView, PlaceNodeView, type ItemData, type LinkData, type PlaceData } from './flow'
+import { dropMenu, linkMenu, nodeMenu, paneMenu, placeMenu } from './menus'
 import { canContain, levelContent, NODE_META } from './model'
 import s from './MapView.module.css'
 
@@ -41,7 +43,13 @@ function Map() {
   const patchNode = useApp((st) => st.patchNode)
   const focus = useApp((st) => st.focus)
   const setFocus = useApp((st) => st.setFocus)
+  const viewer = useApp((st) => st.user?.role === 'viewer')
+  const inspectorOpen = useApp((st) => st.selection !== null)
+  const prefs = usePrefs()
   const flow = useReactFlow()
+  const [menu, openMenu, closeMenu] = useMenu<MenuItem[]>()
+  // Set when a dragged link was dropped on a node: then there is nothing to offer.
+  const connected = useRef(false)
 
   const onResized = useCallback((p: Place) => void saveLayout([], [p]), [saveLayout])
 
@@ -86,15 +94,39 @@ function Map() {
     return { nodes: [...places, ...items] as Node[], edges: edges as Edge[] }
   }, [map, level, selection, enter, onResized])
 
-  // A node found by search: once its level is drawn, centre on it.
+  // A node found by search (or '*' for everything): once its level is drawn, bring it into view.
   useEffect(() => {
     if (!focus) return
     const id = window.setTimeout(() => {
-      void flow.fitView({ nodes: [{ id: focus }], maxZoom: 1.2, duration: 300, padding: 0.6 })
+      if (focus === '*') void flow.fitView({ padding: 0.2, maxZoom: 1.2, duration: 300 })
+      else void flow.fitView({ nodes: [{ id: focus }], maxZoom: 1.2, duration: 300, padding: 0.6 })
       setFocus(null)
     }, 120)
     return () => window.clearTimeout(id)
   }, [focus, level, flow, setFocus])
+
+  // Keys on the map: Delete asks to delete what is selected, Esc lets go of it, F fits everything.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable], [role="dialog"], [role="menu"]')) return
+      const { selection, askDelete, select, editing } = useApp.getState()
+      if (editing) return
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selection && !viewer) {
+        e.preventDefault()
+        askDelete(selection)
+      } else if (e.key === 'Escape' && selection) select(null)
+      else if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) setFocus('*')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [viewer, setFocus])
+
+  const ctx = { t, viewer, level, fit: () => setFocus('*') }
+  const where = (e: { clientX: number; clientY: number }) => {
+    const p = flow.screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    return { x: Math.round(p.x - 90), y: Math.round(p.y - 26) } // the new node's centre under the pointer
+  }
+  const placeUnder = (at: { x: number; y: number }) => (level === null ? placeAt(at.x + 90, at.y + 26) : null)
 
   const [nodes, setNodes, onNodesChange] = useNodesState(derived.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(derived.edges)
@@ -151,7 +183,33 @@ function Map() {
         }}
         onEdgeClick={(_, e) => select({ kind: 'link', id: e.id })}
         onPaneClick={() => select(null)}
-        onConnect={(c) => c.source && c.target && c.source !== c.target && edit({ kind: 'link', link: { fromId: c.source, toId: c.target, kind: 'lan' } })}
+        onPaneContextMenu={(e) => {
+          e.preventDefault()
+          const at = where(e)
+          openMenu(e, paneMenu(ctx, at, placeUnder(at)))
+        }}
+        onNodeContextMenu={(e, n) => {
+          e.preventDefault()
+          if (n.type === 'place') openMenu(e, placeMenu(ctx, (n.data as PlaceData).place, where(e)))
+          else openMenu(e, nodeMenu(ctx, (n.data as ItemData).node, (n.data as ItemData).portal))
+        }}
+        onEdgeContextMenu={(e, edge) => {
+          e.preventDefault()
+          openMenu(e, linkMenu(ctx, (edge.data as LinkData).link))
+        }}
+        onConnectStart={() => (connected.current = false)}
+        onConnect={(c) => {
+          connected.current = true
+          if (c.source && c.target && c.source !== c.target) edit({ kind: 'link', link: { fromId: c.source, toId: c.target, kind: 'lan' } })
+        }}
+        onConnectEnd={(e, state) => {
+          // Dropped on empty canvas: offer to make a node right there, linked from where the drag began.
+          if (connected.current || viewer || !state.fromNode || state.fromNode.type !== 'item') return
+          const pt = 'changedTouches' in e ? e.changedTouches[0] : e
+          if (!pt) return
+          const at = where(pt)
+          openMenu(pt, dropMenu(ctx, (state.fromNode.data as ItemData).node, at, placeUnder(at)))
+        }}
         connectionMode={ConnectionMode.Loose}
         zoomOnDoubleClick={false} // double-click opens a machine
         deleteKeyCode={null}
@@ -163,9 +221,21 @@ function Map() {
         fitView
         fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#20252b" />
-        <MiniMap className={s.minimap} position="bottom-left" pannable zoomable nodeColor={(n) => (n.type === 'place' ? 'rgba(255,255,255,0.04)' : '#a3abb5')} maskColor="rgba(13,15,18,0.7)" />
+        {prefs.grid && <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#20252b" />}
+        {prefs.minimap && (
+          <MiniMap
+            className={s.minimap}
+            position="bottom-right"
+            // Moves left of the inspector when it is open, so neither covers the other.
+            style={{ right: inspectorOpen ? 356 : 0, transition: 'right 0.15s ease' }}
+            pannable
+            zoomable
+            nodeColor={(n) => (n.type === 'place' ? 'rgba(255,255,255,0.04)' : '#a3abb5')}
+            maskColor="rgba(13,15,18,0.7)"
+          />
+        )}
       </ReactFlow>
+      {menu && <Menu x={menu.x} y={menu.y} items={menu.data} label={t('menu.label')} onClose={closeMenu} />}
 
       {map.nodes.length === 0 && map.places.length === 0 && (
         <div className={s.empty}>

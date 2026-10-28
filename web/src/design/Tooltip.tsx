@@ -31,6 +31,8 @@ export function TooltipLayer() {
       tip.classList.remove('show')
       if (!el) return
       timer = window.setTimeout(() => {
+        // While a menu is open, only its own items explain themselves: nothing from underneath covers it.
+        if (document.querySelector('[role="menu"]') && !el.closest('[role="menu"]')) return
         tip.textContent = el.getAttribute('data-tip') ?? ''
         place(el)
         tip.classList.add('show')
@@ -40,9 +42,11 @@ export function TooltipLayer() {
 
     document.addEventListener('mouseover', over)
     document.addEventListener('scroll', hide, true)
+    document.addEventListener('mousedown', hide, true) // a click (or right click) starts something else
     return () => {
       document.removeEventListener('mouseover', over)
       document.removeEventListener('scroll', hide, true)
+      document.removeEventListener('mousedown', hide, true)
       window.clearTimeout(timer)
       tip.remove()
     }

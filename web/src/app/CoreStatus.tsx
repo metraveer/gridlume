@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { StateBadge } from '../design'
+import { Dot, StateBadge } from '../design'
 
 type Info = { state: 'checking' } | { state: 'ok'; version: string } | { state: 'down' }
 
-/** Shows whether the interface can reach the core; checks every 15 seconds. */
+/**
+ * Whether the interface can reach the core; checks every 15 seconds. While all is well it is a quiet dot
+ * (details on hover); only a lost connection takes room in the top bar.
+ */
 export function CoreStatus() {
   const { t } = useTranslation()
   const [info, setInfo] = useState<Info>({ state: 'checking' })
@@ -29,7 +32,11 @@ export function CoreStatus() {
     }
   }, [])
 
-  if (info.state === 'checking') return <StateBadge state="unknown">{t('core.checking')}</StateBadge>
   if (info.state === 'down') return <StateBadge state="crit">{t('core.down')}</StateBadge>
-  return <StateBadge state="ok">{t('core.ok', { version: info.version })}</StateBadge>
+  const label = info.state === 'ok' ? t('core.ok', { version: info.version }) : t('core.checking')
+  return (
+    <span role="status" aria-label={label} data-tip={label} style={{ display: 'inline-flex', padding: 6 }}>
+      <Dot state={info.state === 'ok' ? 'ok' : 'unknown'} />
+    </span>
+  )
 }

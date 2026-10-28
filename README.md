@@ -4,11 +4,9 @@
 
 **EN** · Your whole infrastructure on one map: servers, routers, cloud, containers and the links between them — understood at a glance and managed from one place.
 
-> Статус: этап 0 — основа проекта. Карта, агент и остальное появятся по [плану](docs/plan.md).
-> Как выглядит и работает задуманное — [макет](design/mockup), решения — [`docs/decisions.md`](docs/decisions.md).
+> Статус: идёт этап 2 — агент и живые данные. Что дальше — в [плане](docs/plan.md), решения — в [`docs/decisions.md`](docs/decisions.md).
 >
-> Status: stage 0 — project foundation. The map, agent and the rest follow the [plan](docs/plan.md).
-> The intended look and behaviour — [mockup](design/mockup); decisions — [`docs/decisions.md`](docs/decisions.md).
+> Status: stage 2 — agent and live data. What comes next is in the [plan](docs/plan.md); decisions are in [`docs/decisions.md`](docs/decisions.md).
 
 ## Запуск для разработки · Development
 

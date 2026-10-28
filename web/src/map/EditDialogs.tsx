@@ -54,14 +54,18 @@ function Footer({ busy, onCancel, onSave, isNew }: { busy: boolean; onCancel: ()
   )
 }
 
-function NodeDialog({ initial, close }: { initial: Partial<MapNode>; close: () => void }) {
+function NodeDialog({ initial, close, linkFrom }: { initial: Partial<MapNode>; close: () => void; linkFrom?: { id: string; kind: Link['kind'] } }) {
   const { t } = useTranslation()
   const map = useApp((st) => st.map)
   const level = useApp((st) => st.level)
   const saveNode = useApp((st) => st.saveNode)
   const [n, setN] = useForm<Partial<MapNode>>({ kind: 'server', state: 'unknown', parentId: level, ...initial })
   const machines = map.nodes.filter((x) => canContain(x) && x.id !== n.id)
-  const { busy, error, save } = useSave(() => saveNode(n), close)
+  const edit = useApp((st) => st.edit)
+  const { busy, error, save } = useSave(
+    () => saveNode(n).then((saved) => linkFrom && edit({ kind: 'link', link: { fromId: linkFrom.id, toId: saved.id, kind: linkFrom.kind } })),
+    () => !linkFrom && close(),
+  )
 
   return (
     <Dialog title={n.id ? t('edit.node') : t('add.node')} onClose={close} footer={<Footer busy={busy} isNew={!n.id} onCancel={close} onSave={save} />}>
@@ -201,7 +205,7 @@ export function EditDialogs() {
   const edit = useApp((st) => st.edit)
   const close = () => edit(null)
   if (!editing) return null
-  if (editing.kind === 'node') return <NodeDialog initial={editing.node} close={close} />
+  if (editing.kind === 'node') return <NodeDialog key={JSON.stringify(editing.node)} initial={editing.node} linkFrom={editing.linkFrom} close={close} />
   if (editing.kind === 'link') return <LinkDialog initial={editing.link} close={close} />
   if (editing.kind === 'agent') return <AgentDialog nodeId={editing.nodeId} close={close} />
   return <PlaceDialog initial={editing.place} close={close} />

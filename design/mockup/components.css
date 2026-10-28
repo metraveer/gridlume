@@ -38,6 +38,60 @@ select {
   color: var(--fg-faint);
 }
 
+/* ---------- Scrolling ----------
+   Scrollbars stay out of the way: a thin thumb on a transparent track that only shows while
+   you hover or scroll the area. That there is more to scroll is shown by a soft fade at the edge. */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover,
+.is-scrolling {
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: transparent;
+}
+
+*:hover::-webkit-scrollbar-thumb,
+.is-scrolling::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-faint);
+}
+
+/* Fade at the edge that still has content behind it (set by scroll.js) */
+.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+}
+
+.fade-top {
+  -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to top, #000 calc(100% - 40px), transparent);
+}
+
+.fade-top.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+}
+
 :focus-visible {
   outline: 2px solid var(--lume);
   outline-offset: 2px;

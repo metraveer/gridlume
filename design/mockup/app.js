@@ -1,8 +1,13 @@
-// Gridlume mockup: demo data, three views of one graph, pan/zoom, draggable nodes, inspector, dialogs.
+// Gridlume mockup core: demo data, one map with levels, pan/zoom, draggable nodes, inspector, dialogs.
+// Feature files in features/ plug in through window.GLAPP (hooks + API at the bottom of this file).
 // Not product code — it exists to agree on layout, behaviour and wording before development.
 
 (function () {
   var t = GL.t;
+
+  // Feature files register here (see GLAPP at the bottom).
+  var HOOKS = { afterRender: [], afterEdges: [], nodeInspector: [], action: [], journal: [], tick: [], ready: [], view: [] };
+  var state = { paused: false };
 
   // ---------- Demo data ----------
   var NODES = {
@@ -13,13 +18,14 @@
     keenetic: { icon: 'router', name: 'Keenetic', type: 'type.router', state: 'ok', place: 'city' },
     junk: { icon: 'server', name: 'junk', type: 'type.server', sub: 'HP t530', state: 'ok', place: 'city' },
     ha: { icon: 'home', name: 'Home Assistant', type: 'type.ha', state: 'ok', place: 'city', on: 'junk' },
-    tw: { icon: 'cloud', name: 'gridman.example', type: 'type.vps', sub: 'Timeweb · 4 vCPU', state: 'ok', place: 'cloud' },
-    domain: { icon: 'domain', name: 'gridman.example', type: 'type.domain', state: 'ok', place: 'cloud' },
+    cam: { icon: 'camera', name: 'Камера · двор', nameEn: 'Yard camera', type: 'type.camera', sub: 'Wi-Fi', state: 'crit', place: 'city', offline: 6 },
+    tw: { icon: 'cloud', name: 'gridman.example', type: 'type.vps', sub: 'Timeweb · 4 vCPU', state: 'ok', place: 'cloud', flags: [['warn', 'flag.balance']] },
+    domain: { icon: 'domain', name: 'gridman.example', type: 'type.domain', state: 'ok', place: 'cloud', flags: [['', 'flag.domain']] },
     komodo: { icon: 'box', name: 'komodo-core', type: 'type.container', state: 'ok', place: 'village', on: 'calibur' },
     mongo: { icon: 'db', name: 'mongo', type: 'type.container', state: 'ok', place: 'village', on: 'calibur' },
     periphery: { icon: 'box', name: 'komodo-periphery', type: 'type.container', state: 'ok', place: 'village', on: 'calibur' },
     glcore: { icon: 'box', name: 'gridlume', type: 'type.container', state: 'planned', place: 'village', on: 'calibur' },
-    web: { icon: 'app', name: 'gridman-web', type: 'type.service', state: 'ok', place: 'cloud', on: 'tw' },
+    web: { icon: 'app', name: 'gridman-web', type: 'type.service', state: 'ok', place: 'cloud', on: 'tw', flags: [['warn', 'flag.ssl']] },
     api: { icon: 'box', name: 'gridman-api', type: 'type.container', state: 'ok', place: 'cloud', on: 'tw' },
     pg: { icon: 'db', name: 'postgres', type: 'type.container', state: 'ok', place: 'cloud', on: 'tw' },
     worker: { icon: 'box', name: 'ffmpeg-worker', type: 'type.container', state: 'warn', place: 'cloud', on: 'tw' },
@@ -30,14 +36,14 @@
     root: {
       groups: [
         { cls: 'village', label: 'place.village', x: 40, y: 150, w: 440, h: 330, place: 'village' },
-        { cls: 'city', label: 'place.city', x: 520, y: 150, w: 300, h: 330, place: 'city' },
-        { cls: 'cloud', label: 'place.cloud', x: 860, y: 150, w: 300, h: 330, place: 'cloud' },
+        { cls: 'city', label: 'place.city', x: 520, y: 150, w: 440, h: 330, place: 'city' },
+        { cls: 'cloud', label: 'place.cloud', x: 1000, y: 150, w: 300, h: 330, place: 'cloud' },
       ],
-      nodes: { internet: [556, 24], rt: [80, 204], calibur: [80, 380], max: [276, 292], keenetic: [576, 204], junk: [576, 380], tw: [916, 204], domain: [916, 380] },
+      nodes: { internet: [626, 24], rt: [80, 204], calibur: [80, 380], max: [276, 292], keenetic: [576, 204], junk: [576, 380], cam: [756, 292], tw: [1056, 204], domain: [1056, 380] },
       edges: [
         ['internet', 'rt', 'uplink', '', 'up-village'], ['internet', 'keenetic', 'uplink', '', 'up-city'], ['internet', 'tw', 'uplink', '', 'up-cloud'],
         ['rt', 'calibur', 'lan', '', 'lan-calibur'], ['rt', 'max', 'lan planned', '', 'lan-max'], ['keenetic', 'junk', 'lan', '', 'lan-junk'],
-        ['calibur', 'junk', 'vpn planned', '', 'vpn-cj'], ['domain', 'tw', 'dns', '', 'dns-root'],
+        ['calibur', 'junk', 'vpn planned', '', 'vpn-cj'], ['domain', 'tw', 'dns', '', 'dns-root'], ['keenetic', 'cam', 'wifi', '', 'wifi-cam'],
       ],
     },
     // Inside a machine: its containers and services and how they depend on each other.
@@ -100,6 +106,41 @@
       kv: [['insp.place', 'place.village'], ['insp.address', '192.168.0.1'], ['insp.agent', 'insp.manual']],
       actions: [],
     },
+    cam: {
+      note: 'note.cam',
+      kv: [['insp.place', 'place.city'], ['insp.address', '192.168.1.47'], ['insp.lastseen', 'insp.lastseen.v'], ['insp.agent', 'insp.manual']],
+      actions: [['logs', 'act.logs', 'safe']],
+    },
+    tw: {
+      kv: [['insp.place', 'place.cloud'], ['insp.address', '203.0.113.45'], ['insp.os', 'Ubuntu 24.04'], ['insp.hw', '4 vCPU · 8 GB · 80 GB NVMe'], ['insp.cost', 'insp.cost.v'], ['insp.balance', 'insp.balance.v']],
+      metrics: [['insp.cpu', '34%', [20, 24, 30, 41, 38, 35, 33, 36, 34, 32, 35, 34]], ['insp.ram', '58%', [50, 52, 53, 55, 56, 57, 57, 58, 58, 58, 58, 58]], ['insp.disk', '30%', [29, 29, 29, 30, 30, 30, 30, 30, 30, 30, 30, 30]]],
+      backups: { last: 'never', note: 'bk.tw.off' },
+      actions: [['logs', 'act.logs', 'safe'], ['terminal', 'act.terminal', 'careful'], ['restart', 'act.reboot', 'danger']],
+      secrets: true,
+    },
+    pg: {
+      kv: [['insp.runson', 'gridman.example'], ['insp.image', 'postgres:16'], ['insp.ports', '5432/tcp']],
+      metrics: [['insp.cpu', '4%', [3, 4, 5, 4, 6, 5, 4, 4, 3, 4, 4, 4]], ['insp.ram', '620 MB', [600, 605, 610, 612, 615, 618, 618, 620, 620, 620, 620, 620]]],
+      usedBy: ['api', 'worker'],
+      inside: {
+        ports: [['5432/tcp', 'gridman-api, ffmpeg-worker']],
+        volumes: [['pgdata', '/var/lib/postgresql/data', '2.1 GB']],
+        env: [['POSTGRES_DB', 'gridman'], ['POSTGRES_USER', 'gridman'], ['POSTGRES_PASSWORD', null]],
+        limits: '1 CPU · 1 GB',
+        procs: [['postgres', '1.8%', '412 MB'], ['autovacuum', '0.3%', '24 MB'], ['walwriter', '0.1%', '8 MB']],
+      },
+      backups: { last: '03:00', size: '1.8 GB', verified: true, schedule: 'bk.nightly', keep: '14' },
+      actions: [['logs', 'act.logs', 'safe'], ['restart', 'act.restart', 'careful'], ['restore', 'act.restore', 'danger']],
+      secrets: true,
+    },
+  };
+  DETAILS.calibur.backups = { last: 'yesterday 04:00', size: '6.2 GB', verified: false, schedule: 'bk.nightly', keep: '7' };
+  DETAILS.api.inside = {
+    ports: [['3000/tcp', 'gridman-web, ffmpeg-worker']],
+    volumes: [['uploads', '/app/uploads', '38 GB']],
+    env: [['NODE_ENV', 'production'], ['DATABASE_URL', null], ['S3_SECRET', null]],
+    limits: '2 CPU · 2 GB',
+    procs: [['node server.js', '11%', '398 MB']],
   };
 
   // Every link on the map (demo). Each one says what it is, how it is connected, why it exists and what breaks without it.
@@ -126,6 +167,10 @@
       events: [['09:12', 'warn', 'ev.port100']], meaning: 'mean.port100',
       about: { ru: 'Кабель от домашнего роутера Keenetic к серверу junk (HP t530) с Home Assistant.', en: 'Cable from the home Keenetic router to the junk server (HP t530) running Home Assistant.' },
       broken: { ru: 'Home Assistant станет недоступен, умный дом перестанет управляться удалённо.', en: 'Home Assistant becomes unreachable; the smart home can no longer be controlled remotely.' } },
+    'wifi-cam': { kind: 'link.kind.wifi', proto: 'Wi-Fi 2.4 GHz', state: 'crit',
+      events: [['14:20', 'crit', 'ev.camoff'], ['14:18', 'warn', 'ev.camweak']], meaning: 'mean.camoff',
+      about: { ru: 'Камера во дворе подключена к домашнему роутеру по Wi-Fi и отправляет видео на сервер junk.', en: 'The yard camera is connected to the home router over Wi-Fi and sends video to the junk server.' },
+      broken: { ru: 'Видео со двора не пишется и не смотрится, уведомления о движении не приходят.', en: 'Yard video is not recorded or viewable, motion alerts stop.' } },
     'lan-max': { kind: 'link.kind.lan', proto: 'Ethernet', state: 'planned', short: 'plan',
       about: { ru: 'Запланировано: будущий мини-ПК max подключится к роутеру кабелем.', en: 'Planned: the future max mini PC will be connected to the router by cable.' } },
     'vpn-cj': { kind: 'link.kind.vpn', proto: 'AmneziaWG · UDP', state: 'planned', short: 'VPN',
@@ -180,10 +225,12 @@
 
   // ---------- Rendering ----------
   function renderRail() {
-    var items = [['map', 'rail.map', true], ['list', 'rail.nodes'], ['clock', 'rail.journal'], ['key', 'rail.vault']];
+    var items = [['map', 'rail.map', 'map'], ['list', 'rail.nodes', 'nodes'], ['clock', 'rail.journal', 'journal'], ['key', 'rail.vault', 'vault'], ['bell', 'rail.alerts', 'rules']];
+    var page = state.page || 'map';
     $('rail').innerHTML = items.map(function (i) {
-      return '<button class="icon-btn" aria-pressed="' + (i[2] ? 'true' : 'false') + '" data-i18n-tip="' + i[1] + '" data-i18n-label="' + i[1] + '">' + glIcon(i[0]) + '</button>';
-    }).join('') + '<button class="icon-btn bottom" data-i18n-tip="rail.settings" data-i18n-label="rail.settings">' + glIcon('gear') + '</button>';
+      return '<button class="icon-btn" data-page="' + i[2] + '" aria-pressed="' + (page === i[2] ? 'true' : 'false') + '" data-i18n-tip="' + i[1] + '" data-i18n-label="' + i[1] + '">' + glIcon(i[0]) + '</button>';
+    }).join('') + '<button class="icon-btn bottom" data-page="settings" aria-pressed="' + (page === 'settings' ? 'true' : 'false') + '" data-i18n-tip="rail.settings" data-i18n-label="rail.settings">' + glIcon('gear') + '</button>';
+    GL.apply($('rail'));
   }
 
   function renderGroups() {
@@ -195,8 +242,8 @@
         Object.keys(NODES).forEach(function (id) { var n = NODES[id]; if (n.place === g.place && counts[n.state] !== undefined) counts[n.state]++; });
         sum = '<span class="place-sum"><span class="badge ok">' + counts.ok + '</span>' + (counts.warn ? '<span class="badge warn">' + counts.warn + '</span>' : '') + '</span>';
       }
-      return '<div class="group ' + g.cls + '" style="left:' + g.x + 'px;top:' + g.y + 'px;width:' + g.w + 'px;height:' + g.h + 'px">' +
-        '<span class="group-label">' + label + '</span>' + sum + '</div>';
+      return '<div class="group ' + g.cls + '"' + (g.place ? ' data-place="' + g.place + '"' : '') + ' style="left:' + g.x + 'px;top:' + g.y + 'px;width:' + g.w + 'px;height:' + g.h + 'px">' +
+        '<span class="group-label">' + (g.place ? '<button class="collapse" data-collapse="' + g.place + '">' + glIcon('chevron') + '</button>' : '') + label + '</span>' + sum + '</div>';
     }).join('');
   }
 
@@ -206,14 +253,17 @@
       var n = NODES[id], p = pos[view][id], sz = nodeSize(id);
       var sub = (n.sub ? n.sub + ' · ' : '') + t(n.type);
       if (n.state === 'planned') sub = t('state.planned');
+      if (n.offline) sub = t('node.offline').replace('{n}', n.offline);
       var machine = VIEWS[view].machine;
       var portal = machine && n.on !== machine;
       var chip = view === 'root' && KIDS[id] ? '<span class="kids" data-enter="' + id + '">' + KIDS[id].length + ' ›</span>' : '';
       var tip = nodeName(n) + ' · ' + t('state.' + n.state) + (chip ? '<br>' + t('node.enter.tip') : '') + (portal ? '<br>' + t('node.portal.tip') : '');
-      html += '<div class="node' + (sz[0] < 188 ? ' small' : '') + (n.state === 'planned' ? ' planned' : '') + (portal ? ' portal' : '') + (id === selected ? ' selected' : '') +
-        '" data-id="' + id + '" style="left:' + p[0] + 'px;top:' + p[1] + 'px" data-tip="' + tip + '">' +
+      // Deadlines that must not be missed (certificate, domain, balance) hang under the node as small tags.
+      var flags = n.flags ? '<span class="flags">' + n.flags.map(function (f) { return '<span class="flag ' + f[0] + '">' + t(f[1]) + '</span>'; }).join('') + '</span>' : '';
+      html += '<div class="node' + (sz[0] < 188 ? ' small' : '') + (n.state === 'planned' ? ' planned' : '') + (n.offline ? ' offline' : '') + (portal ? ' portal' : '') + (id === selected ? ' selected' : '') +
+        '" data-id="' + id + '" style="left:' + p[0] + 'px;top:' + p[1] + 'px" data-tip="' + attr(tip) + '">' +
         '<span class="glyph">' + glIcon(n.icon) + '</span><span class="label"><span class="name">' + nodeName(n) + '</span><span class="sub">' + sub + '</span></span>' +
-        chip + '<span class="state"><span class="dot ' + stateClass(n.state) + '"></span></span></div>';
+        chip + '<span class="state"><span class="dot ' + stateClass(n.state) + '"></span></span>' + flags + '</div>';
     });
     $('nodes').innerHTML = html;
   }
@@ -249,6 +299,7 @@
 
   // Text on the line itself: protocol + numbers, so a line is never just an arrow.
   function linkSummary(L) {
+    if (L.state === 'crit' && !hasSpeed(L) && L.rate == null) return t('link.down');
     if (L.state === 'planned') return (L.short && L.short !== 'plan' ? L.short + ' · ' : '') + t('link.planned');
     if (L.rate != null) return protoShort(L) + ' · ' + L.rate + ' ' + t('unit.rps');
     if (hasSpeed(L)) return Math.round(Math.max(L.down, L.up)) + ' / ' + fmtSpeed(Math.min(L.should, L.port));
@@ -272,17 +323,18 @@
       var hot = (e[0] === selected || e[1] === selected || (selectedLink && selectedLink[0] === e[4] && e[4])) ? ' hot' : '';
       // Arrow shows who talks to whom: the caller at the start, the one being called at the end.
       var arrow = L && /http|db|queue|ws|dns/.test(L.kind) ? ' marker-end="url(#arrow)"' : '';
-      out += '<path class="edge ' + e[2] + (L && L.state === 'planned' ? '' : st) + hot + '" d="' + c.d + '"' + arrow + '/>';
+      var ends = ' data-a="' + e[0] + '" data-b="' + e[1] + '"' + (e[4] ? ' data-lid="' + e[4] + '"' : '');
+      out += '<path class="edge ' + e[2] + (L && L.state === 'planned' ? '' : st) + hot + '"' + ends + ' d="' + c.d + '"' + arrow + '/>';
       if (L) {
         // Load decides how fast and dense the dots run: 0% → barely moving, 100% → fast.
         var moving = L.state !== 'planned' && (L.rate != null || hasSpeed(L));
         var load = L.rate != null ? Math.min(1, L.rate / 150) : hasSpeed(L) ? Math.max(L.down, L.up) / Math.min(L.should, L.port) : 0;
         var dur = (3.2 - Math.min(1, load) * 2.6).toFixed(2);
         var rev = L.rate == null && L.up > L.down ? ' rev' : '';
-        if (moving) out += '<path class="flow' + st + rev + '" d="' + c.d + '" style="animation-duration:' + dur + 's"/>';
+        if (moving) out += '<path class="flow' + st + rev + '"' + ends + ' d="' + c.d + '" style="animation-duration:' + dur + 's"/>';
         var text = (L.state === 'warn' || L.state === 'crit' ? '! ' : '') + linkSummary(L);
         var w = text.length * 6.1 + 14;
-        pills += '<g class="edge-pill' + st + '" data-link="' + e[4] + '" data-from="' + e[0] + '" data-to="' + e[1] + '" data-tip="' + attr(linkTip(L)) + '" transform="translate(' + (c.mid[0] - w / 2).toFixed(1) + ',' + (c.mid[1] - 9).toFixed(1) + ')">' +
+        pills += '<g class="edge-pill' + st + '"' + ends + ' data-link="' + e[4] + '" data-from="' + e[0] + '" data-to="' + e[1] + '" data-tip="' + attr(linkTip(L)) + '" transform="translate(' + (c.mid[0] - w / 2).toFixed(1) + ',' + (c.mid[1] - 9).toFixed(1) + ')">' +
           '<rect width="' + w.toFixed(1) + '" height="18" rx="9"/><text x="7" y="12.5" data-pill="' + e[4] + '">' + text + '</text></g>';
         out += '<path class="edge-hit" d="' + c.d + '" data-link="' + e[4] + '" data-from="' + e[0] + '" data-to="' + e[1] + '" data-tip="' + attr(linkTip(L)) + '"/>';
       } else if (e[3]) {
@@ -292,11 +344,13 @@
     var defs = '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
       '<path d="M1 1 L9 5 L1 9" fill="none" stroke="#8a93a0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>';
     $('edges').innerHTML = defs + out + pills;
+    HOOKS.afterEdges.forEach(function (fn) { fn(); });
   }
 
   function applyTransform() {
     world.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
     world.classList.toggle('far', zoom < 0.7); // hide speed labels when zoomed out; colour and motion stay
+    HOOKS.view.forEach(function (fn) { fn(); });
   }
 
   function spark(values, cls) {
@@ -412,7 +466,7 @@
     if (d.depends) html += '<div class="section"><h3 class="section-title">' + t('insp.dependson') + '</h3>' + d.depends.map(function (c) { return linkRow(c); }).join('') + '</div>';
     if (d.usedBy) html += '<div class="section"><h3 class="section-title">' + t('insp.usedby') + '</h3>' + d.usedBy.map(function (c) { return linkRow(c); }).join('') + '</div>';
 
-    if (!children && !d.depends) {
+    if (!children && !d.depends && !d.usedBy) {
       var links = [];
       Object.keys(VIEWS).forEach(function (v) { VIEWS[v].edges.forEach(function (e) {
         var other = e[0] === selected ? e[1] : e[1] === selected ? e[0] : null;
@@ -422,6 +476,8 @@
       if (links.length) html += '<div class="section"><h3 class="section-title">' + t('insp.links') + '</h3>' + links.map(function (c) { return linkRow(c); }).join('') + '</div>';
     }
 
+    HOOKS.nodeInspector.forEach(function (fn) { html += fn(selected, d, n) || ''; });
+
     if (d.secrets) {
       html += '<div class="section"><h3 class="section-title">' + t('insp.secrets') + ' <span class="help" data-tip="' + t('insp.vault.tip') + '">?</span></h3>' +
         '<div class="vault">' + glIcon('lock') + '<span class="grow">' + t('insp.vault.locked') + '</span><button class="btn btn-sm">' + t('insp.vault.unlock') + '</button></div></div>';
@@ -429,7 +485,7 @@
 
     if (d.actions && d.actions.length) {
       html += '<div class="section"><h3 class="section-title">' + t('insp.actions') + '</h3>' + d.actions.map(function (a) {
-        return '<button class="action" data-act="' + a[0] + '" data-tip="' + t(a[1] + '.tip') + '">' + glIcon(a[0] === 'move' ? 'move' : a[0] === 'stop' ? 'stop' : a[0] === 'restart' ? 'restart' : a[0]) +
+        return '<button class="action" data-act="' + a[0] + '" data-label="' + a[1] + '" data-risk="' + a[2] + '" data-tip="' + attr(t(a[1] + '.tip')) + '">' + glIcon(a[0]) +
           '<span class="grow">' + t(a[1]) + '</span><span class="risk ' + a[2] + '">' + t('risk.' + a[2]) + '</span></button>';
       }).join('') + '</div>';
     }
@@ -445,6 +501,7 @@
     renderInspector();
     renderCrumbs();
     $('app').classList.toggle('no-inspector', !selected && !selectedLink);
+    HOOKS.afterRender.forEach(function (fn) { fn(); });
   }
 
   function renderCrumbs() {
@@ -491,7 +548,7 @@
   var drag = null;
   canvas.addEventListener('mousedown', function (e) {
     var nodeEl = e.target.closest('.node');
-    if (e.target.closest('.canvas-tools, .zoom, .legend')) return;
+    if (e.target.closest('.canvas-tools, .zoom, .legend, .float-card, .drawer, .minimap, .timeline, .overlay')) return;
     var enterEl = e.target.closest('[data-enter]');
     if (enterEl) { enter(enterEl.dataset.enter); return; }
     var linkEl = e.target.closest('[data-link]');
@@ -569,8 +626,47 @@
       selected = id; selectedLink = null; render(); return;
     }
     var act = e.target.closest('[data-act]');
-    if (act && act.dataset.act === 'move') openDialog('dlg-move');
+    if (act) runAction(selected, act.dataset.act, act.dataset.label, act.dataset.risk);
   });
+
+  // Every action goes through here: safe ones run at once, others explain themselves and ask first.
+  function runAction(id, act, label, risk) {
+    for (var i = 0; i < HOOKS.action.length; i++) if (HOOKS.action[i](id, act)) return; // e.g. logs/terminal open the drawer
+    if (act === 'move') { openDialog('dlg-move'); return; }
+    var name = NODES[id] ? nodeName(NODES[id]) : id;
+    confirmAction({
+      title: t(label) + ' · ' + name,
+      risk: risk || 'careful',
+      lead: t(label + '.tip'),
+      warn: risk === 'danger' ? t('confirm.danger.warn') : '',
+      undo: t('confirm.undo'),
+      name: risk === 'danger' ? name : null,
+      go: t(label),
+    });
+  }
+
+  // Generic confirmation: what happens, risk, optional "type the name", then a journal entry.
+  function confirmAction(o) {
+    var d = $('dlg-confirm');
+    d.querySelector('.dialog').innerHTML =
+      '<div class="dialog-head"><span class="risk ' + o.risk + '">' + t('risk.' + o.risk) + '</span><h2>' + o.title + '</h2><button class="icon-btn" data-close>' + glIcon('x') + '</button></div>' +
+      '<div class="dialog-body"><p style="margin:0">' + o.lead + '</p>' +
+      (o.steps ? '<ol class="steps">' + o.steps.map(function (s) { return '<li>' + s + '</li>'; }).join('') + '</ol>' : '') +
+      (o.warn ? '<div class="callout warn" style="margin-top:12px"><span>' + o.warn + '</span></div>' : '') +
+      (o.undo ? '<p class="faint" style="margin:10px 0 0;font-size:var(--fs-12)">' + o.undo + '</p>' : '') +
+      (o.name ? '<p style="margin:14px 0 6px">' + t('confirm.type') + '</p><input class="input mono" style="width:100%" placeholder="' + attr(o.name) + '" autocomplete="off">' : '') +
+      '</div><div class="dialog-foot"><button class="btn btn-ghost" data-close>' + t('dlg.cancel') + '</button>' +
+      '<button class="btn ' + (o.risk === 'danger' ? 'btn-danger' : 'btn-primary') + '" data-go' + (o.name ? ' disabled' : '') + '>' + o.go + '</button></div>';
+    var input = d.querySelector('input'), goBtn = d.querySelector('[data-go]');
+    if (input) input.addEventListener('input', function () { goBtn.disabled = input.value.trim() !== o.name; });
+    goBtn.addEventListener('click', function () {
+      d.classList.remove('open');
+      HOOKS.journal.forEach(function (fn) { fn(o.title); });
+      if (o.onGo) o.onGo();
+    });
+    d.classList.add('open');
+    if (input) setTimeout(function () { input.focus(); }, 30);
+  }
 
   function openDialog(id) {
     $(id).classList.add('open');
@@ -617,12 +713,13 @@
 
   // Live demo: traffic drifts every second, like counters read from interfaces would.
   setInterval(function () {
+    if (state.paused) return; // looking at the past on the timeline: numbers stay frozen
     Object.keys(LINKS).forEach(function (id) {
       var L = LINKS[id], j = function (v) { return Math.max(0, v * (0.9 + Math.random() * 0.2)); };
-      if (L.rate != null) { L.rate = Math.round(j(L.rate)) || 1; L.hist.push(L.rate); }
-      else { L.down = j(L.down); L.up = j(L.up); L.hist.push(L.down); }
-      L.hist.shift();
+      if (L.rate != null) { L.rate = Math.round(j(L.rate)) || 1; L.hist.push(L.rate); L.hist.shift(); }
+      else if (hasSpeed(L)) { L.down = j(L.down); L.up = j(L.up); L.hist.push(L.down); L.hist.shift(); }
     });
+    HOOKS.tick.forEach(function (fn) { fn(); });
     // Update only the numbers: re-creating the paths would restart the running dots.
     document.querySelectorAll('[data-pill]').forEach(function (el) {
       var L = LINKS[el.dataset.pill];
@@ -636,10 +733,45 @@
     }
   }, 1000);
 
+  // ---------- API for feature files (features/*.js) ----------
+  window.GLAPP = {
+    NODES: NODES, LINKS: LINKS, VIEWS: VIEWS, DETAILS: DETAILS, KIDS: KIDS, HOOKS: HOOKS, state: state,
+    t: t, txt: txt, attr: attr, $: $, nodeName: nodeName, viewOf: viewOf, fmtSpeed: fmtSpeed, linkSummary: linkSummary,
+    get view() { return view; },
+    get selected() { return selected; },
+    get selectedLink() { return selectedLink; },
+    get zoom() { return zoom; },
+    get pan() { return [panX, panY]; },
+    positions: function () { return pos[view]; },
+    nodeSize: nodeSize,
+    select: function (id) { if (!pos[view][id]) { go(viewOf(id), id); return; } selected = id; selectedLink = null; render(); },
+    selectLink: function (id) {
+      var found = null;
+      Object.keys(VIEWS).forEach(function (v) { VIEWS[v].edges.forEach(function (e) { if (e[4] === id && !found) found = [v, e]; }); });
+      if (!found) return;
+      if (found[0] !== view) go(found[0]);
+      selectedLink = [id, found[1][0], found[1][1]]; selected = null; render();
+    },
+    go: go, enter: enter, render: render, renderEdges: renderEdges, renderInspector: renderInspector, renderRail: renderRail,
+    fit: fit, openDialog: openDialog, confirm: confirmAction, runAction: runAction,
+    // Add a node (and its links) to a level at runtime — used by discovery and manual add.
+    addNode: function (id, n, v, xy, edges) {
+      NODES[id] = n;
+      VIEWS[v].nodes[id] = xy.slice();
+      pos[v][id] = xy.slice();
+      (edges || []).forEach(function (e) { VIEWS[v].edges.push(e); });
+      if (n.on) (KIDS[n.on] = KIDS[n.on] || []).push(id);
+      render();
+    },
+    panTo: function (x, y, z) { zoom = z || zoom; var r = canvas.getBoundingClientRect(); panX = r.width / 2 - x * zoom; panY = r.height / 2 - y * zoom; applyTransform(); },
+  };
+
   renderRail();
   renderLegend();
   render();
   GL.apply();
   fit();
   window.addEventListener('resize', fit);
+  // Feature scripts load after this file; run their setup once every script on the page has executed.
+  document.addEventListener('DOMContentLoaded', function () { HOOKS.ready.forEach(function (fn) { fn(); }); render(); GL.apply(); });
 })();

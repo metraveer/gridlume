@@ -40,7 +40,12 @@
   .legend.open { display: block; }
   .legend .edge-row { display: flex; align-items: center; gap: var(--s-3); height: 26px; font-size: var(--fs-12); color: var(--fg-muted); }
   .legend svg { width: 40px; height: 10px; flex: none; }
-  .demo-note { position: absolute; right: var(--s-3); bottom: var(--s-3); }
+  .demo-note { position: absolute; right: var(--s-3); bottom: 48px; }
+  /* Keep canvas controls above the bottom drawer */
+  .zoom { bottom: 48px; }
+  .legend { bottom: 96px; }
+  .drawer-open .zoom, .drawer-open .demo-note { bottom: 280px; }
+  .drawer-open .legend { bottom: 328px; }
   .node .state { pointer-events: none; }
   .node.dragging { cursor: grabbing; box-shadow: var(--shadow-pop); }
   .node.dim, .group.dim { opacity: 0.35; }
@@ -153,6 +158,9 @@
   </div>
 </div>
 
+<!-- Generic confirmation, filled by GLAPP.confirm() -->
+<div class="scrim" id="dlg-confirm"><div class="dialog" role="dialog" aria-modal="true"></div></div>
+
 <!-- Add a machine -->
 <div class="scrim" id="dlg-add">
   <div class="dialog" role="dialog" aria-modal="true">
@@ -173,5 +181,13 @@
 <script src="icons.js"></script>
 <script src="i18n.js"></script>
 <script src="app.js"></script>
+<script src="features/impact-path.js"></script>
+<script src="features/problems.js"></script>
+<script src="features/drawer.js"></script>
+<script src="features/palette.js"></script>
+<script src="features/discovery.js"></script>
+<script src="features/inspector-extras.js"></script>
+<script src="features/pages.js"></script>
+<script src="features/polish.js"></script>
 </body>
 </html>

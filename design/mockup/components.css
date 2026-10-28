@@ -629,3 +629,136 @@ select {
   font-family: var(--font-mono);
   font-size: 10px;
 }
+
+/* Link state overrides the link-type colour */
+.edge.s-warn { stroke: var(--warn); }
+.edge.s-crit { stroke: var(--crit); animation: edge-alarm 1.2s var(--ease) 2; }
+
+@keyframes edge-alarm {
+  50% { stroke-width: 4; opacity: 0.5; }
+}
+
+/* Traffic: dots running in the direction of transfer; speed and density follow load */
+.flow {
+  fill: none;
+  stroke: var(--lume);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 12;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 3px var(--lume-glow));
+  animation: flow linear infinite;
+}
+
+.flow.s-warn { stroke: var(--warn); }
+.flow.s-crit { stroke: var(--crit); }
+.flow.rev { animation-direction: reverse; }
+
+@keyframes flow {
+  to { stroke-dashoffset: -24; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow { animation: none; }
+}
+
+/* Wide invisible stroke so thin links are easy to hover and click */
+.edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* Speed pill on a link: "now / should be" */
+.edge-pill {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.edge-pill rect {
+  fill: var(--bg-panel);
+  stroke: var(--line);
+}
+
+.edge-pill text {
+  fill: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.edge-pill.s-warn rect { stroke: rgba(242, 181, 68, 0.5); }
+.edge-pill.s-warn text { fill: var(--warn); }
+.edge-pill.s-crit rect { stroke: rgba(255, 95, 87, 0.5); }
+.edge-pill.s-crit text { fill: var(--crit); }
+
+.far .edge-pill,
+.far .edge-label { display: none; }
+
+/* Capacity bars in the link panel */
+.cap-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px var(--s-3);
+  margin-bottom: var(--s-3);
+  font-size: var(--fs-12);
+}
+
+.cap-row .v {
+  font-family: var(--font-mono);
+}
+
+.cap-row .hint {
+  grid-column: 1 / -1;
+  color: var(--fg-faint);
+  font-size: var(--fs-11);
+}
+
+.bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-active);
+  overflow: hidden;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--fg-muted);
+  transition: width var(--t) var(--ease);
+}
+
+.bar.lume i { background: var(--lume); }
+.bar.warn i { background: var(--warn); }
+
+/* Event log rows */
+.event {
+  display: grid;
+  grid-template-columns: 44px 10px 1fr;
+  align-items: start;
+  gap: var(--s-2);
+  padding: 5px 0;
+  font-size: var(--fs-12);
+}
+
+.event time {
+  color: var(--fg-faint);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  line-height: 18px;
+}
+
+.event .dot {
+  margin-top: 5px;
+}
+
+.chart {
+  width: 100%;
+  height: 56px;
+}
+
+.chart .area { fill: var(--lume-glow); }
+.chart .line { fill: none; stroke: var(--lume); stroke-width: 1.4; }
+.chart .cap { stroke: var(--line-strong); stroke-dasharray: 3 3; }

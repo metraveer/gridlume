@@ -34,9 +34,9 @@
       ],
       nodes: { internet: [556, 24], rt: [80, 204], calibur: [80, 380], max: [276, 292], keenetic: [576, 204], junk: [576, 380], tw: [916, 204], domain: [916, 380] },
       edges: [
-        ['internet', 'rt', 'uplink', '700 Mbit'], ['internet', 'keenetic', 'uplink', '100 Mbit'], ['internet', 'tw', 'uplink', ''],
-        ['rt', 'calibur', 'lan', '1 Gbit'], ['rt', 'max', 'lan planned', ''], ['keenetic', 'junk', 'lan', '1 Gbit'],
-        ['calibur', 'junk', 'vpn', 'AmneziaWG'], ['domain', 'tw', 'dns', 'A 104.171.132.145'],
+        ['internet', 'rt', 'uplink', '', 'up-village'], ['internet', 'keenetic', 'uplink', '', 'up-city'], ['internet', 'tw', 'uplink', '', 'up-cloud'],
+        ['rt', 'calibur', 'lan', '', 'lan-calibur'], ['rt', 'max', 'lan planned', ''], ['keenetic', 'junk', 'lan', '', 'lan-junk'],
+        ['calibur', 'junk', 'vpn planned', 'AmneziaWG'], ['domain', 'tw', 'dns', 'A 104.171.132.145'],
       ],
     },
     services: {
@@ -47,8 +47,8 @@
       ],
       nodes: { komodo: [70, 160], mongo: [270, 160], periphery: [70, 270], glcore: [270, 270], web: [530, 160], api: [730, 160], worker: [530, 270], pg: [730, 270], ha: [990, 160], domain: [530, 24] },
       edges: [
-        ['web', 'api', 'depends', ''], ['api', 'pg', 'depends', ''], ['worker', 'pg', 'depends', ''], ['worker', 'api', 'depends', ''],
-        ['komodo', 'mongo', 'depends', ''], ['periphery', 'komodo', 'depends', ''], ['domain', 'web', 'dns', ''],
+        ['web', 'api', 'depends', '', 'rq-web'], ['api', 'pg', 'depends', '', 'rq-api'], ['worker', 'pg', 'depends', '', 'rq-worker'], ['worker', 'api', 'depends', ''],
+        ['komodo', 'mongo', 'depends', '', 'rq-komodo'], ['periphery', 'komodo', 'depends', ''], ['domain', 'web', 'dns', ''],
       ],
     },
     places: {
@@ -95,9 +95,27 @@
     },
   };
 
+  // Live link telemetry (demo). Speeds in Mbit/s; "rate" links are request rates between services.
+  // should: contract or port speed; port: negotiated port speed; down/up: traffic now; avail: last measured real capacity.
+  var LINKS = {
+    'up-village': { kind: 'link.kind.uplink', should: 700, shouldSrc: 'link.contract', port: 1000, down: 312, up: 48, avail: 641, availAt: '03:10', lat: 6, loss: 0, state: 'ok',
+      events: [['03:10', 'ok', 'ev.measure'], ['yesterday', 'ok', 'ev.stable']] },
+    'up-city': { kind: 'link.kind.uplink', should: 100, shouldSrc: 'link.contract', port: 1000, down: 41, up: 6, avail: 88, availAt: '03:15', lat: 38, loss: 3.2, state: 'warn',
+      events: [['14:02', 'warn', 'ev.loss'], ['13:51', 'warn', 'ev.latency'], ['03:15', 'ok', 'ev.measure']], meaning: 'mean.loss' },
+    'up-cloud': { kind: 'link.kind.uplink', should: 1000, shouldSrc: 'link.provider', port: 1000, down: 18, up: 74, avail: null, lat: 12, loss: 0, state: 'ok', events: [] },
+    'lan-calibur': { kind: 'link.kind.lan', should: 1000, shouldSrc: 'link.port', port: 1000, down: 22, up: 9, avail: 940, availAt: '03:20', lat: 0.4, loss: 0, state: 'ok', events: [] },
+    'lan-junk': { kind: 'link.kind.lan', should: 1000, shouldSrc: 'link.port', port: 100, down: 3, up: 1, avail: 94, availAt: '03:25', lat: 0.6, loss: 0, state: 'warn',
+      events: [['09:12', 'warn', 'ev.port100']], meaning: 'mean.port100' },
+    'rq-web': { kind: 'link.kind.depends', rate: 42 },
+    'rq-api': { kind: 'link.kind.depends', rate: 118 },
+    'rq-worker': { kind: 'link.kind.depends', rate: 9 },
+    'rq-komodo': { kind: 'link.kind.depends', rate: 3 },
+  };
+
   // ---------- State ----------
   var view = 'network';
   var selected = 'calibur';
+  var selectedLink = null; // [linkId, fromNode, toNode]
   var zoom = 1, panX = 40, panY = 40;
   var pos = {}; // current node positions per view (copied so dragging persists per view)
   Object.keys(VIEWS).forEach(function (v) {
@@ -153,27 +171,69 @@
     return [p[0] + s[0] / 2, p[1] + s[1] / 2, s];
   }
 
+  function fmtSpeed(mbit) {
+    if (mbit == null) return '—';
+    if (mbit >= 1000) return (mbit / 1000).toFixed(mbit % 1000 ? 1 : 0) + ' ' + t('unit.gbit');
+    return Math.round(mbit) + ' ' + t('unit.mbit');
+  }
+
+  // Cubic bezier between two node centres, leaving from the node edge; returns path and its midpoint.
+  function curve(e) {
+    var a = center(e[0]), b = center(e[1]);
+    var dx = b[0] - a[0], dy = b[1] - a[1], p;
+    if (Math.abs(dy) >= Math.abs(dx)) {
+      var y1 = a[1] + Math.sign(dy) * a[2][1] / 2, y2 = b[1] - Math.sign(dy) * b[2][1] / 2, my = (y1 + y2) / 2;
+      p = [a[0], y1, a[0], my, b[0], my, b[0], y2];
+    } else {
+      var x1 = a[0] + Math.sign(dx) * a[2][0] / 2, x2 = b[0] - Math.sign(dx) * b[2][0] / 2, mx = (x1 + x2) / 2;
+      p = [x1, a[1], mx, a[1], mx, b[1], x2, b[1]];
+    }
+    var mid = [(p[0] + 3 * p[2] + 3 * p[4] + p[6]) / 8, (p[1] + 3 * p[3] + 3 * p[5] + p[7]) / 8];
+    return { d: 'M' + p[0] + ' ' + p[1] + ' C' + p[2] + ' ' + p[3] + ' ' + p[4] + ' ' + p[5] + ' ' + p[6] + ' ' + p[7], mid: mid };
+  }
+
+  function linkSummary(L) {
+    if (L.rate != null) return L.rate + ' ' + t('unit.rps');
+    var now = Math.max(L.down, L.up);
+    var cap = Math.min(L.should, L.port);
+    return Math.round(now) + ' / ' + fmtSpeed(cap);
+  }
+
+  function linkTip(L) {
+    if (L.rate != null) return t(L.kind) + ' · ' + L.rate + ' ' + t('unit.rps');
+    return t(L.kind) + '<br>' + t('link.now') + ': ↓ ' + fmtSpeed(L.down) + ' ↑ ' + fmtSpeed(L.up) +
+      '<br>' + t('link.should') + ': ' + fmtSpeed(L.should) + (L.port < L.should ? ' · ' + t('link.port') + ' ' + fmtSpeed(L.port) : '') +
+      '<br>' + t('link.latency') + ' ' + L.lat + ' ms · ' + t('link.loss') + ' ' + L.loss + '%';
+  }
+
   function renderEdges() {
-    var out = '';
-    VIEWS[view].edges.forEach(function (e) {
-      var a = center(e[0]), b = center(e[1]);
-      var dx = b[0] - a[0], dy = b[1] - a[1], d;
-      if (Math.abs(dy) >= Math.abs(dx)) {
-        var y1 = a[1] + Math.sign(dy) * a[2][1] / 2, y2 = b[1] - Math.sign(dy) * b[2][1] / 2, my = (y1 + y2) / 2;
-        d = 'M' + a[0] + ' ' + y1 + ' C' + a[0] + ' ' + my + ' ' + b[0] + ' ' + my + ' ' + b[0] + ' ' + y2;
-      } else {
-        var x1 = a[0] + Math.sign(dx) * a[2][0] / 2, x2 = b[0] - Math.sign(dx) * b[2][0] / 2, mx = (x1 + x2) / 2;
-        d = 'M' + x1 + ' ' + a[1] + ' C' + mx + ' ' + a[1] + ' ' + mx + ' ' + b[1] + ' ' + x2 + ' ' + b[1];
+    var out = '', pills = '';
+    VIEWS[view].edges.forEach(function (e, i) {
+      var c = curve(e), L = LINKS[e[4]];
+      var st = L && L.state && L.state !== 'ok' ? ' s-' + L.state : '';
+      var hot = (e[0] === selected || e[1] === selected || (selectedLink && selectedLink[0] === e[4] && e[4])) ? ' hot' : '';
+      out += '<path class="edge ' + e[2] + st + hot + '" d="' + c.d + '"/>';
+      if (L) {
+        // Load decides how fast and dense the dots run: 0% → barely moving, 100% → fast.
+        var load = L.rate != null ? Math.min(1, L.rate / 150) : Math.max(L.down, L.up) / Math.min(L.should, L.port);
+        var dur = (3.2 - Math.min(1, load) * 2.6).toFixed(2);
+        var rev = L.rate == null && L.up > L.down ? ' rev' : '';
+        out += '<path class="flow' + st + rev + '" d="' + c.d + '" style="animation-duration:' + dur + 's"/>';
+        var text = (L.state === 'warn' || L.state === 'crit' ? '! ' : '') + linkSummary(L);
+        var w = text.length * 6.1 + 14;
+        pills += '<g class="edge-pill' + st + '" data-link="' + e[4] + '" data-from="' + e[0] + '" data-to="' + e[1] + '" data-tip="' + linkTip(L) + '" transform="translate(' + (c.mid[0] - w / 2).toFixed(1) + ',' + (c.mid[1] - 9).toFixed(1) + ')">' +
+          '<rect width="' + w.toFixed(1) + '" height="18" rx="9"/><text x="7" y="12.5" data-pill="' + e[4] + '">' + text + '</text></g>';
+        out += '<path class="edge-hit" d="' + c.d + '" data-link="' + e[4] + '" data-from="' + e[0] + '" data-to="' + e[1] + '" data-tip="' + linkTip(L) + '"/>';
+      } else if (e[3]) {
+        out += '<text class="edge-label" x="' + (c.mid[0] + 6) + '" y="' + (c.mid[1] - 6) + '">' + e[3] + '</text>';
       }
-      var hot = (e[0] === selected || e[1] === selected) ? ' hot' : '';
-      out += '<path class="edge ' + e[2] + hot + '" d="' + d + '"/>';
-      if (e[3]) out += '<text class="edge-label" x="' + ((a[0] + b[0]) / 2 + 6) + '" y="' + ((a[1] + b[1]) / 2 - 4) + '">' + e[3] + '</text>';
     });
-    $('edges').innerHTML = out;
+    $('edges').innerHTML = out + pills;
   }
 
   function applyTransform() {
     world.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+    world.classList.toggle('far', zoom < 0.7); // hide speed labels when zoomed out; colour and motion stay
   }
 
   function spark(values, cls) {
@@ -187,8 +247,66 @@
     return '<div class="row" data-goto="' + id + '" style="cursor:pointer"><span class="dot ' + n.state + '"></span><span class="grow">' + nodeName(n) + '</span><span class="faint">' + (hint || t(n.type)) + '</span></div>';
   }
 
+  // Last hour of download speed per link, one point per minute (demo history).
+  Object.keys(LINKS).forEach(function (id) {
+    var L = LINKS[id], base = L.rate != null ? L.rate : L.down;
+    L.hist = [];
+    for (var i = 0; i < 60; i++) L.hist.push(Math.max(0, base * (0.55 + 0.45 * Math.sin(i / 7) + Math.random() * 0.35)));
+  });
+
+  function chart(L) {
+    var cap = L.rate != null ? Math.max.apply(null, L.hist) * 1.2 : Math.min(L.should, L.port);
+    var max = Math.max(cap, Math.max.apply(null, L.hist));
+    var pts = L.hist.map(function (v, i) { return (i * 320 / 59).toFixed(1) + ',' + (54 - v / max * 50).toFixed(1); });
+    var capY = (54 - cap / max * 50).toFixed(1);
+    return '<svg class="chart" viewBox="0 0 320 56" preserveAspectRatio="none">' +
+      '<path class="area" d="M0,56 L' + pts.join(' L') + ' L320,56 Z"/><path class="line" d="M' + pts.join(' L') + '"/>' +
+      (L.rate == null ? '<line class="cap" x1="0" x2="320" y1="' + capY + '" y2="' + capY + '"/>' : '') + '</svg>';
+  }
+
+  function capRow(label, value, hint, pct, cls) {
+    return '<div class="cap-row"><span>' + label + '</span><span class="v" data-live>' + value + '</span>' +
+      (pct != null ? '<div class="bar ' + (cls || '') + '"><i style="width:' + Math.min(100, pct).toFixed(1) + '%"></i></div>' : '') +
+      (hint ? '<span class="hint">' + hint + '</span>' : '') + '</div>';
+  }
+
+  function renderLinkInspector(el) {
+    var id = selectedLink[0], L = LINKS[id], a = NODES[selectedLink[1]], b = NODES[selectedLink[2]];
+    var st = L.state || 'ok';
+    var html = '<div class="insp-head"><span class="glyph">' + glIcon('link') + '</span><div class="insp-title"><h1 style="font-size:var(--fs-15)">' +
+      nodeName(a) + ' ↔ ' + nodeName(b) + '</h1><span class="sub">' + t(L.kind) + '</span></div><button class="icon-btn" id="insp-close" data-i18n-tip="insp.close">' + glIcon('x') + '</button></div>';
+    html += '<div class="insp-state"><span class="badge ' + st + '"><span class="dot ' + st + '"></span>' + t('state.' + st) + '</span></div>';
+
+    if (L.meaning) html += '<div class="section"><div class="note">' + t(L.meaning) + '</div></div>';
+
+    if (L.rate != null) {
+      html += '<div class="section"><h3 class="section-title">' + t('link.requests') + '</h3>' + capRow(t('link.now'), L.rate + ' ' + t('unit.rps')) + chart(L) + '</div>';
+    } else {
+      var cap = Math.min(L.should, L.port);
+      html += '<div class="section"><h3 class="section-title">' + t('link.speed') + ' <span class="help" data-tip="' + t('link.speed.tip') + '">?</span></h3>' +
+        capRow(t('link.should'), fmtSpeed(L.should), t(L.shouldSrc) + ' · ' + t('link.port') + ' ' + fmtSpeed(L.port), null) +
+        capRow(t('link.now'), '↓ ' + fmtSpeed(L.down) + '  ↑ ' + fmtSpeed(L.up), Math.round(Math.max(L.down, L.up) / cap * 100) + '% ' + t('link.ofcap'), Math.max(L.down, L.up) / cap * 100, 'lume') +
+        capRow(t('link.avail'), fmtSpeed(L.avail), L.avail != null ? t('link.measuredAt') + ' ' + L.availAt : t('link.notmeasured'), L.avail != null ? L.avail / L.should * 100 : null, L.avail != null && L.avail < L.should * 0.8 ? 'warn' : '') +
+        '<button class="action" data-tip="' + t('link.measure.tip') + '">' + glIcon('restart') + '<span class="grow">' + t('link.measure') + '</span><span class="risk careful">' + t('risk.careful') + '</span></button>' +
+        '</div>';
+      html += '<div class="section"><h3 class="section-title">' + t('link.hour') + '</h3>' + chart(L) + '</div>';
+      html += '<div class="section"><h3 class="section-title">' + t('link.quality') + '</h3><dl class="kv">' +
+        '<dt>' + t('link.latency') + '</dt><dd class="mono"' + (L.lat > 30 ? ' style="color:var(--warn)"' : '') + '>' + L.lat + ' ms</dd>' +
+        '<dt>' + t('link.loss') + '</dt><dd class="mono"' + (L.loss > 1 ? ' style="color:var(--warn)"' : '') + '>' + L.loss + '%</dd></dl></div>';
+    }
+
+    if (L.events && L.events.length) {
+      html += '<div class="section"><h3 class="section-title">' + t('link.events') + '</h3>' + L.events.map(function (ev) {
+        return '<div class="event"><time>' + (ev[0] === 'yesterday' ? t('time.yesterday') : ev[0]) + '</time><span class="dot ' + ev[1] + '"></span><span>' + t(ev[2]) + '</span></div>';
+      }).join('') + '</div>';
+    }
+    el.innerHTML = html;
+    GL.apply(el);
+  }
+
   function renderInspector() {
     var el = $('inspector');
+    if (selectedLink) { renderLinkInspector(el); return; }
     if (!selected) { el.innerHTML = '<div class="insp-empty" data-i18n="insp.empty"></div>'; GL.apply(el); return; }
     var n = NODES[selected], d = DETAILS[selected] || {};
     var html = '<div class="insp-head"><span class="glyph">' + glIcon(n.icon) + '</span><div class="insp-title"><h1>' + nodeName(n) + '</h1>' +
@@ -247,7 +365,7 @@
     renderEdges();
     renderInspector();
     document.querySelectorAll('#views button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.view === view ? 'true' : 'false'); });
-    $('app').classList.toggle('no-inspector', !selected);
+    $('app').classList.toggle('no-inspector', !selected && !selectedLink);
   }
 
   function renderLegend() {
@@ -272,6 +390,13 @@
   canvas.addEventListener('mousedown', function (e) {
     var nodeEl = e.target.closest('.node');
     if (e.target.closest('.canvas-tools, .zoom, .legend')) return;
+    var linkEl = e.target.closest('[data-link]');
+    if (linkEl) {
+      selectedLink = [linkEl.dataset.link, linkEl.dataset.from, linkEl.dataset.to];
+      selected = null;
+      render();
+      return;
+    }
     if (nodeEl) {
       var id = nodeEl.dataset.id;
       drag = { type: 'node', id: id, el: nodeEl, sx: e.clientX, sy: e.clientY, ox: pos[view][id][0], oy: pos[view][id][1], moved: false };
@@ -295,9 +420,9 @@
   });
   window.addEventListener('mouseup', function () {
     if (!drag) return;
-    if (drag.type === 'node' && !drag.moved) { selected = drag.id; render(); }
+    if (drag.type === 'node' && !drag.moved) { selected = drag.id; selectedLink = null; render(); }
     if (drag.type === 'node' && drag.moved) drag.el.classList.remove('dragging');
-    if (drag.type === 'pan' && Math.abs(panX - drag.ox) + Math.abs(panY - drag.oy) < 3) { selected = null; render(); }
+    if (drag.type === 'pan' && Math.abs(panX - drag.ox) + Math.abs(panY - drag.oy) < 3) { selected = null; selectedLink = null; render(); }
     canvas.classList.remove('panning');
     drag = null;
   });
@@ -323,9 +448,9 @@
   });
 
   $('inspector').addEventListener('click', function (e) {
-    if (e.target.closest('#insp-close')) { selected = null; render(); return; }
+    if (e.target.closest('#insp-close')) { selected = null; selectedLink = null; render(); return; }
     var go = e.target.closest('[data-goto]');
-    if (go) { selected = go.dataset.goto; render(); return; }
+    if (go) { selected = go.dataset.goto; selectedLink = null; render(); return; }
     var act = e.target.closest('[data-act]');
     if (act && act.dataset.act === 'move') openDialog('dlg-move');
   });
@@ -367,6 +492,27 @@
   $('zleg').onclick = function () { $('legend').classList.toggle('open'); };
   $('lang').onclick = function () { GL.setLang(GL.lang === 'ru' ? 'en' : 'ru'); };
   document.addEventListener('gl-lang', function () { renderRail(); renderLegend(); render(); GL.apply(); });
+
+  // Live demo: traffic drifts every second, like counters read from interfaces would.
+  setInterval(function () {
+    Object.keys(LINKS).forEach(function (id) {
+      var L = LINKS[id], j = function (v) { return Math.max(0, v * (0.9 + Math.random() * 0.2)); };
+      if (L.rate != null) { L.rate = Math.round(j(L.rate)) || 1; L.hist.push(L.rate); }
+      else { L.down = j(L.down); L.up = j(L.up); L.hist.push(L.down); }
+      L.hist.shift();
+    });
+    // Update only the numbers: re-creating the paths would restart the running dots.
+    document.querySelectorAll('[data-pill]').forEach(function (el) {
+      var L = LINKS[el.dataset.pill];
+      el.textContent = (L.state === 'warn' || L.state === 'crit' ? '! ' : '') + linkSummary(L);
+    });
+    document.querySelectorAll('.edge-hit[data-link], .edge-pill[data-link]').forEach(function (el) { el.dataset.tip = linkTip(LINKS[el.dataset.link]); });
+    if (selectedLink && !document.querySelector('.scrim.open')) {
+      var scroll = $('inspector').scrollTop;
+      renderInspector();
+      $('inspector').scrollTop = scroll;
+    }
+  }, 1000);
 
   renderRail();
   renderLegend();

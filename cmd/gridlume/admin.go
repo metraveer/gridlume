@@ -64,9 +64,7 @@ func updateCmd(ctx context.Context, log *slog.Logger, args []string) error {
 		}
 	}
 	if *channel == "" {
-		if b, err := os.ReadFile(server.ChannelFile(p.Data)); err == nil {
-			*channel = strings.TrimSpace(string(b))
-		}
+		*channel = update.ReadChannel(p.Data)
 	}
 	if *channel == "" {
 		*channel = version.Channel
@@ -104,6 +102,11 @@ func updateCmd(ctx context.Context, log *slog.Logger, args []string) error {
 		fmt.Printf("The new version did not start; %s and its database are back.\n", st.From)
 	}
 	return err
+}
+
+// installedCmd records "this version was just installed" for the interface (run by install-core.sh).
+func installedCmd() error {
+	return update.MarkInstalled(defaultDataDir(), version.Version)
 }
 
 // backupCmd copies the database while the core runs; the updater calls it as the core's user.

@@ -72,3 +72,18 @@ it('reports when the core is unreachable', async () => {
   render(<App />)
   expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Нет связи с ядром')
 })
+
+it('offers to reload when the core comes back with another version', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  let v = '0.2.0'
+  const base = core({ needsSetup: false, user: owner })
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/api/version' ? new Response(JSON.stringify({ version: v })) : base(url))))
+  render(<App />)
+  expect(await screen.findByRole('status', { name: 'Ядро 0.2.0 на связи' })).toBeTruthy()
+  v = '0.3.0'
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(15_000)
+  })
+  expect(await screen.findByText('Gridlume обновлён до 0.3.0')).toBeTruthy()
+  vi.useRealTimers()
+})

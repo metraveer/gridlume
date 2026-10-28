@@ -106,10 +106,14 @@ func GitHub(ctx context.Context, c *Client, channel string) (string, error) {
 			}
 		}
 		if tag == "" {
-			return "", errors.New("no development builds yet")
+			return "", ErrNoReleases
 		}
 	} else {
 		b, err := c.get(ctx, api+"/latest", 1<<20)
+		var he *HTTPError
+		if errors.As(err, &he) && he.Status == http.StatusNotFound {
+			return "", ErrNoReleases
+		}
 		if err != nil {
 			return "", err
 		}
@@ -117,7 +121,7 @@ func GitHub(ctx context.Context, c *Client, channel string) (string, error) {
 			Tag string `json:"tag_name"`
 		}
 		if err := json.Unmarshal(b, &r); err != nil || r.Tag == "" {
-			return "", errors.New("no stable releases yet")
+			return "", ErrNoReleases
 		}
 		tag = r.Tag
 	}
@@ -151,9 +155,43 @@ func (c *Client) get(ctx context.Context, url string, limit int64) ([]byte, erro
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s: %s", url, res.Status)
+		return nil, &HTTPError{URL: url, Status: res.StatusCode}
 	}
 	return io.ReadAll(io.LimitReader(res.Body, limit))
+}
+
+// HTTPError is an answer other than 200 from GitHub.
+type HTTPError struct {
+	URL    string
+	Status int
+}
+
+func (e *HTTPError) Error() string { return fmt.Sprintf("%s: HTTP %d", e.URL, e.Status) }
+
+// ErrNoReleases means the channel has nothing published yet.
+var ErrNoReleases = errors.New("no releases in this channel yet")
+
+// ErrSignature means a release was refused because its signature did not match the built-in key.
+var ErrSignature = errors.New("release signature is not valid: refusing it")
+
+// Problem names what went wrong for the interface: none (nothing published), limit (GitHub's hourly
+// limit for anonymous requests), signature, network, or other.
+func Problem(err error) string {
+	var he *HTTPError
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, ErrNoReleases):
+		return "none"
+	case errors.Is(err, ErrSignature):
+		return "signature"
+	case errors.As(err, &he) && (he.Status == http.StatusForbidden || he.Status == http.StatusTooManyRequests):
+		return "limit"
+	case errors.As(err, &he):
+		return "other"
+	default:
+		return "network"
+	}
 }
 
 // Checked is a release whose checksums are signed: file names to their sha256.
@@ -179,7 +217,7 @@ func (c *Client) Latest(ctx context.Context, channel string) (*Checked, error) {
 	}
 	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(sig)))
 	if err != nil || !ed25519.Verify(c.Key, sums, raw) {
-		return nil, errors.New("release signature is not valid: refusing it")
+		return nil, ErrSignature
 	}
 	out := &Checked{base: base, sums: parseSums(sums)}
 	manifest, err := c.get(ctx, base+"/release.json", 1<<16)

@@ -55,6 +55,8 @@ func main() {
 		err = backupCmd(args)
 	case "agent-code":
 		err = agentCodeCmd(args)
+	case "installed":
+		err = installedCmd()
 	case "version":
 		fmt.Printf("gridlume %s (%s, build %s, %s)\n", version.Version, version.Commit, version.Build, channelName())
 	default:

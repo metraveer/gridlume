@@ -107,21 +107,30 @@ export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; re
 
 export type Channel = 'stable' | 'edge'
 
+export type Release = { version: string; channel: Channel; build: number; commit: string; date: string; url: string }
+
+/** What the core last learned about one channel. problem: none (nothing published), limit, signature, network, other. */
+export type ChannelInfo = { latest: Release | null; problem?: 'none' | 'limit' | 'signature' | 'network' | 'other'; error?: string; newer: boolean }
+
 /** GET /api/system: this installation's version and updates. */
 export type SystemInfo = {
   version: string
   build: number
   commit: string
-  channel: Channel
+  built: Channel | '' // the channel this binary came from; '' for a development build
+  channel: Channel // the chosen one
   auto: boolean
   canUpdate: boolean // installed by install-core.sh: the update service exists
   coreNode: string // node of the machine the core runs on, '' if unknown
-  latest: { version: string; channel: Channel; build: number; commit: string; date: string; url: string } | null
+  channels?: Partial<Record<Channel, ChannelInfo>>
+  latest: Release | null // of the chosen channel
   newer: boolean
+  ahead?: boolean // running something newer than the chosen channel has
   checkedAt?: string
   checkError: string
   pending: boolean // an update was requested and has not started yet
-  last?: { state: 'running' | 'done' | 'rolled_back' | 'failed' | 'up_to_date'; from: string; to: string; message?: string; at: string }
+  pendingStuck?: boolean // ...for longer than the update service should take to pick it up
+  last?: { state: 'running' | 'done' | 'rolled_back' | 'failed' | 'installed' | 'interrupted'; from: string; to: string; message?: string; at: string }
 }
 
 export type MetricRange = '1h' | '24h' | '14d'

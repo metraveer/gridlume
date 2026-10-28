@@ -14,7 +14,7 @@
 set -eu
 
 REPO=metraveer/gridlume
-CHANNEL=stable
+CHANNEL=""
 AGENT_MODE=user
 ADDR=0.0.0.0:7420
 case "${LANG:-}" in ru*) LANG_UI=ru ;; *) LANG_UI=en ;; esac
@@ -36,6 +36,14 @@ done
 say() { if [ "$LANG_UI" = ru ]; then printf '%s\n' "$2"; else printf '%s\n' "$1"; fi; }
 die() { say "Error: $1" "Ошибка: $2" >&2; exit 1; }
 
+# No --channel: keep the one chosen before (Settings → Updates writes the same file), else stable.
+if [ -z "$CHANNEL" ]; then
+	CHANNEL=$(cat /var/lib/gridlume/update-channel 2>/dev/null || true)
+	case "$CHANNEL" in stable|edge) ;; *) CHANNEL=stable ;; esac
+	CHANNEL_GIVEN=0
+else
+	CHANNEL_GIVEN=1
+fi
 case "$CHANNEL" in stable|edge) ;; *) die "--channel must be stable or edge" "--channel: stable или edge" ;; esac
 case "$AGENT_MODE" in user|readonly|root|none) ;; *) die "--agent-mode must be user, readonly, root or none" "--agent-mode: user, readonly, root или none" ;; esac
 [ "$(id -u)" = 0 ] || die "run with sudo" "запустите через sudo"
@@ -91,7 +99,10 @@ GRIDLUME_USER=$CORE_USER
 GRIDLUME_UPDATER=1
 CONF
 fi
-[ -f "$DATA/update-channel" ] || { echo "$CHANNEL" > "$DATA/update-channel"; chown "$CORE_USER:" "$DATA/update-channel"; }
+if [ "$CHANNEL_GIVEN" = 1 ] || [ ! -f "$DATA/update-channel" ]; then
+	echo "$CHANNEL" > "$DATA/update-channel"
+	chown "$CORE_USER:" "$DATA/update-channel"
+fi
 
 systemctl stop gridlume 2>/dev/null || true
 install -m 755 "$TMP/gridlume-linux-$ARCH" "$BIN"
@@ -153,6 +164,8 @@ until curl -fsS "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1; do
 	sleep 1
 done
 say "Core is running: $($BIN version)" "Ядро работает: $($BIN version)"
+# Settings → Updates shows this install, not the result of an older update.
+"$BIN" installed 2>/dev/null || true
 
 # Firewall: the core is for the local network (or a VPN), not the internet.
 DEV=$(ip route show default 2>/dev/null | awk '{for (i=1;i<NF;i++) if ($i=="dev") {print $(i+1); exit}}')

@@ -37,7 +37,7 @@
 gridlume-update.path (systemd) замечает файл ──► gridlume-update.service (root):
    gridlume update --from-request
      1. сам находит выпуск и проверяет подпись (не доверяет ядру)
-     2. копия базы: /var/lib/gridlume/backups/gridlume-<было>-<время>.db (от имени gridlume-core)
+     2. копия базы: /var/lib/gridlume/backups/gridlume-<было>-<время>.db (от имени gridlume-core; хранятся пять последних)
      3. новый файл ядра рядом с /usr/local/bin/gridlume, старый — в gridlume.prev, затем замена одним переименованием
      4. сборки агента для установки на другие машины — в /var/lib/gridlume/agents
      5. systemctl restart gridlume и ожидание, что /api/version ответит новой версией (до 60 с)

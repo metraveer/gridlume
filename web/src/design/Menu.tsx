@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { is } from '../hotkeys'
 import { Icon, type IconName } from './Icon'
 import s from './Menu.module.css'
 
@@ -29,12 +30,12 @@ export function Menu({ x, y, items, onClose, label }: { x: number; y: number; it
       if (!ref.current?.contains(e.target as Node)) onClose()
     }
     const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      if (is(e, 'cancel')) onClose()
+      if (!is(e, 'down') && !is(e, 'up')) return
       e.preventDefault()
       const buttons = [...(ref.current?.querySelectorAll<HTMLButtonElement>('button:not([disabled])') ?? [])]
       const i = buttons.indexOf(document.activeElement as HTMLButtonElement)
-      const next = e.key === 'ArrowDown' ? (i + 1) % buttons.length : (i - 1 + buttons.length) % buttons.length
+      const next = is(e, 'down') ? (i + 1) % buttons.length : (i - 1 + buttons.length) % buttons.length
       buttons[next]?.focus()
     }
     window.addEventListener('mousedown', down, true)

@@ -4,10 +4,12 @@ package server
 import (
 	"encoding/json"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"path"
 	"strings"
 
+	"github.com/metraveer/gridlume/internal/store"
 	"github.com/metraveer/gridlume/internal/version"
 )
 
@@ -17,6 +19,11 @@ type Options struct {
 	UI http.Handler
 	// Dist is the built interface used when UI is nil.
 	Dist fs.FS
+	// Store enables the API beyond health/version. Nil is only used in tests of the static parts.
+	Store *store.Store
+	// SetupCode lets the first visitor create the owner account; empty once an owner exists.
+	SetupCode string
+	Log       *slog.Logger
 }
 
 // New returns the core HTTP handler.
@@ -24,6 +31,13 @@ func New(opts Options) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", health)
 	mux.HandleFunc("GET /api/version", versionInfo)
+	if opts.Store != nil {
+		log := opts.Log
+		if log == nil {
+			log = slog.Default()
+		}
+		newAPI(opts.Store, opts.SetupCode, log).routes(mux)
+	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not_found"})
 	})

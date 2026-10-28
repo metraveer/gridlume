@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -53,13 +54,15 @@ func TestLabels(t *testing.T) {
 }
 
 // fakeDocker answers like the Engine API on a unix socket and records the methods it saw.
-func fakeDocker(t *testing.T) (string, *[]string) {
+func fakeDocker(t *testing.T) (string, func() []string) {
 	t.Helper()
 	sock := filepath.Join(t.TempDir(), "d.sock")
 	l, err := net.Listen("unix", sock)
 	if err != nil {
 		t.Skip("unix sockets not available:", err)
 	}
+	// Requests arrive in parallel (the client fills containers concurrently).
+	var mu sync.Mutex
 	var methods []string
 	mux := http.NewServeMux()
 	mux.HandleFunc("/containers/json", func(w http.ResponseWriter, r *http.Request) {
@@ -75,12 +78,18 @@ func fakeDocker(t *testing.T) (string, *[]string) {
 		_, _ = w.Write([]byte(`{"cpu_stats":{"cpu_usage":{"total_usage":1000},"system_cpu_usage":10000},"memory_stats":{"usage":300,"limit":1000,"stats":{"inactive_file":100}}}`))
 	})
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
 		methods = append(methods, r.Method)
+		mu.Unlock()
 		mux.ServeHTTP(w, r)
 	})}
 	go func() { _ = srv.Serve(l) }()
 	t.Cleanup(func() { _ = srv.Close() })
-	return sock, &methods
+	return sock, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(methods)
+	}
 }
 
 func TestStateReadsContainers(t *testing.T) {
@@ -100,7 +109,7 @@ func TestStateReadsContainers(t *testing.T) {
 	if db := d.Containers[1]; db.State != "exited" || db.MemUsed != 0 {
 		t.Fatalf("db: %+v", db)
 	}
-	for _, m := range *methods {
+	for _, m := range methods() {
 		if m != http.MethodGet {
 			t.Fatalf("the agent must only read Docker, sent %s", m)
 		}

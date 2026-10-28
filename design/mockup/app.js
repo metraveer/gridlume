@@ -36,8 +36,8 @@
       nodes: { internet: [556, 24], rt: [80, 204], calibur: [80, 380], max: [276, 292], keenetic: [576, 204], junk: [576, 380], tw: [916, 204], domain: [916, 380] },
       edges: [
         ['internet', 'rt', 'uplink', '', 'up-village'], ['internet', 'keenetic', 'uplink', '', 'up-city'], ['internet', 'tw', 'uplink', '', 'up-cloud'],
-        ['rt', 'calibur', 'lan', '', 'lan-calibur'], ['rt', 'max', 'lan planned', ''], ['keenetic', 'junk', 'lan', '', 'lan-junk'],
-        ['calibur', 'junk', 'vpn planned', 'AmneziaWG'], ['domain', 'tw', 'dns', 'A 104.171.132.145'],
+        ['rt', 'calibur', 'lan', '', 'lan-calibur'], ['rt', 'max', 'lan planned', '', 'lan-max'], ['keenetic', 'junk', 'lan', '', 'lan-junk'],
+        ['calibur', 'junk', 'vpn planned', '', 'vpn-cj'], ['domain', 'tw', 'dns', '', 'dns-root'],
       ],
     },
     // Inside a machine: its containers and services and how they depend on each other.
@@ -46,15 +46,15 @@
       machine: 'calibur',
       groups: [{ cls: 'machine', label: 'calibur', x: 40, y: 80, w: 520, h: 280 }],
       nodes: { komodo: [70, 130], mongo: [370, 130], periphery: [70, 270], glcore: [370, 270] },
-      edges: [['komodo', 'mongo', 'depends', '', 'rq-komodo'], ['periphery', 'komodo', 'depends', '']],
+      edges: [['komodo', 'mongo', 'depends', '', 'rq-komodo'], ['periphery', 'komodo', 'depends', '', 'ws-periph']],
     },
     'in-tw': {
       machine: 'tw',
       groups: [{ cls: 'machine', label: 'gridman.pro', x: 40, y: 80, w: 520, h: 280 }],
       nodes: { domain: [70, -40], web: [70, 130], api: [370, 130], worker: [70, 270], pg: [370, 270] },
       edges: [
-        ['domain', 'web', 'dns', ''], ['web', 'api', 'depends', '', 'rq-web'], ['api', 'pg', 'depends', '', 'rq-api'],
-        ['worker', 'pg', 'depends', '', 'rq-worker'], ['worker', 'api', 'depends', ''],
+        ['domain', 'web', 'dns', '', 'dns-web'], ['web', 'api', 'depends', '', 'rq-web'], ['api', 'pg', 'depends', '', 'rq-api'],
+        ['worker', 'pg', 'depends', '', 'rq-worker'], ['worker', 'api', 'depends', '', 'jobs-wa'],
       ],
     },
     'in-junk': {
@@ -102,22 +102,63 @@
     },
   };
 
-  // Live link telemetry (demo). Speeds in Mbit/s; "rate" links are request rates between services.
+  // Every link on the map (demo). Each one says what it is, how it is connected, why it exists and what breaks without it.
+  // In the product: protocol/port are detected (Docker networks, listening ports, connections), the plain-language text
+  // comes from templates for known software (PostgreSQL, nginx, …) and can be edited by the owner.
+  // Speeds in Mbit/s; "rate" = requests per second between services.
   // should: contract or port speed; port: negotiated port speed; down/up: traffic now; avail: last measured real capacity.
   var LINKS = {
-    'up-village': { kind: 'link.kind.uplink', should: 700, shouldSrc: 'link.contract', port: 1000, down: 312, up: 48, avail: 641, availAt: '03:10', lat: 6, loss: 0, state: 'ok',
-      events: [['03:10', 'ok', 'ev.measure'], ['yesterday', 'ok', 'ev.stable']] },
-    'up-city': { kind: 'link.kind.uplink', should: 100, shouldSrc: 'link.contract', port: 1000, down: 41, up: 6, avail: 88, availAt: '03:15', lat: 38, loss: 3.2, state: 'warn',
-      events: [['14:02', 'warn', 'ev.loss'], ['13:51', 'warn', 'ev.latency'], ['03:15', 'ok', 'ev.measure']], meaning: 'mean.loss' },
-    'up-cloud': { kind: 'link.kind.uplink', should: 1000, shouldSrc: 'link.provider', port: 1000, down: 18, up: 74, avail: null, lat: 12, loss: 0, state: 'ok', events: [] },
-    'lan-calibur': { kind: 'link.kind.lan', should: 1000, shouldSrc: 'link.port', port: 1000, down: 22, up: 9, avail: 940, availAt: '03:20', lat: 0.4, loss: 0, state: 'ok', events: [] },
-    'lan-junk': { kind: 'link.kind.lan', should: 1000, shouldSrc: 'link.port', port: 100, down: 3, up: 1, avail: 94, availAt: '03:25', lat: 0.6, loss: 0, state: 'warn',
-      events: [['09:12', 'warn', 'ev.port100']], meaning: 'mean.port100' },
-    'rq-web': { kind: 'link.kind.depends', rate: 42 },
-    'rq-api': { kind: 'link.kind.depends', rate: 118 },
-    'rq-worker': { kind: 'link.kind.depends', rate: 9 },
-    'rq-komodo': { kind: 'link.kind.depends', rate: 3 },
+    'up-village': { kind: 'link.kind.uplink', proto: 'Ethernet · PPPoE', should: 700, shouldSrc: 'link.contract', port: 1000, down: 312, up: 48, avail: 641, availAt: '03:10', lat: 6, loss: 0, state: 'ok',
+      events: [['03:10', 'ok', 'ev.measure'], ['yesterday', 'ok', 'ev.stable']],
+      about: { ru: 'Интернет в деревню от Ростелекома. Через этот канал всё, что стоит в деревне, ходит в интернет, а посетители — на сайты, которые там работают.', en: 'Internet to the village from Rostelecom. Everything in the village reaches the internet through it, and visitors reach the sites hosted there.' },
+      broken: { ru: 'Всё в деревне останется без интернета: сайты оттуда перестанут открываться, VPN до дома пропадёт. Внутри деревни всё продолжит работать.', en: 'Everything in the village loses the internet: sites hosted there stop opening, the VPN to home drops. Inside the village everything keeps working.' } },
+    'up-city': { kind: 'link.kind.uplink', proto: 'Ethernet · IPoE', should: 100, shouldSrc: 'link.contract', port: 1000, down: 41, up: 6, avail: 88, availAt: '03:15', lat: 38, loss: 3.2, state: 'warn',
+      events: [['14:02', 'warn', 'ev.loss'], ['13:51', 'warn', 'ev.latency'], ['03:15', 'ok', 'ev.measure']], meaning: 'mean.loss',
+      about: { ru: 'Домашний интернет в Липецке. Через него домашний сервер и Home Assistant выходят в интернет.', en: 'Home internet in Lipetsk. The home server and Home Assistant reach the internet through it.' },
+      broken: { ru: 'Дом останется без интернета: Home Assistant не будет доступен снаружи, уведомления из дома не придут.', en: 'Home loses the internet: Home Assistant is unreachable from outside and home notifications stop.' } },
+    'up-cloud': { kind: 'link.kind.uplink', proto: 'Timeweb Cloud', should: 1000, shouldSrc: 'link.provider', port: 1000, down: 18, up: 74, avail: null, lat: 12, loss: 0, state: 'ok', events: [],
+      about: { ru: 'Канал облачного сервера Timeweb в интернет. По нему посетители открывают gridman.pro, а сервер отдаёт видео.', en: 'The Timeweb cloud server\'s internet channel. Visitors open gridman.pro over it and the server sends video.' },
+      broken: { ru: 'gridman.pro перестанет открываться для всех.', en: 'gridman.pro stops opening for everyone.' } },
+    'lan-calibur': { kind: 'link.kind.lan', proto: 'Ethernet · Cat5e', should: 1000, shouldSrc: 'link.port', port: 1000, down: 22, up: 9, avail: 940, availAt: '03:20', lat: 0.4, loss: 0, state: 'ok', events: [],
+      about: { ru: 'Кабель от роутера к ноутбуку calibur. Через него calibur получает интернет и связь с остальными устройствами в деревне.', en: 'Cable from the router to the calibur laptop. Through it calibur gets the internet and reaches other devices in the village.' },
+      broken: { ru: 'calibur и всё, что на нём работает (Komodo и другие контейнеры), станет недоступно. Wi-Fi можно настроить запасным путём.', en: 'calibur and everything running on it (Komodo and other containers) becomes unreachable. Wi-Fi can be set up as a backup path.' } },
+    'lan-junk': { kind: 'link.kind.lan', proto: 'Ethernet', should: 1000, shouldSrc: 'link.port', port: 100, down: 3, up: 1, avail: 94, availAt: '03:25', lat: 0.6, loss: 0, state: 'warn',
+      events: [['09:12', 'warn', 'ev.port100']], meaning: 'mean.port100',
+      about: { ru: 'Кабель от домашнего роутера Keenetic к серверу junk (HP t530) с Home Assistant.', en: 'Cable from the home Keenetic router to the junk server (HP t530) running Home Assistant.' },
+      broken: { ru: 'Home Assistant станет недоступен, умный дом перестанет управляться удалённо.', en: 'Home Assistant becomes unreachable; the smart home can no longer be controlled remotely.' } },
+    'lan-max': { kind: 'link.kind.lan', proto: 'Ethernet', state: 'planned', short: 'plan',
+      about: { ru: 'Запланировано: будущий мини-ПК max подключится к роутеру кабелем.', en: 'Planned: the future max mini PC will be connected to the router by cable.' } },
+    'vpn-cj': { kind: 'link.kind.vpn', proto: 'AmneziaWG · UDP', state: 'planned', short: 'VPN',
+      about: { ru: 'Запланировано: защищённый туннель между деревней и домом. Машины будут видеть друг друга как в одной сети, а вы — заходить ко всему из любого города.', en: 'Planned: an encrypted tunnel between the village and home. Machines will see each other as one network, and you can reach everything from any city.' },
+      broken: { ru: 'Пропадёт доступ к машинам «изнутри» из другого места; сами сервисы продолжат работать.', en: 'Remote "inside" access to the machines is lost; the services themselves keep running.' } },
+    'dns-root': { kind: 'link.kind.dns', proto: 'DNS · A 104.171.132.145', short: 'DNS',
+      about: { ru: 'Домен gridman.pro указывает на IP-адрес сервера в Timeweb. Когда человек вводит адрес в браузере, DNS подсказывает, к какому серверу идти.', en: 'The gridman.pro domain points to the IP of the Timeweb server. When someone types the address, DNS tells the browser which server to go to.' },
+      broken: { ru: 'Если запись удалить или она будет указывать не туда, сайт по адресу gridman.pro перестанет открываться, хотя сервер будет работать.', en: 'If the record is removed or points elsewhere, gridman.pro stops opening even though the server keeps running.' } },
+    'dns-web': { kind: 'link.kind.dns', proto: 'HTTPS · 443/tcp', short: 'HTTPS',
+      about: { ru: 'Посетители набирают gridman.pro и попадают на сайт: домен ведёт на этот сервер, а веб-сервер gridman-web принимает их по HTTPS на порту 443.', en: 'Visitors type gridman.pro and land on the site: the domain leads to this server and gridman-web accepts them over HTTPS on port 443.' },
+      broken: { ru: 'Сайт перестанет открываться у всех посетителей.', en: 'The site stops opening for all visitors.' } },
+    'rq-web': { kind: 'link.kind.http', proto: 'HTTP · 3000/tcp', rate: 42,
+      about: { ru: 'Сайт gridman-web просит у API данные: проекты, шоты, версии, пользователей. Каждое открытие страницы — несколько запросов.', en: 'The gridman-web site asks the API for data: projects, shots, versions, users. Every page view is a few requests.' },
+      broken: { ru: 'Сайт откроется, но будет пустым или покажет ошибку: данных взять неоткуда.', en: 'The site opens but is empty or shows an error: there is nowhere to get data from.' } },
+    'rq-api': { kind: 'link.kind.db', proto: 'PostgreSQL · 5432/tcp', rate: 118,
+      about: { ru: 'API читает и записывает всё в базу данных PostgreSQL: проекты, комментарии, пользователей, задания.', en: 'The API reads and writes everything in the PostgreSQL database: projects, comments, users, jobs.' },
+      broken: { ru: 'Перестанет работать почти всё: вход, загрузка, просмотр. Данные не потеряются — они в базе.', en: 'Almost everything stops: login, uploads, viewing. No data is lost — it is in the database.' } },
+    'rq-worker': { kind: 'link.kind.queue', proto: 'PostgreSQL · 5432/tcp', rate: 9,
+      about: { ru: 'Воркер берёт из базы задания на кодирование видео (очередь) и записывает, что готово.', en: 'The worker takes video encoding jobs from the database (the queue) and records what is done.' },
+      broken: { ru: 'Новые видео перестанут обрабатываться: загрузки будут висеть в очереди. Уже готовые видео продолжат показываться.', en: 'New videos stop being processed: uploads wait in the queue. Finished videos keep playing.' } },
+    'jobs-wa': { kind: 'link.kind.http', proto: 'HTTP · 3000/tcp', rate: 2,
+      about: { ru: 'Воркер сообщает API о ходе кодирования: прогресс, «готово», «ошибка». Поэтому на сайте видна полоска обработки.', en: 'The worker reports encoding progress to the API: progress, "done", "failed". That is why the site shows a processing bar.' },
+      broken: { ru: 'Видео будут кодироваться, но на сайте прогресс зависнет, пока связь не вернётся.', en: 'Videos still get encoded, but progress on the site freezes until the link is back.' } },
+    'rq-komodo': { kind: 'link.kind.db', proto: 'MongoDB · 27017/tcp', rate: 3,
+      about: { ru: 'Панель Komodo хранит настройки, пользователей и историю действий в базе MongoDB.', en: 'The Komodo panel keeps its settings, users and action history in the MongoDB database.' },
+      broken: { ru: 'Панель Komodo перестанет открываться; контейнеры на машинах продолжат работать.', en: 'The Komodo panel stops opening; containers on the machines keep running.' } },
+    'ws-periph': { kind: 'link.kind.ws', proto: 'WebSocket · 9120/tcp', rate: 1,
+      about: { ru: 'Агент Komodo на машине держит постоянное соединение с панелью: присылает нагрузку и логи, получает команды (запустить, остановить).', en: 'The Komodo agent keeps a permanent connection to the panel: sends load and logs, receives commands (start, stop).' },
+      broken: { ru: 'В панели машина станет серой, управлять её контейнерами будет нельзя. Сами контейнеры продолжат работать.', en: 'The machine turns grey in the panel and its containers cannot be managed. The containers keep running.' } },
   };
+
+  function txt(o) { return o ? (o[GL.lang] || o.ru) : ''; }
+  function attr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
 
   // ---------- State ----------
   var view = 'root';
@@ -203,18 +244,24 @@
     return { d: 'M' + p[0] + ' ' + p[1] + ' C' + p[2] + ' ' + p[3] + ' ' + p[4] + ' ' + p[5] + ' ' + p[6] + ' ' + p[7], mid: mid };
   }
 
+  function hasSpeed(L) { return L.should != null && L.down != null; }
+  function protoShort(L) { return (L.proto || '').split(' · ')[0]; }
+
+  // Text on the line itself: protocol + numbers, so a line is never just an arrow.
   function linkSummary(L) {
-    if (L.rate != null) return L.rate + ' ' + t('unit.rps');
-    var now = Math.max(L.down, L.up);
-    var cap = Math.min(L.should, L.port);
-    return Math.round(now) + ' / ' + fmtSpeed(cap);
+    if (L.state === 'planned') return (L.short && L.short !== 'plan' ? L.short + ' · ' : '') + t('link.planned');
+    if (L.rate != null) return protoShort(L) + ' · ' + L.rate + ' ' + t('unit.rps');
+    if (hasSpeed(L)) return Math.round(Math.max(L.down, L.up)) + ' / ' + fmtSpeed(Math.min(L.should, L.port));
+    return L.short || protoShort(L);
   }
 
+  // Hover: what it is and why, in one glance.
   function linkTip(L) {
-    if (L.rate != null) return t(L.kind) + ' · ' + L.rate + ' ' + t('unit.rps');
-    return t(L.kind) + '<br>' + t('link.now') + ': ↓ ' + fmtSpeed(L.down) + ' ↑ ' + fmtSpeed(L.up) +
-      '<br>' + t('link.should') + ': ' + fmtSpeed(L.should) + (L.port < L.should ? ' · ' + t('link.port') + ' ' + fmtSpeed(L.port) : '') +
-      '<br>' + t('link.latency') + ' ' + L.lat + ' ms · ' + t('link.loss') + ' ' + L.loss + '%';
+    var s = '<b>' + t(L.kind) + '</b> · <span class="mono">' + (L.proto || '') + '</span><br>' + txt(L.about);
+    if (L.rate != null) s += '<br><span class="faint">' + t('link.now') + ': ' + L.rate + ' ' + t('unit.rps') + '</span>';
+    if (hasSpeed(L)) s += '<br><span class="faint">' + t('link.now') + ': ↓ ' + fmtSpeed(L.down) + ' ↑ ' + fmtSpeed(L.up) + ' · ' + t('link.should') + ' ' + fmtSpeed(L.should) +
+      ' · ' + t('link.latency') + ' ' + L.lat + ' ms · ' + t('link.loss') + ' ' + L.loss + '%</span>';
+    return s + '<br><span class="faint">' + t('link.click') + '</span>';
   }
 
   function renderEdges() {
@@ -223,23 +270,28 @@
       var c = curve(e), L = LINKS[e[4]];
       var st = L && L.state && L.state !== 'ok' ? ' s-' + L.state : '';
       var hot = (e[0] === selected || e[1] === selected || (selectedLink && selectedLink[0] === e[4] && e[4])) ? ' hot' : '';
-      out += '<path class="edge ' + e[2] + st + hot + '" d="' + c.d + '"/>';
+      // Arrow shows who talks to whom: the caller at the start, the one being called at the end.
+      var arrow = L && /http|db|queue|ws|dns/.test(L.kind) ? ' marker-end="url(#arrow)"' : '';
+      out += '<path class="edge ' + e[2] + (L && L.state === 'planned' ? '' : st) + hot + '" d="' + c.d + '"' + arrow + '/>';
       if (L) {
         // Load decides how fast and dense the dots run: 0% → barely moving, 100% → fast.
-        var load = L.rate != null ? Math.min(1, L.rate / 150) : Math.max(L.down, L.up) / Math.min(L.should, L.port);
+        var moving = L.state !== 'planned' && (L.rate != null || hasSpeed(L));
+        var load = L.rate != null ? Math.min(1, L.rate / 150) : hasSpeed(L) ? Math.max(L.down, L.up) / Math.min(L.should, L.port) : 0;
         var dur = (3.2 - Math.min(1, load) * 2.6).toFixed(2);
         var rev = L.rate == null && L.up > L.down ? ' rev' : '';
-        out += '<path class="flow' + st + rev + '" d="' + c.d + '" style="animation-duration:' + dur + 's"/>';
+        if (moving) out += '<path class="flow' + st + rev + '" d="' + c.d + '" style="animation-duration:' + dur + 's"/>';
         var text = (L.state === 'warn' || L.state === 'crit' ? '! ' : '') + linkSummary(L);
         var w = text.length * 6.1 + 14;
-        pills += '<g class="edge-pill' + st + '" data-link="' + e[4] + '" data-from="' + e[0] + '" data-to="' + e[1] + '" data-tip="' + linkTip(L) + '" transform="translate(' + (c.mid[0] - w / 2).toFixed(1) + ',' + (c.mid[1] - 9).toFixed(1) + ')">' +
+        pills += '<g class="edge-pill' + st + '" data-link="' + e[4] + '" data-from="' + e[0] + '" data-to="' + e[1] + '" data-tip="' + attr(linkTip(L)) + '" transform="translate(' + (c.mid[0] - w / 2).toFixed(1) + ',' + (c.mid[1] - 9).toFixed(1) + ')">' +
           '<rect width="' + w.toFixed(1) + '" height="18" rx="9"/><text x="7" y="12.5" data-pill="' + e[4] + '">' + text + '</text></g>';
-        out += '<path class="edge-hit" d="' + c.d + '" data-link="' + e[4] + '" data-from="' + e[0] + '" data-to="' + e[1] + '" data-tip="' + linkTip(L) + '"/>';
+        out += '<path class="edge-hit" d="' + c.d + '" data-link="' + e[4] + '" data-from="' + e[0] + '" data-to="' + e[1] + '" data-tip="' + attr(linkTip(L)) + '"/>';
       } else if (e[3]) {
         out += '<text class="edge-label" x="' + (c.mid[0] + 6) + '" y="' + (c.mid[1] - 6) + '">' + e[3] + '</text>';
       }
     });
-    $('edges').innerHTML = out + pills;
+    var defs = '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
+      '<path d="M1 1 L9 5 L1 9" fill="none" stroke="#8a93a0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>';
+    $('edges').innerHTML = defs + out + pills;
   }
 
   function applyTransform() {
@@ -290,9 +342,16 @@
 
     if (L.meaning) html += '<div class="section"><div class="note">' + t(L.meaning) + '</div></div>';
 
+    // What it is and why — always first, in plain words.
+    html += '<div class="section"><h3 class="section-title">' + t('link.about') + '</h3><p style="margin:0">' + txt(L.about) + '</p></div>';
+    html += '<div class="section"><h3 class="section-title">' + t('link.how') + '</h3><dl class="kv">' +
+      '<dt>' + t('link.type') + '</dt><dd>' + t(L.kind) + '</dd>' +
+      '<dt>' + t('link.proto') + '</dt><dd class="mono">' + (L.proto || '—') + '</dd>' +
+      '<dt>' + t('link.dir') + '</dt><dd>' + nodeName(a) + ' → ' + nodeName(b) + '</dd></dl></div>';
+
     if (L.rate != null) {
       html += '<div class="section"><h3 class="section-title">' + t('link.requests') + '</h3>' + capRow(t('link.now'), L.rate + ' ' + t('unit.rps')) + chart(L) + '</div>';
-    } else {
+    } else if (hasSpeed(L)) {
       var cap = Math.min(L.should, L.port);
       html += '<div class="section"><h3 class="section-title">' + t('link.speed') + ' <span class="help" data-tip="' + t('link.speed.tip') + '">?</span></h3>' +
         capRow(t('link.should'), fmtSpeed(L.should), t(L.shouldSrc) + ' · ' + t('link.port') + ' ' + fmtSpeed(L.port), null) +
@@ -306,11 +365,14 @@
         '<dt>' + t('link.loss') + '</dt><dd class="mono"' + (L.loss > 1 ? ' style="color:var(--warn)"' : '') + '>' + L.loss + '%</dd></dl></div>';
     }
 
+    if (L.broken) html += '<div class="section"><h3 class="section-title">' + t('link.broken') + '</h3><p style="margin:0" class="muted">' + txt(L.broken) + '</p></div>';
+
     if (L.events && L.events.length) {
       html += '<div class="section"><h3 class="section-title">' + t('link.events') + '</h3>' + L.events.map(function (ev) {
         return '<div class="event"><time>' + (ev[0] === 'yesterday' ? t('time.yesterday') : ev[0]) + '</time><span class="dot ' + ev[1] + '"></span><span>' + t(ev[2]) + '</span></div>';
       }).join('') + '</div>';
     }
+    html += '<div class="section"><button class="btn btn-sm btn-ghost" data-tip="' + t('link.edit.tip') + '">' + t('link.edit') + '</button></div>';
     el.innerHTML = html;
     GL.apply(el);
   }

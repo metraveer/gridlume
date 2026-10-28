@@ -35,16 +35,29 @@ type Event struct {
 }
 
 // Status is an agent as the interface sees it: what is stored plus whether it is connected now.
+// Build, CanUpdate and LastUpdate are known only while it is connected.
 type Status struct {
 	store.Agent
-	Online bool `json:"online"`
+	Online     bool                     `json:"online"`
+	Build      int                      `json:"build,omitempty"`
+	CanUpdate  bool                     `json:"canUpdate"` // its root updater is installed
+	LastUpdate *agentproto.UpdateResult `json:"lastUpdate,omitempty"`
 }
+
+// ErrOffline and ErrNoUpdater are why an update cannot be asked for.
+var (
+	ErrOffline   = errors.New("the agent is not connected")
+	ErrNoUpdater = errors.New("the agent's updater is not installed: run its installer with --upgrade")
+)
 
 // Hub holds connected agents and the interface's subscribers.
 type Hub struct {
 	store *store.Store
 	log   *slog.Logger
 	now   func() time.Time
+
+	// AutoUpdate, when set, is asked on every connection which version to send the agent ("" = none).
+	AutoUpdate func(ctx context.Context, info agentproto.Info) string
 
 	mu     sync.Mutex
 	online map[string]*conn // by agent id
@@ -54,6 +67,8 @@ type Hub struct {
 
 type conn struct {
 	agent   store.Agent
+	info    agentproto.Info
+	ws      *websocket.Conn
 	cancel  context.CancelFunc
 	minute  *minute
 	removed bool   // unlinked: say "removed" instead of "offline" when the connection ends
@@ -75,8 +90,10 @@ func (h *Hub) Statuses(ctx context.Context) ([]Status, error) {
 	defer h.mu.Unlock()
 	out := make([]Status, len(agents))
 	for i, a := range agents {
-		_, on := h.online[a.ID]
-		out[i] = Status{Agent: a, Online: on}
+		out[i] = Status{Agent: a}
+		if c, on := h.online[a.ID]; on {
+			out[i] = c.status()
+		}
 	}
 	return out, nil
 }
@@ -117,6 +134,27 @@ func (h *Hub) publish(e Event) {
 	}
 }
 
+func (c *conn) status() Status {
+	return Status{Agent: c.agent, Online: true, Build: c.info.Build, CanUpdate: c.info.Updater, LastUpdate: c.info.Update}
+}
+
+// RequestUpdate asks a connected agent to install version v from this core.
+func (h *Hub) RequestUpdate(ctx context.Context, agentID, v string) error {
+	h.mu.Lock()
+	c := h.online[agentID]
+	h.mu.Unlock()
+	if c == nil {
+		return ErrOffline
+	}
+	if !c.info.Updater {
+		return ErrNoUpdater
+	}
+	wctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	h.log.Info("asking the agent to update", "node", c.agent.NodeID, "host", c.agent.Hostname, "from", c.agent.Version, "to", v)
+	return wsjson.Write(wctx, c.ws, agentproto.Message{Type: "update", Version: v})
+}
+
 // Unlinked drops the connection of an agent removed in the interface and tells the interface.
 func (h *Hub) Unlinked(agentID, nodeID string) {
 	h.mu.Lock()
@@ -142,7 +180,7 @@ func (h *Hub) Connect(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	a, err := h.handshake(ctx, ws)
+	a, info, err := h.handshake(ctx, ws)
 	if err != nil {
 		code := "bad_handshake"
 		if errors.Is(err, store.ErrNotFound) {
@@ -154,7 +192,7 @@ func (h *Hub) Connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := &conn{agent: a, cancel: cancel, minute: newMinute()}
+	c := &conn{agent: a, info: info, ws: ws, cancel: cancel, minute: newMinute()}
 	h.mu.Lock()
 	if old := h.online[a.ID]; old != nil {
 		old.cancel() // the same agent reconnected before the old connection timed out
@@ -162,7 +200,15 @@ func (h *Hub) Connect(w http.ResponseWriter, r *http.Request) {
 	h.online[a.ID] = c
 	h.mu.Unlock()
 	h.log.Info("agent connected", "node", a.NodeID, "host", a.Hostname, "version", a.Version)
-	h.publish(Event{NodeID: a.NodeID, Agent: &Status{Agent: a, Online: true}})
+	st := c.status()
+	h.publish(Event{NodeID: a.NodeID, Agent: &st})
+	if h.AutoUpdate != nil {
+		if v := h.AutoUpdate(ctx, info); v != "" {
+			if err := h.RequestUpdate(ctx, a.ID, v); err != nil {
+				h.log.Warn("automatic agent update not requested", "host", a.Hostname, "err", err)
+			}
+		}
+	}
 
 	err = h.serve(ctx, ws, c)
 
@@ -185,35 +231,36 @@ func (h *Hub) Connect(w http.ResponseWriter, r *http.Request) {
 	_ = ws.CloseNow()
 }
 
-func (h *Hub) handshake(ctx context.Context, ws *websocket.Conn) (store.Agent, error) {
+func (h *Hub) handshake(ctx context.Context, ws *websocket.Conn) (store.Agent, agentproto.Info, error) {
+	var none agentproto.Info
 	nonce := make([]byte, 32)
 	if _, err := rand.Read(nonce); err != nil {
-		return store.Agent{}, err
+		return store.Agent{}, none, err
 	}
 	hctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if err := wsjson.Write(hctx, ws, agentproto.Message{Type: "challenge", Nonce: nonce}); err != nil {
-		return store.Agent{}, err
+		return store.Agent{}, none, err
 	}
 	var hello agentproto.Message
 	if err := wsjson.Read(hctx, ws, &hello); err != nil {
-		return store.Agent{}, err
+		return store.Agent{}, none, err
 	}
 	if hello.Type != "hello" || hello.Info == nil {
-		return store.Agent{}, errors.New("expected hello")
+		return store.Agent{}, none, errors.New("expected hello")
 	}
 	a, err := h.store.GetAgent(ctx, hello.AgentID)
 	if err != nil {
-		return a, err
+		return a, none, err
 	}
 	if !ed25519.Verify(a.PublicKey(), agentproto.SignedBytes(nonce), hello.Sig) {
-		return a, errors.New("bad signature")
+		return a, none, errors.New("bad signature")
 	}
 	a, err = h.store.AgentConnected(ctx, a.ID, *hello.Info)
 	if err != nil {
-		return a, err
+		return a, none, err
 	}
-	return a, wsjson.Write(hctx, ws, agentproto.Message{Type: "welcome"})
+	return a, *hello.Info, wsjson.Write(hctx, ws, agentproto.Message{Type: "welcome"})
 }
 
 func (h *Hub) serve(ctx context.Context, ws *websocket.Conn, c *conn) error {

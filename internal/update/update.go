@@ -203,6 +203,11 @@ func (u *Updater) Apply(ctx context.Context, channel string) (Status, error) {
 		u.Log.Error("new version failed, rolling back", "err", err)
 		return u.rollback(ctx, from, r.Version, backup, err)
 	}
+	// Only now are the new agent builds offered to agents on other machines: their updaters check the builds
+	// against these signed files, so after a rollback (old files here) a newer build is never installed.
+	if err := r.SaveSigned(u.Paths.Agents); err != nil {
+		u.Log.Warn("signed files for agents not stored", "err", err)
+	}
 	// The local agent follows only once the core is known good.
 	if _, statErr := os.Stat(u.Paths.AgentBin); statErr == nil {
 		if err := swap(filepath.Join(stage, "gridlume-agent-linux-"+arch), u.Paths.AgentBin); err == nil {

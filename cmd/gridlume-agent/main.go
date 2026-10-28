@@ -3,6 +3,7 @@
 //	gridlume-agent enroll --core URL --code CODE [--mode user|readonly|root] [--state DIR]
 //	gridlume-agent run [--state DIR]
 //	gridlume-agent docker-proxy [--listen SOCKET] [--docker SOCKET]   read-only Docker for the "readonly" mode
+//	gridlume-agent update [--from-request] [--state DIR]   as root: install the build the core hands out
 //	gridlume-agent version
 //
 // The install script (deploy/install.sh) runs enroll once and sets up `run` as a systemd service.
@@ -19,6 +20,7 @@ import (
 
 	"github.com/metraveer/gridlume/agent/docker"
 	"github.com/metraveer/gridlume/agent/link"
+	"github.com/metraveer/gridlume/agent/selfupdate"
 	"github.com/metraveer/gridlume/internal/agentproto"
 	"github.com/metraveer/gridlume/internal/version"
 )
@@ -67,6 +69,22 @@ func main() {
 			log.Error("agent stopped", "err", err)
 			os.Exit(1)
 		}
+	case "update":
+		fs := flag.NewFlagSet("update", flag.ExitOnError)
+		state := fs.String("state", defaultState, "folder with agent.json")
+		fromRequest := fs.Bool("from-request", false, "only if the agent left a request (run by gridlume-agent-update.path)")
+		_ = fs.Parse(args)
+		u := selfupdate.New(*state, log)
+		var err error
+		if *fromRequest {
+			err = u.FromRequest(ctx)
+		} else {
+			err = u.Apply(ctx)
+		}
+		if err != nil {
+			log.Error("update failed", "err", err)
+			os.Exit(1)
+		}
 	case "docker-proxy":
 		fs := flag.NewFlagSet("docker-proxy", flag.ExitOnError)
 		listen := fs.String("listen", agentproto.DockerSocket(agentproto.ModeReadOnly), "socket the agent reads Docker from")
@@ -82,6 +100,6 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: gridlume-agent enroll|run|docker-proxy|version (see the install script)")
+	fmt.Fprintln(os.Stderr, "usage: gridlume-agent enroll|run|update|docker-proxy|version (see the install script)")
 	os.Exit(2)
 }

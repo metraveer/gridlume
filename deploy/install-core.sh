@@ -62,8 +62,9 @@ PORT="${ADDR##*:}"
 # Every build is its own release (vX.Y.Z, or vX.Y.Z-dev.N for edge); take all files from the newest one.
 API="https://api.github.com/repos/$REPO/releases"
 if [ "$CHANNEL" = edge ]; then
-	TAG=$(curl -fsSL "$API?per_page=30" | grep -o '"tag_name": *"v[0-9.]*-dev\.[0-9]*"' | grep -o 'v[0-9.]*-dev\.[0-9]*' |
-		awk -F'dev.' '{print $2" "$0}' | sort -n | tail -n 1 | cut -d' ' -f2)
+	# Edge takes stable releases too: the newest of either kind (GitHub lists the newest first).
+	TAG=$(curl -fsSL "$API?per_page=30" | grep -o '"tag_name": *"v[0-9]*\.[0-9]*\.[0-9]*\(-dev\.[0-9]*\)\{0,1\}"' |
+		head -n 1 | sed 's/.*"\(v[^"]*\)"$/\1/')
 else
 	TAG=$(curl -fsSL "$API/latest" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/')
 fi
@@ -73,7 +74,7 @@ BASE="https://github.com/$REPO/releases/download/$TAG"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 say "Downloading Gridlume ($CHANNEL) ..." "Скачиваю Gridlume ($CHANNEL) ..."
-for f in SHA256SUMS release.json "gridlume-linux-$ARCH" gridlume-agent-linux-amd64 gridlume-agent-linux-arm64; do
+for f in SHA256SUMS SHA256SUMS.sig release.json "gridlume-linux-$ARCH" gridlume-agent-linux-amd64 gridlume-agent-linux-arm64; do
 	curl -fsSL "$BASE/$f" -o "$TMP/$f" || die "could not download $f" "не удалось скачать $f"
 done
 # Every later update also checks the Ed25519 signature of SHA256SUMS (the key is built into the core).
@@ -88,6 +89,8 @@ mkdir -p "$DATA/agents" "$DATA/backups" "$CONF_DIR"
 chown "$CORE_USER:" "$DATA" "$DATA/backups"
 chmod 700 "$DATA" "$DATA/backups"
 install -m 755 "$TMP"/gridlume-agent-linux-amd64 "$TMP"/gridlume-agent-linux-arm64 "$DATA/agents/"
+# Agents on other machines update from these builds and check them against the signed checksums.
+install -m 644 "$TMP"/SHA256SUMS "$TMP"/SHA256SUMS.sig "$TMP"/release.json "$DATA/agents/"
 
 if [ ! -f "$CONF_DIR/gridlume.env" ]; then
 	cat > "$CONF_DIR/gridlume.env" <<CONF
@@ -178,8 +181,9 @@ fi
 
 # The agent on this machine: connected without a code from the interface; on a re-run it gets the new build.
 if [ -f /etc/systemd/system/gridlume-agent.service ]; then
-	install -m 755 "$DATA/agents/gridlume-agent-linux-$ARCH" /usr/local/bin/gridlume-agent
-	systemctl try-restart gridlume-agent
+	# Keeps its enrollment; also adds the updater to agents installed before it existed.
+	curl -fsSL "http://127.0.0.1:$PORT/install.sh" | sh -s -- --upgrade --lang "$LANG_UI" ||
+		say "The agent on this machine was not upgraded." "Агент на этой машине не обновился."
 elif [ "$AGENT_MODE" != none ]; then
 	CODE=$(runuser -u "$CORE_USER" -- "$BIN" agent-code --mode "$AGENT_MODE")
 	curl -fsSL "http://127.0.0.1:$PORT/install.sh" | sh -s -- --code "$CODE" --mode "$AGENT_MODE" --lang "$LANG_UI" ||

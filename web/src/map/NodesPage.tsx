@@ -4,7 +4,7 @@ import type { MapNode } from '../api/types'
 import { go } from '../app/route'
 import { Icon, StateBadge } from '../design'
 import { useApp } from '../state/app'
-import { liveState, useLive } from '../state/live'
+import { findContainer, liveState, useLive } from '../state/live'
 import { NODE_META } from './model'
 import s from './NodesPage.module.css'
 
@@ -17,9 +17,10 @@ export function matches(n: MapNode, q: string, kindName: string) {
 
 /** Show a node on the map: open the level it lives on and select it. */
 export function reveal(n: MapNode) {
-  const { enter, select } = useApp.getState()
+  const { enter, select, setFocus } = useApp.getState()
   enter(n.parentId)
   select({ kind: 'node', id: n.id })
+  setFocus(n.id)
   go('map')
 }
 
@@ -28,6 +29,7 @@ export function NodesPage() {
   const { t } = useTranslation()
   const map = useApp((st) => st.map)
   const agents = useLive((st) => st.agents)
+  const snaps = useLive((st) => st.snaps)
   const [q, setQ] = useState('')
   const name = (id: string | null) => map.nodes.find((n) => n.id === id)?.name
   const place = (id: string | null) => map.places.find((p) => p.id === id)?.name
@@ -71,7 +73,7 @@ export function NodesPage() {
                 <td>{t(`kind.${n.kind}`)}</td>
                 <td className="mono">{n.address || '—'}</td>
                 <td>{n.parentId ? name(n.parentId) : (place(n.placeId) ?? '—')}</td>
-                <td><StateBadge state={liveState(n, agents[n.id])} /></td>
+                <td><StateBadge state={liveState(n, agents[n.id], findContainer(n, n.parentId ? snaps[n.parentId] : undefined))} /></td>
                 <td className={s.num}>{linkCount(n.id)}</td>
               </tr>
             ))}

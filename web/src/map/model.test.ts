@@ -2,7 +2,7 @@ import type { Link, MapData, MapNode } from '../api/types'
 import { dependents, levelContent, requirements } from './model'
 
 const node = (id: string, kind: MapNode['kind'], parentId: string | null = null): MapNode => ({
-  id, kind, parentId, placeId: null, name: id, subtitle: '', address: '', state: 'ok', notes: '', x: 0, y: 0,
+  id, kind, parentId, placeId: null, name: id, subtitle: '', address: '', state: 'ok', notes: '', x: 0, y: 0, source: '',
 })
 const link = (id: string, fromId: string, toId: string, kind: Link['kind'], planned = false): Link => ({
   id, fromId, toId, kind, proto: '', about: '', ifBroken: '', speedMbit: null, planned,

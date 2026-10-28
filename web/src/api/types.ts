@@ -27,6 +27,8 @@ export type MapNode = {
   notes: string
   x: number
   y: number
+  source: '' | 'docker' // docker: a container an agent reported
+  extKey?: string // e.g. "docker:app/api"; matches the live container
 }
 
 export type Link = {
@@ -63,7 +65,29 @@ export type Snapshot = {
   disks: { mount: string; fs: string; total: number; used: number }[] | null
   net: { name: string; rx: number; tx: number }[] | null // bytes per second
   temps: { name: string; c: number }[] | null
+  docker?: { containers: Container[] }
+  dockerError?: 'no_access' | 'unavailable'
 }
+
+export type Container = {
+  id: string
+  name: string
+  image: string
+  state: 'running' | 'exited' | 'restarting' | 'paused' | 'created' | 'dead' | 'removing'
+  status: string // as `docker ps` says it
+  health?: 'healthy' | 'unhealthy' | 'starting'
+  project?: string
+  service?: string
+  cpu: number
+  memUsed: number
+  memLimit: number
+  restarts: number
+  ports?: { private: number; public?: number; proto: string; ip?: string }[]
+  networks?: string[]
+}
+
+/** A link the core guessed from Docker; the user accepts or dismisses it. */
+export type Suggestion = { id: string; fromId: string; toId: string; kind: LinkKind; reason: 'compose_depends' | 'env_ref'; detail: string }
 
 export type Agent = {
   id: string
@@ -79,7 +103,7 @@ export type Agent = {
 }
 
 /** One message of /api/events. */
-export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean }
+export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean; mapChanged?: boolean }
 
 export type MetricRange = '1h' | '24h' | '14d'
 export type MetricPoint = { t: number; avg: number; max: number }

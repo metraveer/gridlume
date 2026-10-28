@@ -5,6 +5,7 @@ import { Button, Dialog, Icon, IconButton, KV, Section, StateBadge, type Risk } 
 import { useApp } from '../state/app'
 import { useNodeLive } from '../state/live'
 import { AgentSection, HistorySection, LiveSection, unlinkAgent } from './AgentPanel'
+import { ContainerSection, DockerSummary, SuggestionsSection } from './DockerPanel'
 import { speed } from './flow'
 import { canContain, dependents, NODE_META, requirements } from './model'
 import s from './Inspector.module.css'
@@ -67,7 +68,7 @@ function NodePanel({ node }: { node: MapNode }) {
   const [notes, setNotes] = useState(node.notes)
   const [confirm, setConfirm] = useState(false)
   const [confirmUnlink, setConfirmUnlink] = useState(false)
-  const { agent, snap, state } = useNodeLive(node)
+  const { agent, snap, container, state } = useNodeLive(node)
   // Keep the draft in step when another node is selected.
   const [shownId, setShownId] = useState(node.id)
   if (shownId !== node.id) {
@@ -104,7 +105,10 @@ function NodePanel({ node }: { node: MapNode }) {
         )}
       </div>
 
+      {container !== undefined && <ContainerSection c={container} />}
       {snap && <LiveSection snap={snap} />}
+      {snap && <DockerSummary snap={snap} />}
+      {canContain(node) && <SuggestionsSection machine={node} />}
 
       <Section title={t('insp.overview')}>
         <KV

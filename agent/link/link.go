@@ -23,6 +23,7 @@ import (
 	"github.com/coder/websocket/wsjson"
 
 	"github.com/metraveer/gridlume/agent/collect"
+	"github.com/metraveer/gridlume/agent/docker"
 	"github.com/metraveer/gridlume/internal/agentproto"
 )
 
@@ -194,6 +195,8 @@ func Once(ctx context.Context, c Config, version string, log *slog.Logger) error
 
 	col := collect.New()
 	col.Snapshot() // prime the counters: rates need two readings
+	socket := agentproto.DockerSocket(c.Mode)
+	dk := docker.New(socket)
 	t := time.NewTicker(Interval)
 	defer t.Stop()
 	for {
@@ -205,6 +208,9 @@ func Once(ctx context.Context, c Config, version string, log *slog.Logger) error
 			return err
 		case <-t.C:
 			snap := col.Snapshot()
+			dctx, dcancel := context.WithTimeout(ctx, Interval)
+			snap.Docker, snap.DockerError = docker.Read(dctx, dk, socket)
+			dcancel()
 			wctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			err := wsjson.Write(wctx, ws, agentproto.Message{Type: "snapshot", Snapshot: &snap})
 			cancel()

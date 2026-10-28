@@ -1,7 +1,9 @@
 name: Release
 
-# edge:   every merge to main, once CI on it is green (a moving pre-release "edge")
+# edge:   every merge to main, once CI on it is green: pre-release edge-<run number>
 # stable: every tag vX.Y.Z (cut from main, which CI has already checked)
+# Every build gets its own release that never changes afterwards: a single moving "edge" release made
+# GitHub serve cached links to files of an older, deleted build for minutes after each new one.
 on:
   workflow_run:
     workflows: [CI]
@@ -37,7 +39,7 @@ jobs:
             echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
             echo "channel=edge" >> "$GITHUB_OUTPUT"
             echo "version=edge-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
-            echo "tag=edge" >> "$GITHUB_OUTPUT"
+            echo "tag=edge-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/checkout@v7
@@ -85,10 +87,14 @@ jobs:
         if: steps.what.outputs.channel == 'edge'
         run: |
           SHA=${{ steps.what.outputs.sha }}
-          gh release delete edge --cleanup-tag --yes || true
-          gh release create edge dist/* --prerelease --target "$SHA" \
+          TAG=${{ steps.what.outputs.tag }}
+          gh release create "$TAG" dist/* --prerelease --latest=false --target "$SHA" \
             --title "Edge ${{ github.run_number }} (${SHA::7})" \
             --notes "Fresh build of main at ${SHA::7}. Changes: https://github.com/${{ github.repository }}/commits/$SHA"
+          # Keep the five newest edge builds (rollback targets); drop older ones and the old moving "edge".
+          gh release delete edge --cleanup-tag --yes 2>/dev/null || true
+          gh release list --limit 100 --json tagName -q '.[].tagName' | grep -E '^edge-[0-9]+$' | sort -t- -k2 -n -r | tail -n +6 |
+            while read -r old; do gh release delete "$old" --cleanup-tag --yes; done
 
       - name: Publish stable
         if: steps.what.outputs.channel == 'stable'

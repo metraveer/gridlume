@@ -1,8 +1,8 @@
 #!/bin/sh
 # Gridlume core installer: the core as a systemd service, the agent on this same machine, updates.
 #
-#   curl -fsSL https://github.com/metraveer/gridlume/releases/latest/download/install-core.sh | sudo sh
-#   curl -fsSL https://github.com/metraveer/gridlume/releases/download/edge/install-core.sh | sudo sh -s -- --channel edge
+#   curl -fsSL https://raw.githubusercontent.com/metraveer/gridlume/main/deploy/install-core.sh | sudo sh
+#   curl -fsSL https://raw.githubusercontent.com/metraveer/gridlume/main/deploy/install-core.sh | sudo sh -s -- --channel edge
 #
 # Options:
 #   --channel stable|edge          which releases to follow (changeable later in Settings)
@@ -51,11 +51,15 @@ case "$(uname -m)" in
 esac
 PORT="${ADDR##*:}"
 
+# Every build is its own release (vX.Y.Z or edge-N); take all files from the newest one.
+API="https://api.github.com/repos/$REPO/releases"
 if [ "$CHANNEL" = edge ]; then
-	BASE="https://github.com/$REPO/releases/download/edge"
+	TAG=$(curl -fsSL "$API?per_page=30" | grep -o '"tag_name": *"edge-[0-9]*"' | grep -o 'edge-[0-9]*' | sort -t- -k2 -n | tail -n 1)
 else
-	BASE="https://github.com/$REPO/releases/latest/download"
+	TAG=$(curl -fsSL "$API/latest" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/')
 fi
+[ -n "$TAG" ] || die "no $CHANNEL release found on GitHub" "на GitHub нет выпусков канала $CHANNEL"
+BASE="https://github.com/$REPO/releases/download/$TAG"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

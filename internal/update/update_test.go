@@ -70,7 +70,7 @@ func setup(t *testing.T) (*Updater, *[]string) {
 	var ran []string
 	u := &Updater{
 		Paths:  p,
-		Client: &release.Client{HTTP: srv.Client(), Base: func(string) string { return srv.URL + "/edge" }, Key: pub},
+		Client: &release.Client{HTTP: srv.Client(), Resolve: func(context.Context, *release.Client, string) (string, error) { return srv.URL + "/edge-7", nil }, Key: pub},
 		Log:    slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Run: func(_ context.Context, name string, args ...string) error {
 			ran = append(ran, name+" "+strings.Join(args, " "))

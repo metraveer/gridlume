@@ -95,16 +95,22 @@ func TestBuiltInKeyIsValid(t *testing.T) {
 	}
 }
 
-func TestNewestEdgeIsFoundByNumber(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Not in order, with a draft, a stable one and the old moving "edge" tag mixed in.
-		_, _ = w.Write([]byte(`[{"tag_name":"v0.3.0-dev.9"},{"tag_name":"v0.2.0"},{"tag_name":"v0.3.0-dev.12","draft":true},{"tag_name":"v0.3.0-dev.10"},{"tag_name":"edge"},{"tag_name":"edge-11"}]`))
-	}))
-	defer srv.Close()
-	c := &Client{HTTP: &http.Client{Transport: rewrite{srv.URL}}}
-	base, err := GitHub(context.Background(), c, Edge)
-	if err != nil || !strings.HasSuffix(base, "/releases/download/v0.3.0-dev.10") {
-		t.Fatalf("got %q %v", base, err)
+func TestNewestEdgeIsFoundByDate(t *testing.T) {
+	for _, tc := range []struct{ name, list, want string }{
+		// Not in order, with a draft, an older stable one and the old moving "edge" tags mixed in.
+		{"dev", `[{"tag_name":"v0.3.0-dev.9","published_at":"2026-10-01T10:00:00Z"},{"tag_name":"v0.2.0","published_at":"2026-09-01T10:00:00Z"},
+			{"tag_name":"v0.3.0-dev.12","draft":true},{"tag_name":"v0.3.0-dev.10","published_at":"2026-10-02T10:00:00Z"},
+			{"tag_name":"edge","published_at":"2026-10-05T10:00:00Z"},{"tag_name":"edge-11","published_at":"2026-10-05T10:00:00Z"}]`, "v0.3.0-dev.10"},
+		// A stable release right after the last dev build: edge offers it, no need to switch channels.
+		{"stable", `[{"tag_name":"v0.3.0","published_at":"2026-10-03T10:00:00Z"},{"tag_name":"v0.3.0-dev.10","published_at":"2026-10-02T10:00:00Z"}]`, "v0.3.0"},
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte(tc.list)) }))
+		c := &Client{HTTP: &http.Client{Transport: rewrite{srv.URL}}}
+		base, err := GitHub(context.Background(), c, Edge)
+		srv.Close()
+		if err != nil || !strings.HasSuffix(base, "/releases/download/"+tc.want) {
+			t.Fatalf("%s: got %q %v", tc.name, base, err)
+		}
 	}
 }
 

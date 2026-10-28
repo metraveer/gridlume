@@ -6,10 +6,12 @@ export type Prefs = {
   linkLabels: boolean // protocol and speed on links
   grid: boolean // dots on the canvas
   minimapWidth: number // px; the height follows
+  inspectorWidth: number // px, the panel on the right
+  railOpen: boolean // the left menu shows labels
 }
 
 const KEY = 'gridlume.prefs'
-const defaults: Prefs = { minimap: true, linkLabels: true, grid: true, minimapWidth: 280 }
+const defaults: Prefs = { minimap: true, linkLabels: true, grid: true, minimapWidth: 280, inspectorWidth: 440, railOpen: false }
 
 function load(): Prefs {
   try {
@@ -23,9 +25,10 @@ export const usePrefs = create<Prefs & { set: (p: Partial<Prefs>) => void }>((se
   ...load(),
   set: (p) => {
     set(p)
-    const { minimap, linkLabels, grid, minimapWidth } = get()
+    const { set: _set, ...saved } = get()
+    void _set
     try {
-      localStorage.setItem(KEY, JSON.stringify({ minimap, linkLabels, grid, minimapWidth }))
+      localStorage.setItem(KEY, JSON.stringify(saved))
     } catch {
       // private mode or storage full: the choice lasts until the page reloads
     }

@@ -1,6 +1,7 @@
 .app {
   display: grid;
   grid-template-columns: var(--rail-w) 1fr;
+  transition: grid-template-columns var(--t-fast) var(--ease);
   grid-template-rows: var(--topbar-h) 1fr;
   height: 100vh;
 }
@@ -19,7 +20,7 @@
 
 .left { display: flex; align-items: center; min-width: 0; }
 .right { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-3); min-width: 0; }
-.mark { display: grid; place-items: center; width: var(--rail-w); flex: none; }
+.mark { display: grid; place-items: center; width: 52px; flex: none; }
 .name { margin-left: -6px; font-weight: 600; letter-spacing: -0.01em; }
 .page { margin-left: var(--s-3); padding-left: var(--s-3); border-left: 1px solid var(--line); color: var(--fg-muted); white-space: nowrap; }
 
@@ -122,14 +123,40 @@
 .rail {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 4px;
-  padding: var(--s-2) 0;
+  padding: var(--s-2);
+  overflow: hidden;
   border-right: 1px solid var(--line-soft);
   background: var(--bg-panel);
 }
 
-.rail button[aria-disabled='true'] { opacity: 0.35; cursor: not-allowed; }
+/* One menu item: an icon square when closed, icon and name when open. */
+.railItem {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: 36px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--fs-13);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.railItem svg { flex: none; }
+.railItem:hover { background: var(--bg-raised); color: var(--fg); }
+.railItem[aria-pressed='true'] { background: var(--bg-raised); color: var(--fg); box-shadow: inset 2px 0 0 var(--lume); }
+.railItem[aria-disabled='true'] { opacity: 0.4; cursor: not-allowed; }
+.railItem[aria-disabled='true']:hover { background: transparent; color: var(--fg-muted); }
+.railLabel { flex: 1; min-width: 0; }
+.railSoon { color: var(--fg-faint); font-size: var(--fs-11); }
+.railToggle svg { transform: rotate(0deg); transition: transform var(--t-fast) var(--ease); }
+.rail[data-open='true'] .railToggle svg { transform: rotate(180deg); }
 
 .main {
   position: relative;

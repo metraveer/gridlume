@@ -20,7 +20,7 @@ export function useScrollHints() {
 
     const scan = () => {
       document.querySelectorAll<HTMLElement>('#root *').forEach((el) => {
-        if (scrollable(el)) update(el)
+        if (scrollable(el) && !el.closest('[data-nofade]')) update(el)
         else el.classList.remove('fade-top', 'fade-bottom')
       })
     }
@@ -28,7 +28,7 @@ export function useScrollHints() {
     const onScroll = (e: Event) => {
       const el = e.target
       if (!(el instanceof HTMLElement)) return
-      update(el)
+      if (!el.closest('[data-nofade]')) update(el)
       el.classList.add('is-scrolling')
       window.clearTimeout(timers.get(el))
       timers.set(el, window.setTimeout(() => el.classList.remove('is-scrolling'), 700))

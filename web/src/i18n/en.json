@@ -426,5 +426,10 @@
   "update.reloaded.title": "Gridlume was updated to {v}",
   "update.reloaded.lead": "Reload the page to load the new interface.",
   "update.reloaded.button": "Reload page",
+  "insp.resize": "Drag left to make the panel wider (up to 640 px). Double-click for the usual width.",
+  "rail.label": "Sections",
+  "rail.expand": "Show menu labels",
+  "rail.collapse": "Collapse menu",
+  "rail.stage": "stage {stage}",
   "card.disk": "Disk"
 }

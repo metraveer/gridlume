@@ -20,6 +20,7 @@ import { is, plain, typingIn } from '../hotkeys'
 import { useApp } from '../state/app'
 import { usePrefs } from '../state/prefs'
 import { GhostNodeView, ItemNodeView, LinkEdgeView, PendingEdgeView, PlaceNodeView, type ItemData, type LinkData, type PlaceData } from './flow'
+import { INSPECTOR_MAX, INSPECTOR_MIN } from './Inspector'
 import { dropMenu, linkMenu, nodeMenu, paneMenu, placeMenu } from './menus'
 import { Overview } from './Overview'
 import { canContain, levelContent, NODE_META } from './model'
@@ -46,6 +47,7 @@ function Map() {
   const setFocus = useApp((st) => st.setFocus)
   const viewer = useApp((st) => st.user?.role === 'viewer')
   const inspectorOpen = useApp((st) => st.selection !== null)
+  const inspectorWidth = usePrefs((p) => Math.min(INSPECTOR_MAX, Math.max(INSPECTOR_MIN, p.inspectorWidth)))
   const prefs = usePrefs()
   const pending = useApp((st) => st.pending)
   const editing = useApp((st) => st.editing)
@@ -243,7 +245,7 @@ function Map() {
       >
         {prefs.grid && <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#20252b" />}
         {/* Moves left of the inspector when it is open, so neither covers the other. */}
-        {prefs.minimap && <Overview offset={inspectorOpen ? 356 : 0} />}
+        {prefs.minimap && <Overview offset={inspectorOpen ? inspectorWidth + 16 : 0} />}
       </ReactFlow>
       {menu && <Menu x={menu.x} y={menu.y} items={menu.data} label={t('menu.label')} onClose={closeMenu} />}
 

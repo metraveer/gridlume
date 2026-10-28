@@ -48,3 +48,32 @@
 .hint { color: var(--fg-faint); font-size: var(--fs-11); }
 .error { margin: 0; color: var(--crit); font-size: var(--fs-12); }
 .card button[type='submit'] { justify-content: center; height: 34px; }
+
+.ok { margin: 0; color: var(--ok); font-size: var(--fs-12); }
+
+.note {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  color: var(--fg-muted);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+
+.note p { margin: 0; }
+.note code { color: var(--fg); user-select: all; }
+
+.linkButton {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.linkButton:hover { color: var(--fg); }

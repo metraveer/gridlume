@@ -16,6 +16,7 @@ type api struct {
 	hub       *agentlink.Hub
 	agentsDir string
 	gate      *setupGate
+	setupDone func()
 	limit     *limiter
 	log       *slog.Logger
 }
@@ -25,7 +26,7 @@ func newAPI(opts Options, log *slog.Logger) *api {
 	if hub == nil {
 		hub = agentlink.New(opts.Store, log)
 	}
-	return &api{store: opts.Store, hub: hub, agentsDir: opts.AgentsDir, gate: &setupGate{code: opts.SetupCode}, limit: newLimiter(10, time.Minute), log: log}
+	return &api{store: opts.Store, hub: hub, agentsDir: opts.AgentsDir, gate: &setupGate{code: opts.SetupCode}, setupDone: opts.SetupDone, limit: newLimiter(10, time.Minute), log: log}
 }
 
 // NewSetupCode returns a one-time code like "K7QM-2R9X" for creating the owner account.

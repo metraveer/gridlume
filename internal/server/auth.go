@@ -32,7 +32,7 @@ func userFrom(ctx context.Context) (store.User, bool) {
 }
 
 // setupGate holds the one-time code that lets the very first person create the owner account.
-// It is printed to the console at start; anyone who can read the console owns the machine anyway.
+// It reaches the user as a link printed by the installer and the core; whoever can read that owns the machine anyway.
 type setupGate struct {
 	mu   sync.Mutex
 	code string
@@ -139,6 +139,9 @@ func (a *api) setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.gate.close()
+	if a.setupDone != nil {
+		a.setupDone()
+	}
 	a.log.Info("owner account created", "username", u.Username)
 	a.startSession(w, r, u)
 }

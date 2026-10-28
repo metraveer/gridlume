@@ -24,6 +24,8 @@ type Options struct {
 	Store *store.Store
 	// SetupCode lets the first visitor create the owner account; empty once an owner exists.
 	SetupCode string
+	// SetupDone is called once the owner account exists (the core then forgets the code file).
+	SetupDone func()
 	// Hub holds agent connections; nil makes a new one (tests).
 	Hub *agentlink.Hub
 	// AgentsDir holds agent builds served at /download/ for the install script.

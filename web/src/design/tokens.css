@@ -1,0 +1,95 @@
+/* Gridlume design tokens (source of truth: design/mockup/tokens.css).
+   One theme ("night console"). Colour carries meaning only: state, selection, link type.
+   Everything else is graphite. Spacing is a 4 px grid. */
+
+
+:root {
+  /* Surfaces, darkest to lightest */
+  --bg-canvas: #0d0f12;
+  --bg-panel: #14171b;
+  --bg-raised: #1a1e23;
+  --bg-hover: #21262c;
+  --bg-active: #2a3038;
+
+  /* Lines */
+  --line-soft: #20252b;
+  --line: #2b3139;
+  --line-strong: #3a424c;
+
+  /* Text */
+  --fg: #e9ebee;
+  --fg-muted: #a3abb5;
+  --fg-faint: #6b7480;
+  --fg-on-light: #0d0f12;
+
+  /* The "lume": warm light used for primary action, focus and selection */
+  --lume: #f3eedf;
+  --lume-dim: #c9c3b2;
+  --lume-glow: rgba(243, 238, 223, 0.16);
+
+  /* State */
+  --ok: #3ccf8e;
+  --warn: #f2b544;
+  --crit: #ff5f57;
+  --unknown: #6b7480;
+  --planned: #8a93a0;
+  --info: #6aaeff;
+
+  --ok-bg: rgba(60, 207, 142, 0.12);
+  --warn-bg: rgba(242, 181, 68, 0.12);
+  --crit-bg: rgba(255, 95, 87, 0.12);
+  --info-bg: rgba(106, 174, 255, 0.12);
+
+  /* Link types */
+  --link-lan: #7d8794;
+  --link-wifi: #7d8794;
+  --link-uplink: #b9c0c9;
+  --link-vpn: #4fc9c0;
+  --link-runs: #4a525c;
+  --link-depends: #6aaeff;
+  --link-dns: #a98bf0;
+
+  /* Places (group tint, very low alpha) */
+  --place-village: rgba(60, 207, 142, 0.05);
+  --place-city: rgba(106, 174, 255, 0.05);
+  --place-cloud: rgba(169, 139, 240, 0.05);
+
+  /* Type */
+  --font-ui: "Onest", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-15: 15px;
+  --fs-18: 18px;
+  --fs-24: 24px;
+  --fs-32: 32px;
+  --lh-tight: 1.25;
+  --lh: 1.5;
+
+  /* Space (4 px grid) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+
+  /* Shape */
+  --r-sm: 4px;
+  --r: 6px;
+  --r-lg: 10px;
+  --shadow-pop: 0 8px 28px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--line);
+
+  /* Motion */
+  --t-fast: 120ms;
+  --t: 180ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* Layout */
+  --topbar-h: 48px;
+  --rail-w: 52px;
+  --inspector-w: 360px;
+}

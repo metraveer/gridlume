@@ -10,7 +10,8 @@
 
 # Frontend
 node_modules/
-/web/dist/
+/web/dist/*
+!/web/dist/.gitkeep
 .vite/
 
 # Local data and secrets
@@ -27,3 +28,6 @@ node_modules/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local agent and editor settings
+.claude/

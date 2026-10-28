@@ -87,3 +87,18 @@ it('offers to reload when the core comes back with another version', async () =>
   expect(await screen.findByText('Gridlume обновлён до 0.3.0')).toBeTruthy()
   vi.useRealTimers()
 })
+
+it('map shortcuts work with the Russian layout too (physical keys)', async () => {
+  vi.stubGlobal('fetch', core({ needsSetup: false, user: owner }))
+  render(<App />)
+  expect(await screen.findByText('Схема пока пустая')).toBeTruthy()
+  // F in the Russian layout types "а"; "/" types ".".
+  await act(async () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF', key: 'а', bubbles: true }))
+  })
+  expect(useApp.getState().focus).toBe('*')
+  await act(async () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Slash', key: '.', bubbles: true }))
+  })
+  expect(document.activeElement?.id).toBe('global-search')
+})

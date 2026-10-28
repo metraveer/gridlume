@@ -1,11 +1,15 @@
 /* Map pieces drawn inside React Flow. Same look as design/mockup (node card, place area, link styles). */
 
+/* A card is as wide as its content needs, so nothing is ever cut with "…": it grows to 420 px, and only
+   text longer than that wraps. Kinds that show live numbers start wide enough for the whole row of them. */
 .node {
   position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 188px;
+  width: max-content;
+  min-width: 188px;
+  max-width: 420px;
   min-height: 52px;
   padding: 8px 12px;
   border: 1px solid var(--line);
@@ -19,7 +23,9 @@
 .selected { border-color: var(--lume); box-shadow: 0 0 0 4px var(--lume-glow); }
 .planned { border-style: dashed; background: transparent; color: var(--fg-muted); }
 .portal { border-style: dashed; background: transparent; opacity: 0.75; }
-.small { width: 156px; min-height: 40px; padding: 6px 10px; }
+.small { min-width: 156px; min-height: 40px; padding: 6px 10px; }
+.withLive { min-width: 236px; } /* name, then CPU · RAM · Disk in one row */
+.small.withLive { min-width: 200px; } /* containers: CPU · RAM */
 
 .glyph {
   display: grid;
@@ -33,10 +39,17 @@
 }
 
 .small .glyph { width: 24px; height: 24px; }
-.label { flex: 1; min-width: 0; }
-.name, .sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name { font-weight: 600; }
-.sub { color: var(--fg-faint); font-size: var(--fs-11); }
+.label { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.name, .sub { display: block; overflow-wrap: anywhere; }
+.name { font-weight: 600; line-height: 1.25; }
+.sub { color: var(--fg-faint); font-size: var(--fs-11); line-height: 1.35; }
+
+/* Live numbers: CPU, RAM, the fullest disk. Amber from 80 %, red from 95 %. */
+.chips { display: flex; gap: 4px; margin-top: 3px; white-space: nowrap; }
+.chips span { padding: 1px 6px; border-radius: 4px; background: var(--bg-raised); color: var(--fg-muted); font-family: var(--font-mono); font-size: 10px; white-space: nowrap; }
+.chips b { color: var(--fg-faint); font-weight: 400; }
+.chips .warn { color: var(--warn); }
+.chips .crit { color: var(--crit); }
 .state { position: absolute; top: -4px; right: -4px; display: flex; pointer-events: none; }
 
 .kids {

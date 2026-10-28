@@ -17,3 +17,9 @@ it('formats sizes, rates and times in Russian', () => {
 it('summarises load for the node card', () => {
   expect(cardLine({ cpu: 12.4, memTotal: 100, memUsed: 43 } as never)).toBe('CPU 12% · RAM 43%')
 })
+
+it('shortens a container image to its name on the card', async () => {
+  const { shortImage } = await import('./flow')
+  expect(shortImage('ghcr.io/moghtech/komodo-core:2')).toBe('komodo-core:2')
+  expect(shortImage('postgres:17')).toBe('postgres:17')
+})

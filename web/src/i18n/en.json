@@ -430,5 +430,6 @@
   "rail.label": "Sections",
   "rail.expand": "Show menu labels",
   "rail.collapse": "Collapse menu",
-  "rail.stage": "stage {stage}"
+  "rail.stage": "stage {stage}",
+  "card.disk": "Disk"
 }

@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Place } from '../api/types'
 import { Button, Menu, useMenu, type MenuItem } from '../design'
+import { is, plain, typingIn } from '../hotkeys'
 import { useApp } from '../state/app'
 import { usePrefs } from '../state/prefs'
 import { GhostNodeView, ItemNodeView, LinkEdgeView, PendingEdgeView, PlaceNodeView, type ItemData, type LinkData, type PlaceData } from './flow'
@@ -127,14 +128,14 @@ function Map() {
   // Keys on the map: Delete asks to delete what is selected, Esc lets go of it, F fits everything.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable], [role="dialog"], [role="menu"]')) return
+      if (typingIn(e.target) || (e.target as HTMLElement).closest?.('[role="dialog"], [role="menu"]')) return
       const { selection, askDelete, select, editing } = useApp.getState()
       if (editing) return
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selection && !viewer) {
+      if (is(e, 'remove') && selection && !viewer) {
         e.preventDefault()
         askDelete(selection)
-      } else if (e.key === 'Escape' && selection) select(null)
-      else if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) setFocus('*')
+      } else if (is(e, 'cancel') && selection) select(null)
+      else if (is(e, 'fit') && plain(e)) setFocus('*')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

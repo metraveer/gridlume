@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { MapNode } from '../api/types'
 import { go } from '../app/route'
 import { Icon, StateBadge } from '../design'
+import { is } from '../hotkeys'
 import { useApp } from '../state/app'
 import { findContainer, liveState, useLive } from '../state/live'
 import { NODE_META } from './model'
@@ -63,7 +64,7 @@ export function NodesPage() {
           </thead>
           <tbody>
             {rows.map((n) => (
-              <tr key={n.id} onClick={() => reveal(n)} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && reveal(n)} data-tip={t('nodes.open.tip')}>
+              <tr key={n.id} onClick={() => reveal(n)} tabIndex={0} onKeyDown={(e) => is(e, 'confirm') && reveal(n)} data-tip={t('nodes.open.tip')}>
                 <td>
                   <span className={s.nameCell}>
                     <Icon name={NODE_META[n.kind].icon} />

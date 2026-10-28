@@ -430,5 +430,6 @@
   "rail.label": "Разделы",
   "rail.expand": "Показать подписи меню",
   "rail.collapse": "Свернуть меню",
-  "rail.stage": "этап {stage}"
+  "rail.stage": "этап {stage}",
+  "card.disk": "Диск"
 }

@@ -1,6 +1,7 @@
 import { useEffect, useId, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { is } from '../hotkeys'
 import { IconButton } from './Button'
 import s from './Dialog.module.css'
 import { RiskLabel, type Risk } from './Status'
@@ -21,7 +22,7 @@ export function Dialog({ title, risk, onClose, children, footer }: Props) {
   const { t } = useTranslation()
   const titleId = useId()
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => is(e, 'cancel') && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])

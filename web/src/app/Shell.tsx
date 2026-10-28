@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Icon, IconButton, Menu, type IconName } from '../design'
 import { NODE_META } from '../map/model'
 import { matches, reveal } from '../map/NodesPage'
+import { is, plain, typingIn } from '../hotkeys'
 import { useApp } from '../state/app'
 import { CoreStatus } from './CoreStatus'
 import { go, type Route } from './route'
@@ -63,10 +64,10 @@ function Search() {
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') pick(active)
-          if (e.key === 'Escape') (e.target as HTMLInputElement).blur()
-          if (e.key === 'ArrowDown') setActive((a) => Math.min(a + 1, found.length - 1))
-          if (e.key === 'ArrowUp') setActive((a) => Math.max(a - 1, 0))
+          if (is(e, 'confirm')) pick(active)
+          if (is(e, 'cancel')) (e.target as HTMLInputElement).blur()
+          if (is(e, 'down')) setActive((a) => Math.min(a + 1, found.length - 1))
+          if (is(e, 'up')) setActive((a) => Math.max(a - 1, 0))
         }}
       />
       <kbd className={s.key} data-tip={t('app.search.key')}>/</kbd>
@@ -140,11 +141,10 @@ function UserMenu() {
 /** Top bar, left rail and the main area. Items of later stages are visible but say when they arrive. */
 export function Shell({ route, children }: { route: Route; children: ReactNode }) {
   const { t } = useTranslation()
-  // "/" anywhere outside a text field jumps to search, as on GitHub and in many panels.
+  // "/" anywhere outside a text field jumps to search, as on GitHub and in many panels (any layout).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement
-      if (e.key !== '/' || e.ctrlKey || e.metaKey || el.closest('input, textarea, select, [contenteditable]')) return
+      if (!is(e, 'search') || !plain(e) || typingIn(e.target)) return
       e.preventDefault()
       document.getElementById('global-search')?.focus()
     }

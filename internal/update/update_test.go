@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -188,5 +189,25 @@ func TestChannelFileAndInstallMark(t *testing.T) {
 	}
 	if st, ok := ReadStatus(dir); !ok || st.State != "installed" || st.To != "0.3.0" {
 		t.Fatalf("install mark: %+v", st)
+	}
+}
+
+func TestPruneBackupsKeepsTheNewest(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Now()
+	for i := 0; i < 8; i++ {
+		p := filepath.Join(dir, fmt.Sprintf("gridlume-0.%d.0-x.db", i))
+		_ = os.WriteFile(p, []byte("db"), 0o600)
+		_ = os.Chtimes(p, now.Add(time.Duration(i)*time.Minute), now.Add(time.Duration(i)*time.Minute))
+	}
+	_ = os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("keep me"), 0o600)
+	PruneBackups(dir, 5, "")
+	left, _ := os.ReadDir(dir)
+	var names []string
+	for _, e := range left {
+		names = append(names, e.Name())
+	}
+	if len(names) != 6 || !slices.Contains(names, "gridlume-0.7.0-x.db") || slices.Contains(names, "gridlume-0.2.0-x.db") || !slices.Contains(names, "notes.txt") {
+		t.Fatalf("left: %v", names)
 	}
 }

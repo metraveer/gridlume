@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -183,6 +184,7 @@ func (u *Updater) Apply(ctx context.Context, channel string) (Status, error) {
 	if err := u.Run(ctx, "runuser", "-u", u.Paths.CoreUser, "--", u.Paths.Bin, "backup", "--to", backup); err != nil {
 		return u.fail(from, r.Version, fmt.Errorf("database backup: %w", err))
 	}
+	PruneBackups(filepath.Dir(backup), KeepBackups, backup)
 
 	if err := swap(filepath.Join(stage, "gridlume-linux-"+arch), u.Paths.Bin); err != nil {
 		return u.fail(from, r.Version, err)
@@ -331,5 +333,35 @@ func Shown(st Status, current string, now time.Time) (Status, bool) {
 		return st, false
 	default: // failed, rolled_back: worth seeing for a day
 		return st, now.Sub(st.At) < 24*time.Hour
+	}
+}
+
+// KeepBackups is how many database copies made before updates are kept.
+const KeepBackups = 5
+
+// PruneBackups deletes all but the newest keep copies in dir; the copy in keepAlways (just made) stays.
+func PruneBackups(dir string, keep int, keepAlways string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	type file struct {
+		path string
+		mod  time.Time
+	}
+	var files []file
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), "gridlume-") || !strings.HasSuffix(e.Name(), ".db") {
+			continue
+		}
+		if info, err := e.Info(); err == nil {
+			files = append(files, file{filepath.Join(dir, e.Name()), info.ModTime()})
+		}
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].mod.After(files[j].mod) })
+	for i, f := range files {
+		if i >= keep && f.path != keepAlways {
+			_ = os.Remove(f.path)
+		}
 	}
 }

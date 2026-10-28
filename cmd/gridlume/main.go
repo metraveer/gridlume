@@ -3,6 +3,9 @@
 //	gridlume            serve the embedded interface (same as `gridlume serve`)
 //	gridlume dev        development: core + Vite with live reload, one address
 //	gridlume setup-link print the first-login link again
+//	gridlume update     install the newest release (sudo); --check only looks
+//	gridlume backup     copy the database while the core runs
+//	gridlume agent-code a code for the agent on this machine (used by the core installer)
 //	gridlume version    print the version
 package main
 
@@ -44,10 +47,18 @@ func main() {
 		err = run(log, args, true)
 	case "setup-link":
 		err = setupLinkCmd(args)
+	case "update":
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		err = updateCmd(ctx, log, args)
+		stop()
+	case "backup":
+		err = backupCmd(args)
+	case "agent-code":
+		err = agentCodeCmd(args)
 	case "version":
-		fmt.Printf("gridlume %s (%s)\n", version.Version, version.Commit)
+		fmt.Printf("gridlume %s (%s, build %s, %s)\n", version.Version, version.Commit, version.Build, channelName())
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command %q; use serve, dev, setup-link or version\n", cmd)
+		fmt.Fprintf(os.Stderr, "unknown command %q; use serve, dev, setup-link, update, backup, agent-code or version\n", cmd)
 		os.Exit(2)
 	}
 	if err != nil {
@@ -96,7 +107,8 @@ func run(log *slog.Logger, args []string, dev bool) error {
 	go hub.Maintain(ctx)
 
 	opts := server.Options{Dist: web.Dist(), Store: db, SetupCode: setupCode, Hub: hub, AgentsDir: *agentsDir, Log: log,
-		SetupDone: func() { _ = os.Remove(codeFile) }}
+		SetupDone: func() { _ = os.Remove(codeFile) },
+		DataDir:   *dataDir, UpdatesEnabled: setting("GRIDLUME_UPDATER", "") == "1", Context: ctx}
 	if dev {
 		// Agents installed on other machines download these builds from this core.
 		go devmode.BuildAgents(ctx, *agentsDir, log)
@@ -137,4 +149,11 @@ func purgeSessions(ctx context.Context, db *store.Store) {
 			_ = db.PurgeSessions(ctx)
 		}
 	}
+}
+
+func channelName() string {
+	if version.Channel == "" {
+		return "development build"
+	}
+	return version.Channel
 }

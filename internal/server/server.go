@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io/fs"
 	"log/slog"
@@ -30,7 +31,13 @@ type Options struct {
 	Hub *agentlink.Hub
 	// AgentsDir holds agent builds served at /download/ for the install script.
 	AgentsDir string
-	Log       *slog.Logger
+	// DataDir is the core's data folder: update requests and results are files there.
+	DataDir string
+	// UpdatesEnabled: installed by install-core.sh, so the root update service can act on requests.
+	UpdatesEnabled bool
+	// Context ends background work (update checks); nil means it runs until the process ends.
+	Context context.Context
+	Log     *slog.Logger
 }
 
 // New returns the core HTTP handler.

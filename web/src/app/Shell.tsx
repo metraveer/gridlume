@@ -42,7 +42,7 @@ function Crumbs({ route }: { route: Route }) {
   if (route !== 'map') {
     return (
       <nav className={s.crumbs} aria-label="breadcrumbs">
-        <span aria-current="page">{t(route === 'nodes' ? 'rail.nodes' : 'rail.design')}</span>
+        <span aria-current="page">{t(route === 'nodes' ? 'rail.nodes' : route === 'settings' ? 'rail.settings' : 'rail.design')}</span>
       </nav>
     )
   }
@@ -117,6 +117,18 @@ function Search() {
   )
 }
 
+/** "Update available" next to the core status; opens Settings. */
+function UpdateBadge() {
+  const { t } = useTranslation()
+  const sys = useApp((st) => st.system)
+  if (!sys?.newer || !sys.latest) return null
+  return (
+    <button type="button" className={s.update} onClick={() => go('settings')} data-tip={t('update.badge.tip')}>
+      {t('update.badge', { version: sys.latest.version })}
+    </button>
+  )
+}
+
 function UserMenu() {
   const { t } = useTranslation()
   const user = useApp((st) => st.user)
@@ -143,6 +155,7 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
         <Crumbs route={route} />
         <Search />
         <span className={s.grow} />
+        <UpdateBadge />
         <CoreStatus />
         <Segmented<Language>
           label={t('app.lang')}
@@ -167,7 +180,7 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
         ))}
         <span className={s.grow} />
         <IconButton icon="layers" label={t('rail.design')} aria-pressed={route === 'design'} onClick={() => go('design')} />
-        <IconButton icon="gear" label={`${t('rail.settings')} · ${t('common.soon', { stage: 2 })}`} aria-disabled />
+        <IconButton icon="gear" label={t('rail.settings')} aria-pressed={route === 'settings'} onClick={() => go('settings')} />
       </nav>
 
       <main className={s.main}>{children}</main>

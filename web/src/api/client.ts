@@ -1,4 +1,4 @@
-import type { Agent, AgentMode, Link, MapData, MapNode, MetricPoint, MetricRange, Place, SessionInfo, Snapshot, Suggestion, User } from './types'
+import type { Agent, AgentMode, Channel, Link, MapData, MapNode, MetricPoint, MetricRange, Place, SessionInfo, Snapshot, Suggestion, SystemInfo, User } from './types'
 
 /** An error answer from the core, e.g. { error: "validation", field: "name", code: "required" }. */
 export class ApiError extends Error {
@@ -70,6 +70,10 @@ export const api = {
   /** A one-time code for the install command; nodeId "" makes a new node named after the machine. */
   agentCode: (nodeId: string, mode: AgentMode) => request<{ code: string; expiresAt: number }>('POST', '/api/agents/codes', { nodeId, mode }),
   unlinkAgent: (id: string) => request('DELETE', `/api/agents/${id}`),
+  system: () => request<SystemInfo>('GET', '/api/system'),
+  saveSystem: (channel: Channel, auto: boolean) => request<SystemInfo>('PUT', '/api/system/settings', { channel, auto }),
+  checkUpdates: () => request<SystemInfo>('POST', '/api/system/check', {}),
+  startUpdate: () => request<SystemInfo>('POST', '/api/system/update', {}),
   suggestions: () => request<Suggestion[]>('GET', '/api/suggestions'),
   acceptSuggestion: (id: string, about: string, ifBroken: string) => request<Link>('POST', `/api/suggestions/${id}/accept`, { about, ifBroken }),
   dismissSuggestion: (id: string) => request('POST', `/api/suggestions/${id}/dismiss`, {}),

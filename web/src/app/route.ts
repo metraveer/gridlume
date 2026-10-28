@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 
-export type Route = 'map' | 'nodes' | 'design'
+export type Route = 'map' | 'nodes' | 'settings' | 'design'
 
-const HASH: Record<Route, string> = { map: '#/', nodes: '#/nodes', design: '#/design' }
+const HASH: Record<Route, string> = { map: '#/', nodes: '#/nodes', settings: '#/settings', design: '#/design' }
 
 function readRoute(): Route {
   const h = window.location.hash
-  return h === HASH.design ? 'design' : h === HASH.nodes ? 'nodes' : 'map'
+  return (Object.keys(HASH) as Route[]).find((r) => r !== 'map' && HASH[r] === h) ?? 'map'
 }
 
 export function go(r: Route) {

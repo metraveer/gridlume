@@ -14,6 +14,7 @@ function core(session: unknown) {
       '/api/map': { places: [], nodes: [], links: [] },
       '/api/agents': [],
       '/api/suggestions': [],
+      '/api/system': { version: '0.0.0-dev', build: 0, commit: 'x', channel: 'stable', auto: false, canUpdate: false, coreNode: '', latest: null, newer: false, checkError: '', pending: false },
     }
     return new Response(JSON.stringify(body[url] ?? {}))
   })

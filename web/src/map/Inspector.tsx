@@ -69,6 +69,7 @@ function NodePanel({ node }: { node: MapNode }) {
   const [confirm, setConfirm] = useState(false)
   const [confirmUnlink, setConfirmUnlink] = useState(false)
   const { agent, snap, container, state } = useNodeLive(node)
+  const isCore = useApp((st) => !!st.system?.coreNode && st.system.coreNode === node.id)
   // Keep the draft in step when another node is selected.
   const [shownId, setShownId] = useState(node.id)
   if (shownId !== node.id) {
@@ -100,6 +101,7 @@ function NodePanel({ node }: { node: MapNode }) {
       </div>
       <div className={s.status}>
         <StateBadge state={state} />
+        {isCore && <span className={s.core} data-tip={t('core.here.tip')}>{t('core.here')}</span>}
         {!agent && !viewer && canContain(node) && (
           <Button size="sm" icon="server" tip={t('agent.connect.tip')} onClick={() => edit({ kind: 'agent', nodeId: node.id })}>{t('agent.connect.short')}</Button>
         )}

@@ -28,7 +28,7 @@ export function ContainerSection({ c }: { c: Container | null }) {
           ...(c.state === 'running'
             ? [
                 [t('live.cpu.short'), <span className="mono">{percent(c.cpu)}</span>],
-                [t('live.mem'), <span className="mono">{bytes(t, c.memUsed)}{c.memLimit && c.memLimit < 1 << 50 ? ` / ${bytes(t, c.memLimit)}` : ''}</span>],
+                [t('live.mem'), <span className="mono">{bytes(t, c.memUsed)}{c.memLimit && c.memLimit < 2 ** 50 ? ` / ${bytes(t, c.memLimit)}` : ''}</span>],
               ] as [string, React.ReactNode][]
             : []),
           [t('docker.image'), <span className="mono">{c.image}</span>],

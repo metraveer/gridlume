@@ -105,5 +105,24 @@ export type Agent = {
 /** One message of /api/events. */
 export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean; mapChanged?: boolean }
 
+export type Channel = 'stable' | 'edge'
+
+/** GET /api/system: this installation's version and updates. */
+export type SystemInfo = {
+  version: string
+  build: number
+  commit: string
+  channel: Channel
+  auto: boolean
+  canUpdate: boolean // installed by install-core.sh: the update service exists
+  coreNode: string // node of the machine the core runs on, '' if unknown
+  latest: { version: string; channel: Channel; build: number; commit: string; date: string; url: string } | null
+  newer: boolean
+  checkedAt?: string
+  checkError: string
+  pending: boolean // an update was requested and has not started yet
+  last?: { state: 'running' | 'done' | 'rolled_back' | 'failed' | 'up_to_date'; from: string; to: string; message?: string; at: string }
+}
+
 export type MetricRange = '1h' | '24h' | '14d'
 export type MetricPoint = { t: number; avg: number; max: number }

@@ -163,8 +163,11 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: a
 	say "Firewall: port $PORT opened for $NET only." "Брандмауэр: порт $PORT открыт только для $NET."
 fi
 
-# The agent on this machine: connected without a code from the interface.
-if [ "$AGENT_MODE" != none ] && [ ! -f /etc/systemd/system/gridlume-agent.service ]; then
+# The agent on this machine: connected without a code from the interface; on a re-run it gets the new build.
+if [ -f /etc/systemd/system/gridlume-agent.service ]; then
+	install -m 755 "$DATA/agents/gridlume-agent-linux-$ARCH" /usr/local/bin/gridlume-agent
+	systemctl try-restart gridlume-agent
+elif [ "$AGENT_MODE" != none ]; then
 	CODE=$(runuser -u "$CORE_USER" -- "$BIN" agent-code --mode "$AGENT_MODE")
 	curl -fsSL "http://127.0.0.1:$PORT/install.sh" | sh -s -- --code "$CODE" --mode "$AGENT_MODE" --lang "$LANG_UI" ||
 		say "The agent on this machine was not installed; the core works without it." "Агент на этой машине не установился; ядро работает и без него."

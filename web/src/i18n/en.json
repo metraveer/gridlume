@@ -425,5 +425,6 @@
   "update.last.interrupted": "The update to {to} was interrupted (the machine restarted or the service stopped)",
   "update.reloaded.title": "Gridlume was updated to {v}",
   "update.reloaded.lead": "Reload the page to load the new interface.",
-  "update.reloaded.button": "Reload page"
+  "update.reloaded.button": "Reload page",
+  "card.disk": "Disk"
 }

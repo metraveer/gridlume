@@ -104,7 +104,7 @@ func (s *Store) SyncContainers(ctx context.Context, machineID string, cs []agent
 		// Three per row, with room between them for a link's label.
 		_, err := tx.ExecContext(ctx, `INSERT INTO nodes (id, parent_id, place_id, kind, name, subtitle, address, state, notes, x, y, source, ext_key, created_at, updated_at)
 			VALUES (?, ?, NULL, ?, ?, ?, '', 'unknown', '', ?, ?, 'docker', ?, ?, ?)`,
-			NewID(), machineID, containerKind(c.Image), truncate(name, 80), truncate(c.Image, 120), float64(added%3)*280, y+float64(added/3)*120, key, now, now)
+			NewID(), machineID, containerKind(c.Image), truncate(name, 80), truncate(c.Image, 120), float64(added%3)*320, y+float64(added/3)*120, key, now, now)
 		if err != nil {
 			return false, err
 		}

@@ -11,10 +11,10 @@ import (
 // cpuTimes are the jiffies of the "cpu" line of /proc/stat.
 type cpuTimes struct{ idle, total uint64 }
 
-// parseStat returns the summed CPU times and the number of cores.
+// parseStat returns the summed CPU times and the number of logical processors (threads).
 func parseStat(text string) (cpuTimes, int) {
 	var t cpuTimes
-	cores := 0
+	threads := 0
 	sc := bufio.NewScanner(strings.NewReader(text))
 	for sc.Scan() {
 		f := strings.Fields(sc.Text())
@@ -22,7 +22,7 @@ func parseStat(text string) (cpuTimes, int) {
 			continue
 		}
 		if f[0] != "cpu" {
-			cores++
+			threads++
 			continue
 		}
 		// user nice system idle iowait irq softirq steal (guest is already counted in user)
@@ -37,7 +37,19 @@ func parseStat(text string) (cpuTimes, int) {
 			}
 		}
 	}
-	return t, cores
+	return t, threads
+}
+
+// countCores counts physical cores: distinct "package-core" pairs from the CPU topology.
+// Hyper-threading siblings share a pair. Returns 0 when the topology is not known.
+func countCores(pairs []string) int {
+	seen := map[string]bool{}
+	for _, p := range pairs {
+		if p != "" {
+			seen[p] = true
+		}
+	}
+	return len(seen)
 }
 
 // cpuPercent is the busy share between two readings.

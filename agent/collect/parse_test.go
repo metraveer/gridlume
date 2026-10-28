@@ -3,10 +3,14 @@ package collect
 import "testing"
 
 func TestCPU(t *testing.T) {
-	a, cores := parseStat("cpu  100 0 100 800 0 0 0 0 0 0\ncpu0 50 0 50 400 0 0 0 0 0 0\ncpu1 50 0 50 400 0 0 0 0 0 0\nintr 1\n")
+	a, threads := parseStat("cpu  100 0 100 800 0 0 0 0 0 0\ncpu0 50 0 50 400 0 0 0 0 0 0\ncpu1 50 0 50 400 0 0 0 0 0 0\nintr 1\n")
 	b, _ := parseStat("cpu  150 0 150 900 0 0 0 0 0 0\n")
-	if cores != 2 {
-		t.Fatalf("cores = %d", cores)
+	if threads != 2 {
+		t.Fatalf("threads = %d", threads)
+	}
+	// i3-6006U: 4 threads on 2 cores of one package.
+	if got := countCores([]string{"0-0", "0-1", "0-0", "0-1"}); got != 2 {
+		t.Fatalf("cores = %d, want 2", got)
 	}
 	// 200 jiffies passed, 100 of them idle.
 	if got := cpuPercent(a, b); got != 50 {

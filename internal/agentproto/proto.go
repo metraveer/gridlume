@@ -44,9 +44,10 @@ type Info struct {
 
 // Snapshot is the state of the machine right now.
 type Snapshot struct {
-	At        int64   `json:"at"`  // unix milliseconds
-	CPU       float64 `json:"cpu"` // percent of all cores since the previous snapshot
-	Cores     int     `json:"cores"`
+	At        int64   `json:"at"`      // unix milliseconds
+	CPU       float64 `json:"cpu"`     // percent of all threads since the previous snapshot
+	Cores     int     `json:"cores"`   // physical cores
+	Threads   int     `json:"threads"` // logical processors (cores × hyper-threading)
 	Load1     float64 `json:"load1"`
 	MemTotal  uint64  `json:"memTotal"` // bytes
 	MemUsed   uint64  `json:"memUsed"`  // total minus available

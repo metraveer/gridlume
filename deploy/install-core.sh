@@ -151,7 +151,8 @@ say "Core is running: $($BIN version)" "Ядро работает: $($BIN versio
 
 # Firewall: the core is for the local network (or a VPN), not the internet.
 DEV=$(ip route show default 2>/dev/null | awk '{for (i=1;i<NF;i++) if ($i=="dev") {print $(i+1); exit}}')
-NET=$(ip route show dev "$DEV" scope link 2>/dev/null | awk '/proto kernel/ {print $1; exit}')
+# The subnet of that interface, whoever set it up ("proto kernel", "proto dhcp" with NetworkManager, ...).
+NET=$(ip route show dev "$DEV" scope link 2>/dev/null | awk '$1 ~ /\// {print $1; exit}')
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active" && [ -n "$NET" ]; then
 	ufw allow from "$NET" to any port "$PORT" proto tcp comment "Gridlume" >/dev/null
 	say "Firewall: port $PORT opened for $NET only." "Брандмауэр: порт $PORT открыт только для $NET."

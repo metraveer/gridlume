@@ -7,18 +7,25 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/metraveer/gridlume/internal/agentlink"
 	"github.com/metraveer/gridlume/internal/store"
 )
 
 type api struct {
-	store *store.Store
-	gate  *setupGate
-	limit *limiter
-	log   *slog.Logger
+	store     *store.Store
+	hub       *agentlink.Hub
+	agentsDir string
+	gate      *setupGate
+	limit     *limiter
+	log       *slog.Logger
 }
 
-func newAPI(s *store.Store, setupCode string, log *slog.Logger) *api {
-	return &api{store: s, gate: &setupGate{code: setupCode}, limit: newLimiter(10, time.Minute), log: log}
+func newAPI(opts Options, log *slog.Logger) *api {
+	hub := opts.Hub
+	if hub == nil {
+		hub = agentlink.New(opts.Store, log)
+	}
+	return &api{store: opts.Store, hub: hub, agentsDir: opts.AgentsDir, gate: &setupGate{code: opts.SetupCode}, limit: newLimiter(10, time.Minute), log: log}
 }
 
 // NewSetupCode returns a one-time code like "K7QM-2R9X" for creating the owner account.
@@ -59,6 +66,8 @@ func (a *api) routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/links", a.authed(a.createLink))
 	mux.HandleFunc("PATCH /api/links/{id}", a.authed(a.updateLink))
 	mux.HandleFunc("DELETE /api/links/{id}", a.authed(a.deleteLink))
+
+	a.agentRoutes(mux)
 }
 
 // fail turns store errors into answers the interface can translate.

@@ -44,3 +44,42 @@ export type Link = {
 export type MapData = { places: Place[]; nodes: MapNode[]; links: Link[] }
 
 export type SessionInfo = { needsSetup: boolean; user: User | null }
+
+/** How the agent was installed; see docs/decisions.md, "Режимы прав агента". */
+export const AGENT_MODES = ['user', 'readonly', 'root'] as const
+export type AgentMode = (typeof AGENT_MODES)[number]
+
+export type Snapshot = {
+  at: number // unix ms
+  cpu: number // percent
+  cores: number // physical
+  threads: number // logical processors
+  load1: number
+  memTotal: number // bytes
+  memUsed: number
+  swapTotal: number
+  swapUsed: number
+  uptime: number // seconds
+  disks: { mount: string; fs: string; total: number; used: number }[] | null
+  net: { name: string; rx: number; tx: number }[] | null // bytes per second
+  temps: { name: string; c: number }[] | null
+}
+
+export type Agent = {
+  id: string
+  nodeId: string
+  hostname: string
+  os: string
+  kernel: string
+  arch: string
+  version: string
+  mode: AgentMode
+  lastSeen: number // unix seconds, 0 = never
+  online: boolean
+}
+
+/** One message of /api/events. */
+export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean }
+
+export type MetricRange = '1h' | '24h' | '14d'
+export type MetricPoint = { t: number; avg: number; max: number }

@@ -3,24 +3,26 @@ import { useTranslation } from 'react-i18next'
 import type { Link, MapNode, Place } from '../api/types'
 import { Button, Dialog, Icon, IconButton, KV, Section, StateBadge, type Risk } from '../design'
 import { useApp } from '../state/app'
+import { useNodeLive } from '../state/live'
+import { AgentSection, HistorySection, LiveSection, unlinkAgent } from './AgentPanel'
 import { speed } from './flow'
 import { canContain, dependents, NODE_META, requirements } from './model'
 import s from './Inspector.module.css'
 
 /** Delete with a confirmation. Danger (something else breaks) asks to type the name. */
-function ConfirmDelete({ name, risk, consequence, onConfirm, onClose }: { name: string; risk: Risk; consequence: string; onConfirm: () => void; onClose: () => void }) {
+function ConfirmDelete({ name, risk, consequence, onConfirm, onClose, title, action }: { name: string; risk: Risk; consequence: string; onConfirm: () => void; onClose: () => void; title?: string; action?: string }) {
   const { t } = useTranslation()
   const [typed, setTyped] = useState('')
   const ok = risk !== 'danger' || typed.trim() === name
   return (
     <Dialog
-      title={t('del.title', { name })}
+      title={title ?? t('del.title', { name })}
       risk={risk}
       onClose={onClose}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button variant="danger" disabled={!ok} onClick={onConfirm}>{t('common.delete')}</Button>
+          <Button variant="danger" disabled={!ok} onClick={onConfirm}>{action ?? t('common.delete')}</Button>
         </>
       }
     >
@@ -64,6 +66,8 @@ function NodePanel({ node }: { node: MapNode }) {
   const { edit, enter, select, patchNode, remove } = useApp.getState()
   const [notes, setNotes] = useState(node.notes)
   const [confirm, setConfirm] = useState(false)
+  const [confirmUnlink, setConfirmUnlink] = useState(false)
+  const { agent, snap, state } = useNodeLive(node)
   // Keep the draft in step when another node is selected.
   const [shownId, setShownId] = useState(node.id)
   if (shownId !== node.id) {
@@ -93,7 +97,14 @@ function NodePanel({ node }: { node: MapNode }) {
         </div>
         <IconButton icon="x" label={t('common.close')} onClick={() => select(null)} />
       </div>
-      <div className={s.status}><StateBadge state={node.state} /></div>
+      <div className={s.status}>
+        <StateBadge state={state} />
+        {!agent && !viewer && canContain(node) && (
+          <Button size="sm" icon="server" tip={t('agent.connect.tip')} onClick={() => edit({ kind: 'agent', nodeId: node.id })}>{t('agent.connect.short')}</Button>
+        )}
+      </div>
+
+      {snap && <LiveSection snap={snap} />}
 
       <Section title={t('insp.overview')}>
         <KV
@@ -105,6 +116,9 @@ function NodePanel({ node }: { node: MapNode }) {
           ]}
         />
       </Section>
+
+      {agent && <HistorySection nodeId={node.id} />}
+      {agent && <AgentSection agent={agent} canEdit={!viewer} onUnlink={() => setConfirmUnlink(true)} />}
 
       <Section title={t('insp.notes')} help={t('insp.notes.help')}>
         <textarea
@@ -150,6 +164,21 @@ function NodePanel({ node }: { node: MapNode }) {
           <Button icon="link" onClick={() => edit({ kind: 'link', link: { fromId: node.id, kind: 'lan' } })}>{t('add.link')}</Button>
           <Button variant="danger" icon="x" onClick={() => setConfirm(true)}>{t('common.delete')}</Button>
         </div>
+      )}
+
+      {confirmUnlink && agent && (
+        <ConfirmDelete
+          name={node.name}
+          risk="careful"
+          title={t('agent.unlink.title', { name: node.name })}
+          action={t('agent.unlink')}
+          consequence={t('agent.unlink.what')}
+          onClose={() => setConfirmUnlink(false)}
+          onConfirm={() => {
+            setConfirmUnlink(false)
+            void unlinkAgent(agent)
+          }}
+        />
       )}
 
       {confirm && (

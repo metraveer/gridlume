@@ -12,6 +12,7 @@ function core(session: unknown) {
       '/api/version': { version: '0.0.0-dev' },
       '/api/session': session,
       '/api/map': { places: [], nodes: [], links: [] },
+      '/api/agents': [],
     }
     return new Response(JSON.stringify(body[url] ?? {}))
   })

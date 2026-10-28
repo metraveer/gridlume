@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/metraveer/gridlume/internal/agentlink"
 	"github.com/metraveer/gridlume/internal/store"
 	"github.com/metraveer/gridlume/internal/version"
 )
@@ -23,6 +24,10 @@ type Options struct {
 	Store *store.Store
 	// SetupCode lets the first visitor create the owner account; empty once an owner exists.
 	SetupCode string
+	// Hub holds agent connections; nil makes a new one (tests).
+	Hub *agentlink.Hub
+	// AgentsDir holds agent builds served at /download/ for the install script.
+	AgentsDir string
 	Log       *slog.Logger
 }
 
@@ -36,7 +41,7 @@ func New(opts Options) http.Handler {
 		if log == nil {
 			log = slog.Default()
 		}
-		newAPI(opts.Store, opts.SetupCode, log).routes(mux)
+		newAPI(opts, log).routes(mux)
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not_found"})

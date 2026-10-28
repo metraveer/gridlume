@@ -29,9 +29,10 @@ import (
 
 // Updater installs agent builds. Tests replace Run and the paths.
 type Updater struct {
-	State  string // the agent's state folder: agent.json, the request, the status
-	Bin    string // the installed agent, e.g. /usr/local/bin/gridlume-agent
-	Units  []string
+	State  string   // the agent's state folder: agent.json, the request, the status
+	Bin    string   // the installed agent, e.g. /usr/local/bin/gridlume-agent
+	Units  []string // restarted after the swap; the agent's own unit must restart
+	Extra  []string // restarted too if installed (the read-only Docker proxy runs the same file)
 	Client *release.Client
 	Log    *slog.Logger
 	Run    func(ctx context.Context, name string, args ...string) error
@@ -44,7 +45,8 @@ func New(state string, log *slog.Logger) *Updater {
 	return &Updater{
 		State:  state,
 		Bin:    "/usr/local/bin/gridlume-agent",
-		Units:  []string{"gridlume-docker-ro", "gridlume-agent"}, // the read-only Docker proxy is the same file
+		Units:  []string{"gridlume-agent"},
+		Extra:  []string{"gridlume-docker-ro"}, // only in the "readonly" mode
 		Client: c,
 		Log:    log,
 		Run: func(ctx context.Context, name string, args ...string) error {
@@ -123,8 +125,14 @@ func (u *Updater) Apply(ctx context.Context) error {
 }
 
 func (u *Updater) restart(ctx context.Context) error {
+	// The proxy first, so the agent finds it ready. Its unit does not exist in the other modes, and
+	// systemctl fails on a unit it does not know even with try-restart: that is not a reason to roll back.
+	for _, unit := range u.Extra {
+		if err := u.Run(ctx, "systemctl", "try-restart", unit); err != nil {
+			u.Log.Info("not restarted (not installed in this mode?)", "unit", unit, "err", err)
+		}
+	}
 	for _, unit := range u.Units {
-		// try-restart: units that are not running (no proxy in this mode) stay as they are.
 		if err := u.Run(ctx, "systemctl", "try-restart", unit); err != nil {
 			return err
 		}

@@ -51,7 +51,7 @@ type Request struct {
 
 // Status is the outcome of the last update, shown in the interface.
 type Status struct {
-	State   string    `json:"state"` // running, done, rolled_back, failed, up_to_date
+	State   string    `json:"state"` // running, done, rolled_back, failed, up_to_date, installed, interrupted
 	From    string    `json:"from"`
 	To      string    `json:"to"`
 	Message string    `json:"message,omitempty"`
@@ -281,4 +281,55 @@ func safe(s string) string {
 		}
 		return '_'
 	}, s)
+}
+
+// ChannelFile holds the chosen channel; the interface, the installer and `sudo gridlume update` all read
+// and write this one file, so they always agree.
+func ChannelFile(data string) string { return filepath.Join(data, "update-channel") }
+
+// ReadChannel returns the chosen channel, or "" when none was chosen yet.
+func ReadChannel(data string) string {
+	b, err := os.ReadFile(ChannelFile(data))
+	if err != nil {
+		return ""
+	}
+	c := strings.TrimSpace(string(b))
+	if !release.ValidChannel(c) {
+		return ""
+	}
+	return c
+}
+
+// WriteChannel saves the chosen channel.
+func WriteChannel(data, channel string) error {
+	return os.WriteFile(ChannelFile(data), []byte(channel+"\n"), 0o644)
+}
+
+// MarkInstalled records that the installer put this version in place, so the interface does not keep
+// showing the result of an older update.
+func MarkInstalled(data, v string) error {
+	b, _ := json.MarshalIndent(Status{State: "installed", To: v, At: time.Now().UTC()}, "", "  ")
+	return os.WriteFile(StatusFile(data), b, 0o644)
+}
+
+// Stuck is how long "running" may last before it is treated as interrupted (power cut, killed service).
+const Stuck = 15 * time.Minute
+
+// Shown is the last outcome as the interface should show it for the version running now: a finished
+// update or install of another version is history, not news; a "running" that never finished is reported
+// as interrupted.
+func Shown(st Status, current string, now time.Time) (Status, bool) {
+	switch st.State {
+	case "done", "installed":
+		return st, st.To == current
+	case "running":
+		if now.Sub(st.At) > Stuck {
+			st.State = "interrupted"
+		}
+		return st, true
+	case "up_to_date":
+		return st, false
+	default: // failed, rolled_back: worth seeing for a day
+		return st, now.Sub(st.At) < 24*time.Hour
+	}
 }

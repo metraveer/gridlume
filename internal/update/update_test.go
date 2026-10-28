@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/metraveer/gridlume/internal/release"
 	"github.com/metraveer/gridlume/internal/version"
@@ -143,5 +144,49 @@ func TestRequestRoundTrip(t *testing.T) {
 	}
 	if _, err := os.Stat(RequestFile(dir)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestShownStatus(t *testing.T) {
+	now := time.Now()
+	cases := []struct {
+		st   Status
+		want string // "" = not shown
+	}{
+		{Status{State: "done", From: "edge-2", To: "edge-4", At: now}, ""}, // an older update: history, not news
+		{Status{State: "done", From: "0.2.0", To: "0.3.0", At: now}, "done"},
+		{Status{State: "installed", To: "0.3.0", At: now}, "installed"},
+		{Status{State: "installed", To: "0.2.0", At: now}, ""},
+		{Status{State: "running", To: "0.3.1", At: now}, "running"},
+		{Status{State: "running", To: "0.3.1", At: now.Add(-time.Hour)}, "interrupted"},
+		{Status{State: "rolled_back", To: "0.3.1", At: now.Add(-time.Hour)}, "rolled_back"},
+		{Status{State: "failed", To: "0.3.1", At: now.Add(-48 * time.Hour)}, ""},
+		{Status{State: "up_to_date", At: now}, ""},
+	}
+	for _, c := range cases {
+		got, ok := Shown(c.st, "0.3.0", now)
+		if (c.want == "") == ok || (ok && got.State != c.want) {
+			t.Errorf("%+v: shown=%v state=%q, want %q", c.st, ok, got.State, c.want)
+		}
+	}
+}
+
+func TestChannelFileAndInstallMark(t *testing.T) {
+	dir := t.TempDir()
+	if ReadChannel(dir) != "" {
+		t.Fatal("no file yet: no channel")
+	}
+	_ = os.WriteFile(ChannelFile(dir), []byte("nightly\n"), 0o644)
+	if ReadChannel(dir) != "" {
+		t.Fatal("an unknown channel must be ignored")
+	}
+	if err := WriteChannel(dir, release.Edge); err != nil || ReadChannel(dir) != release.Edge {
+		t.Fatalf("channel: %v %q", err, ReadChannel(dir))
+	}
+	if err := MarkInstalled(dir, "0.3.0"); err != nil {
+		t.Fatal(err)
+	}
+	if st, ok := ReadStatus(dir); !ok || st.State != "installed" || st.To != "0.3.0" {
+		t.Fatalf("install mark: %+v", st)
 	}
 }

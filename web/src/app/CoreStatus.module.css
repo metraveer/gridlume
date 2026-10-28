@@ -1,0 +1,21 @@
+.dot { display: inline-flex; padding: 6px; }
+
+/* The core was updated while this page was open. */
+.banner {
+  position: fixed;
+  top: calc(var(--topbar-h) + var(--s-3));
+  left: 50%;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+  border: 1px solid var(--lume-dim);
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  transform: translateX(-50%);
+}
+
+.banner div { display: grid; gap: 2px; }
+.banner span { color: var(--fg-muted); font-size: var(--fs-12); }

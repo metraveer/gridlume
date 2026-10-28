@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -17,16 +16,23 @@ import (
 // CheckEvery is how often the core looks for a new release.
 const CheckEvery = 6 * time.Hour
 
-// ChannelFile mirrors the chosen channel for `sudo gridlume update`, which runs as root and does not
-// open the core's database.
-func ChannelFile(data string) string { return filepath.Join(data, "update-channel") }
+// PendingTooLong: a request the root update service has not picked up by then means the service is off.
+const PendingTooLong = 2 * time.Minute
 
-// updates remembers the last look at GitHub.
+// channelInfo is what the core last learned about one channel.
+type channelInfo struct {
+	Latest  *release.Manifest `json:"latest"`
+	Problem string            `json:"problem,omitempty"` // none, limit, signature, network, other (release.Problem)
+	Error   string            `json:"error,omitempty"`   // the raw error, for the curious and for bug reports
+	Newer   bool              `json:"newer"`             // newer than what runs now
+}
+
+// updates remembers the last look at GitHub, for both channels: the interface shows what the other one
+// has too, so "nothing new" on stable does not hide a fresh build on edge.
 type updates struct {
 	mu        sync.Mutex
-	latest    *release.Manifest
+	channels  map[string]channelInfo
 	checkedAt time.Time
-	err       string
 	client    *release.Client
 }
 
@@ -48,43 +54,54 @@ func (a *api) ownerOnly(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// channel is the chosen update channel. One source: the channel file in the data folder, shared with the
+// installer and `sudo gridlume update`. Older installs kept it in the database; that is the fallback, then
+// the channel the running build came from.
 func (a *api) channel(ctx context.Context) string {
-	def := release.Stable
+	if c := upd.ReadChannel(a.dataDir); c != "" {
+		return c
+	}
+	if c, _ := a.store.Setting(ctx, store.SettingUpdateChannel, ""); release.ValidChannel(c) {
+		return c
+	}
 	if version.Channel == release.Edge {
-		def = release.Edge
+		return release.Edge
 	}
-	c, _ := a.store.Setting(ctx, store.SettingUpdateChannel, def)
-	if !release.ValidChannel(c) {
-		c = def
-	}
-	return c
+	return release.Stable
 }
 
-// check looks at the chosen channel; with auto updates on and something newer, it asks for the update.
+// check looks at both channels; with auto updates on and something newer in the chosen one, it asks for
+// the update.
 func (a *api) check(ctx context.Context) {
-	ch := a.channel(ctx)
-	r, err := a.upd.client.Latest(ctx, ch)
-	a.upd.mu.Lock()
-	a.upd.checkedAt = time.Now()
-	if err != nil {
-		a.upd.err = err.Error()
-		a.upd.mu.Unlock()
-		return
+	found := map[string]channelInfo{}
+	for _, ch := range []string{release.Stable, release.Edge} {
+		r, err := a.upd.client.Latest(ctx, ch)
+		info := channelInfo{Problem: release.Problem(err)}
+		if err != nil {
+			info.Error = err.Error()
+		} else {
+			info.Latest = &r.Manifest
+			info.Newer = r.Build > version.BuildNumber()
+		}
+		found[ch] = info
 	}
-	a.upd.err = ""
-	a.upd.latest = &r.Manifest
+	a.upd.mu.Lock()
+	a.upd.channels = found
+	a.upd.checkedAt = time.Now()
 	a.upd.mu.Unlock()
+
+	ch := a.channel(ctx)
 	auto, _ := a.store.Setting(ctx, store.SettingUpdateAuto, "0")
-	if auto == "1" && a.updatesEnabled && r.Build > version.BuildNumber() {
+	if auto == "1" && a.updatesEnabled && found[ch].Newer {
 		if err := upd.WriteRequest(a.dataDir, ch); err != nil {
 			a.log.Error("automatic update request", "err", err)
 		} else {
-			a.log.Info("automatic update requested", "to", r.Version)
+			a.log.Info("automatic update requested", "to", found[ch].Latest.Version)
 		}
 	}
 }
 
-// CheckForUpdates runs check now and then every CheckEvery until ctx ends. Development builds do not check.
+// checkForUpdates runs check now and then every CheckEvery until ctx ends. Development builds do not check.
 func (a *api) checkForUpdates(ctx context.Context) {
 	if version.BuildNumber() == 0 {
 		return
@@ -104,26 +121,45 @@ func (a *api) system(w http.ResponseWriter, r *http.Request) {
 	auto, _ := a.store.Setting(ctx, store.SettingUpdateAuto, "0")
 	coreNode, _ := a.store.Setting(ctx, store.SettingCoreNode, "")
 	a.upd.mu.Lock()
-	latest, checkedAt, checkErr := a.upd.latest, a.upd.checkedAt, a.upd.err
+	channels, checkedAt := a.upd.channels, a.upd.checkedAt
 	a.upd.mu.Unlock()
+	if channels == nil {
+		channels = map[string]channelInfo{}
+	}
+	ch := a.channel(ctx)
+	selected := channels[ch]
 	out := map[string]any{
-		"version":    version.Version,
-		"build":      version.BuildNumber(),
-		"commit":     version.Commit,
-		"channel":    a.channel(ctx),
-		"auto":       auto == "1",
-		"canUpdate":  a.updatesEnabled, // installed by install-core.sh: the root update service exists
-		"coreNode":   coreNode,
-		"latest":     latest,
-		"newer":      latest != nil && latest.Build > version.BuildNumber(),
-		"checkError": checkErr,
-		"pending":    fileExists(upd.RequestFile(a.dataDir)),
+		"version":   version.Version,
+		"build":     version.BuildNumber(),
+		"commit":    version.Commit,
+		"built":     version.Channel, // the channel this binary came from; "" for development builds
+		"channel":   ch,
+		"auto":      auto == "1",
+		"canUpdate": a.updatesEnabled, // installed by install-core.sh: the root update service exists
+		"coreNode":  coreNode,
+		"channels":  channels,
+		// For the chosen channel, the same as channels[channel]:
+		"latest":     selected.Latest,
+		"newer":      selected.Newer,
+		"checkError": selected.Error,
+		// Running something newer than the chosen channel offers (an edge build while on stable): nothing to
+		// do until that channel catches up; going back to an older version is not offered (its database
+		// may not understand the newer one).
+		"ahead": selected.Latest != nil && version.BuildNumber() > selected.Latest.Build,
 	}
 	if !checkedAt.IsZero() {
 		out["checkedAt"] = checkedAt.UTC()
 	}
+	if st, err := os.Stat(upd.RequestFile(a.dataDir)); err == nil {
+		out["pending"] = true
+		out["pendingStuck"] = time.Since(st.ModTime()) > PendingTooLong
+	} else {
+		out["pending"] = false
+	}
 	if st, ok := upd.ReadStatus(a.dataDir); ok {
-		out["last"] = st
+		if shown, ok := upd.Shown(st, version.Version, time.Now()); ok {
+			out["last"] = shown
+		}
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -145,6 +181,13 @@ func (a *api) saveSystemSettings(w http.ResponseWriter, r *http.Request) {
 		auto = "1"
 	}
 	ctx := r.Context()
+	if a.dataDir != "" {
+		if err := upd.WriteChannel(a.dataDir, body.Channel); err != nil {
+			a.fail(w, err)
+			return
+		}
+	}
+	// Kept in the database too, for installs that started before the channel file existed.
 	if err := a.store.SetSetting(ctx, store.SettingUpdateChannel, body.Channel); err != nil {
 		a.fail(w, err)
 		return
@@ -152,15 +195,6 @@ func (a *api) saveSystemSettings(w http.ResponseWriter, r *http.Request) {
 	if err := a.store.SetSetting(ctx, store.SettingUpdateAuto, auto); err != nil {
 		a.fail(w, err)
 		return
-	}
-	if a.dataDir != "" {
-		_ = os.WriteFile(ChannelFile(a.dataDir), []byte(body.Channel+"\n"), 0o644)
-	}
-	a.upd.mu.Lock()
-	a.upd.latest = nil // the other channel may have another release
-	a.upd.mu.Unlock()
-	if version.BuildNumber() > 0 { // development builds (and tests) do not reach out to GitHub on their own
-		go a.check(context.WithoutCancel(ctx))
 	}
 	a.system(w, r)
 }
@@ -183,9 +217,4 @@ func (a *api) startUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	a.log.Info("update requested from the interface")
 	a.system(w, r)
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }

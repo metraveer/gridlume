@@ -51,10 +51,11 @@ case "$(uname -m)" in
 esac
 PORT="${ADDR##*:}"
 
-# Every build is its own release (vX.Y.Z or edge-N); take all files from the newest one.
+# Every build is its own release (vX.Y.Z, or vX.Y.Z-dev.N for edge); take all files from the newest one.
 API="https://api.github.com/repos/$REPO/releases"
 if [ "$CHANNEL" = edge ]; then
-	TAG=$(curl -fsSL "$API?per_page=30" | grep -o '"tag_name": *"edge-[0-9]*"' | grep -o 'edge-[0-9]*' | sort -t- -k2 -n | tail -n 1)
+	TAG=$(curl -fsSL "$API?per_page=30" | grep -o '"tag_name": *"v[0-9.]*-dev\.[0-9]*"' | grep -o 'v[0-9.]*-dev\.[0-9]*' |
+		awk -F'dev.' '{print $2" "$0}' | sort -n | tail -n 1 | cut -d' ' -f2)
 else
 	TAG=$(curl -fsSL "$API/latest" | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/')
 fi

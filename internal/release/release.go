@@ -4,7 +4,9 @@
 // SHA256SUMS.sig (an Ed25519 signature of SHA256SUMS made in CI). The public key is built into the
 // core and the agent, so a release swapped on GitHub or on the way is refused.
 //
-// Each build has its own release that never changes: vX.Y.Z for stable, edge-N for edge. The newest one
+// Versions follow semantic versioning. The next version is in the file VERSION; every merge to main is a
+// development build of it, vX.Y.Z-dev.N (N is the release workflow's run number, so it only grows), and a
+// tag vX.Y.Z makes the stable release. Each build has its own release that never changes. The newest one
 // is found through the GitHub API, and all files are taken from that one tag. (A single moving "edge"
 // release did not work: GitHub caches download links for minutes, so right after a new build the files
 // came from two different builds, or from one already deleted.)
@@ -25,6 +27,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -56,7 +59,7 @@ func mustKey(b64 string) ed25519.PublicKey {
 
 // Manifest is release.json.
 type Manifest struct {
-	Version string    `json:"version"` // "0.2.0" or "edge-142"
+	Version string    `json:"version"` // "0.2.0" or "0.3.0-dev.142"
 	Channel string    `json:"channel"`
 	Build   int       `json:"build"`  // grows with every release in both channels
 	Commit  string    `json:"commit"` // short sha
@@ -68,7 +71,7 @@ type Manifest struct {
 type Client struct {
 	HTTP *http.Client
 	// Resolve returns the download folder of the newest release of a channel,
-	// e.g. https://github.com/metraveer/gridlume/releases/download/edge-12.
+	// e.g. https://github.com/metraveer/gridlume/releases/download/v0.3.0-dev.12.
 	Resolve func(ctx context.Context, c *Client, channel string) (string, error)
 	Key     ed25519.PublicKey
 }
@@ -103,7 +106,7 @@ func GitHub(ctx context.Context, c *Client, channel string) (string, error) {
 			}
 		}
 		if tag == "" {
-			return "", errors.New("no edge releases yet")
+			return "", errors.New("no development builds yet")
 		}
 	} else {
 		b, err := c.get(ctx, api+"/latest", 1<<20)
@@ -121,13 +124,15 @@ func GitHub(ctx context.Context, c *Client, channel string) (string, error) {
 	return "https://github.com/" + Repo + "/releases/download/" + tag, nil
 }
 
-// edgeNumber reads N from "edge-N".
+var devTag = regexp.MustCompile(`^v\d+\.\d+\.\d+-dev\.(\d+)$`)
+
+// edgeNumber reads N from a development build's tag "vX.Y.Z-dev.N".
 func edgeNumber(tag string) (int, bool) {
-	rest, ok := strings.CutPrefix(tag, "edge-")
-	if !ok {
+	m := devTag.FindStringSubmatch(tag)
+	if m == nil {
 		return 0, false
 	}
-	n, err := strconv.Atoi(rest)
+	n, err := strconv.Atoi(m[1])
 	return n, err == nil
 }
 

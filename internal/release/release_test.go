@@ -98,12 +98,12 @@ func TestBuiltInKeyIsValid(t *testing.T) {
 func TestNewestEdgeIsFoundByNumber(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Not in order, with a draft, a stable one and the old moving "edge" tag mixed in.
-		_, _ = w.Write([]byte(`[{"tag_name":"edge-9"},{"tag_name":"v0.3.0"},{"tag_name":"edge-12","draft":true},{"tag_name":"edge-10"},{"tag_name":"edge"}]`))
+		_, _ = w.Write([]byte(`[{"tag_name":"v0.3.0-dev.9"},{"tag_name":"v0.2.0"},{"tag_name":"v0.3.0-dev.12","draft":true},{"tag_name":"v0.3.0-dev.10"},{"tag_name":"edge"},{"tag_name":"edge-11"}]`))
 	}))
 	defer srv.Close()
 	c := &Client{HTTP: &http.Client{Transport: rewrite{srv.URL}}}
 	base, err := GitHub(context.Background(), c, Edge)
-	if err != nil || !strings.HasSuffix(base, "/releases/download/edge-10") {
+	if err != nil || !strings.HasSuffix(base, "/releases/download/v0.3.0-dev.10") {
 		t.Fatalf("got %q %v", base, err)
 	}
 }

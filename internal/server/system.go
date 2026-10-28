@@ -119,6 +119,7 @@ func (a *api) checkForUpdates(ctx context.Context) {
 func (a *api) system(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	auto, _ := a.store.Setting(ctx, store.SettingUpdateAuto, "0")
+	agentAuto, _ := a.store.Setting(ctx, store.SettingAgentUpdateAuto, "1")
 	coreNode, _ := a.store.Setting(ctx, store.SettingCoreNode, "")
 	a.upd.mu.Lock()
 	channels, checkedAt := a.upd.channels, a.upd.checkedAt
@@ -138,6 +139,7 @@ func (a *api) system(w http.ResponseWriter, r *http.Request) {
 		"canUpdate": a.updatesEnabled, // installed by install-core.sh: the root update service exists
 		"coreNode":  coreNode,
 		"channels":  channels,
+		"agentAuto": agentAuto == "1",
 		// For the chosen channel, the same as channels[channel]:
 		"latest":     selected.Latest,
 		"newer":      selected.Newer,
@@ -149,6 +151,10 @@ func (a *api) system(w http.ResponseWriter, r *http.Request) {
 	}
 	if !checkedAt.IsZero() {
 		out["checkedAt"] = checkedAt.UTC()
+	}
+	// The agent build this core hands out; agents with an older one can be updated.
+	if rel, ok := a.agentRelease(); ok {
+		out["agents"] = map[string]any{"version": rel.Version, "build": rel.Build}
 	}
 	if st, err := os.Stat(upd.RequestFile(a.dataDir)); err == nil {
 		out["pending"] = true
@@ -166,8 +172,9 @@ func (a *api) system(w http.ResponseWriter, r *http.Request) {
 
 func (a *api) saveSystemSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Channel string `json:"channel"`
-		Auto    bool   `json:"auto"`
+		Channel   string `json:"channel"`
+		Auto      bool   `json:"auto"`
+		AgentAuto *bool  `json:"agentAuto"` // left out: unchanged
 	}
 	if !decode(w, r, &body) {
 		return
@@ -195,6 +202,16 @@ func (a *api) saveSystemSettings(w http.ResponseWriter, r *http.Request) {
 	if err := a.store.SetSetting(ctx, store.SettingUpdateAuto, auto); err != nil {
 		a.fail(w, err)
 		return
+	}
+	if body.AgentAuto != nil {
+		v := "0"
+		if *body.AgentAuto {
+			v = "1"
+		}
+		if err := a.store.SetSetting(ctx, store.SettingAgentUpdateAuto, v); err != nil {
+			a.fail(w, err)
+			return
+		}
 	}
 	a.system(w, r)
 }

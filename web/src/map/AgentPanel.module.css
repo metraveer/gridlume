@@ -27,3 +27,9 @@
 
 .agentState { margin-bottom: var(--s-3); }
 .unlink { margin-top: var(--s-3); }
+
+/* Agent update: what is available, the button, or the command that adds the updater. */
+.agentUpdate { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
+.agentUpdateRow { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); font-size: var(--fs-13); }
+.cmd { display: block; margin-top: var(--s-2); padding: var(--s-2); border-radius: var(--r); background: var(--bg-raised); font-size: var(--fs-11); user-select: all; overflow-wrap: anywhere; }
+.warn { margin: 0; color: var(--warn); font-size: var(--fs-12); line-height: 1.5; }

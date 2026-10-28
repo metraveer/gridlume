@@ -25,6 +25,7 @@ import (
 	"github.com/metraveer/gridlume/agent/collect"
 	"github.com/metraveer/gridlume/agent/docker"
 	"github.com/metraveer/gridlume/internal/agentproto"
+	buildinfo "github.com/metraveer/gridlume/internal/version"
 )
 
 // Interval is how often the agent sends a snapshot (a variable so tests can speed it up).
@@ -36,9 +37,20 @@ type Config struct {
 	AgentID string `json:"agentId"`
 	Key     []byte `json:"key"` // Ed25519 seed
 	Mode    string `json:"mode"`
+	State   string `json:"-"` // the folder it was loaded from
 }
 
 func configPath(state string) string { return filepath.Join(state, "agent.json") }
+
+// Files in the state folder shared with the root updater (agent/selfupdate).
+const (
+	RequestFile   = "update-request"     // written by the agent when the core asks for an update
+	StatusFile    = "update-status.json" // written by the updater: how the last update went
+	ConnectedFile = "connected"          // the version that last got a welcome from the core
+)
+
+// UpdaterUnit exists when the root updater is installed (deploy/install.sh); a variable for tests.
+var UpdaterUnit = "/etc/systemd/system/gridlume-agent-update.path"
 
 // Load reads the config written by Enroll.
 func Load(state string) (Config, error) {
@@ -53,6 +65,7 @@ func Load(state string) (Config, error) {
 	if c.AgentID == "" || len(c.Key) != ed25519.SeedSize {
 		return c, errors.New("agent.json is incomplete: enroll again")
 	}
+	c.State = state
 	return c, nil
 }
 
@@ -82,7 +95,7 @@ func Enroll(ctx context.Context, core, code, mode, state, version string) (Confi
 	if err := json.Unmarshal(b, &out); err != nil {
 		return Config{}, err
 	}
-	c := Config{Core: core, AgentID: out.AgentID, Key: priv.Seed(), Mode: mode}
+	c := Config{Core: core, AgentID: out.AgentID, Key: priv.Seed(), Mode: mode, State: state}
 	if err := os.MkdirAll(state, 0o700); err != nil {
 		return c, err
 	}
@@ -164,6 +177,10 @@ func Once(ctx context.Context, c Config, version string, log *slog.Logger) error
 	}
 	key := ed25519.NewKeyFromSeed(c.Key)
 	info := collect.Info(version, c.Mode)
+	info.Build = buildinfo.BuildNumber()
+	_, err = os.Stat(UpdaterUnit)
+	info.Updater = err == nil && c.State != ""
+	info.Update = lastUpdate(c.State)
 	hello := agentproto.Message{Type: "hello", AgentID: c.AgentID, Sig: ed25519.Sign(key, agentproto.SignedBytes(m.Nonce)), Info: &info}
 	if err := wsjson.Write(hctx, ws, hello); err != nil {
 		return err
@@ -178,17 +195,24 @@ func Once(ctx context.Context, c Config, version string, log *slog.Logger) error
 		return fmt.Errorf("core refused: %s", m.Error)
 	}
 	log.Info("connected to the core", "core", c.Core)
+	// The updater waits for this to know the new version works.
+	writeState(c.State, ConnectedFile, []byte(version))
 
-	// Nothing comes from the core yet (commands arrive in a later stage), but reading is what
-	// notices a closed connection and answers pings.
+	// Reading also notices a closed connection and answers pings.
 	sctx, stop := context.WithCancel(ctx)
 	defer stop()
 	readErr := make(chan error, 1)
 	go func() {
 		for {
-			if _, _, err := ws.Read(sctx); err != nil {
+			var m agentproto.Message
+			if err := wsjson.Read(sctx, ws, &m); err != nil {
 				readErr <- err
 				return
+			}
+			if m.Type == "update" && info.Updater {
+				// The agent cannot replace its own file; the root updater picks this up (a systemd path unit).
+				log.Info("update requested by the core", "version", m.Version)
+				writeState(c.State, RequestFile, []byte(m.Version))
 			}
 		}
 	}()
@@ -219,4 +243,31 @@ func Once(ctx context.Context, c Config, version string, log *slog.Logger) error
 			}
 		}
 	}
+}
+
+// writeState puts a small file into the state folder in one step, so a reader never sees half of it.
+func writeState(state, name string, data []byte) {
+	if state == "" {
+		return
+	}
+	tmp := filepath.Join(state, name+".tmp")
+	if os.WriteFile(tmp, data, 0o600) == nil {
+		_ = os.Rename(tmp, filepath.Join(state, name))
+	}
+}
+
+// lastUpdate reads what the updater wrote about its last run.
+func lastUpdate(state string) *agentproto.UpdateResult {
+	if state == "" {
+		return nil
+	}
+	b, err := os.ReadFile(filepath.Join(state, StatusFile))
+	if err != nil {
+		return nil
+	}
+	var r agentproto.UpdateResult
+	if json.Unmarshal(b, &r) != nil || r.State == "" {
+		return nil
+	}
+	return &r
 }

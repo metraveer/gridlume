@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import type { Agent, MetricPoint, MetricRange, Snapshot } from '../api/types'
+import type { Agent, MetricPoint, MetricRange, Snapshot, SystemInfo } from '../api/types'
 import { Button, KV, Section, Segmented, StateBadge } from '../design'
+import { useApp } from '../state/app'
 import { useLive } from '../state/live'
 import { ago, bytes, percent, rate, traffic, uptime } from './format'
 import s from './AgentPanel.module.css'
@@ -144,12 +145,73 @@ export function AgentSection({ agent, canEdit, onUnlink }: { agent: Agent; canEd
           [t('agent.version'), <span className="mono">{agent.version || '—'}</span>],
         ]}
       />
+      <AgentUpdateRow agent={agent} />
       {canEdit && (
         <Button size="sm" variant="ghost" className={s.unlink} tip={t('agent.unlink.tip')} onClick={onUnlink}>
           {t('agent.unlink')}
         </Button>
       )}
     </Section>
+  )
+}
+
+/**
+ * Whether this core has a newer agent build, and the button to install it. Agents installed before the
+ * updater existed get the one command that adds it. A failed last update is shown with what came back.
+ */
+function AgentUpdateRow({ agent }: { agent: Agent }) {
+  const { t } = useTranslation()
+  const owner = useApp((st) => st.user?.role === 'owner')
+  const [sys, setSys] = useState<SystemInfo | null>(null)
+  const [asked, setAsked] = useState<string | null>(null) // the version requested from here
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let alive = true
+    api.system().then((x) => alive && setSys(x)).catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [agent.version])
+
+  const last = agent.lastUpdate
+  const failed = last && (last.state === 'failed' || last.state === 'rolled_back') && last.to !== agent.version ? last : null
+  const offer = agent.online && sys?.agents && (agent.build ?? 0) < sys.agents.build ? sys.agents : null
+  const waiting = asked !== null && asked !== agent.version
+  if (!offer && !failed) return null
+  return (
+    <div className={s.agentUpdate}>
+      {failed && (
+        <p className={s.warn} data-tip={failed.message}>
+          {t(`agent.update.${failed.state}`, { to: failed.to, from: failed.from })}
+        </p>
+      )}
+      {offer && agent.canUpdate && (
+        <div className={s.agentUpdateRow}>
+          <span>{waiting ? t('agent.update.running', { v: offer.version }) : t('agent.update.available', { v: offer.version })}</span>
+          {owner && (
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={waiting}
+              tip={t('agent.update.tip')}
+              onClick={() => {
+                setError('')
+                api.updateAgent(agent.id).then((r) => setAsked(r.version)).catch(() => setError(t('agent.update.error')))
+              }}
+            >
+              {t('agent.update.button')}
+            </Button>
+          )}
+        </div>
+      )}
+      {offer && !agent.canUpdate && (
+        <p className={s.muted}>
+          {t('agent.update.noUpdater', { v: offer.version })}
+          <code className={`mono ${s.cmd}`}>curl -fsSL {window.location.origin}/install.sh | sudo sh -s -- --upgrade</code>
+        </p>
+      )}
+      {error && <p className={s.warn} role="alert">{error}</p>}
+    </div>
   )
 }
 

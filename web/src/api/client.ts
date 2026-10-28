@@ -70,9 +70,10 @@ export const api = {
   /** A one-time code for the install command; nodeId "" makes a new node named after the machine. */
   agentCode: (nodeId: string, mode: AgentMode) => request<{ code: string; expiresAt: number }>('POST', '/api/agents/codes', { nodeId, mode }),
   unlinkAgent: (id: string) => request('DELETE', `/api/agents/${id}`),
+  updateAgent: (id: string) => request<{ version: string }>('POST', `/api/agents/${id}/update`, {}),
   changePassword: (current: string, next: string) => request<{ ok: boolean }>('POST', '/api/account/password', { current, next }),
   system: () => request<SystemInfo>('GET', '/api/system'),
-  saveSystem: (channel: Channel, auto: boolean) => request<SystemInfo>('PUT', '/api/system/settings', { channel, auto }),
+  saveSystem: (channel: Channel, auto: boolean, agentAuto?: boolean) => request<SystemInfo>('PUT', '/api/system/settings', { channel, auto, agentAuto }),
   checkUpdates: () => request<SystemInfo>('POST', '/api/system/check', {}),
   startUpdate: () => request<SystemInfo>('POST', '/api/system/update', {}),
   suggestions: () => request<Suggestion[]>('GET', '/api/suggestions'),

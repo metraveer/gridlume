@@ -30,6 +30,7 @@ func (a *api) agentRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/agents/codes", a.authed(a.createCode))
 	mux.HandleFunc("GET /api/agents", a.authed(a.listAgents))
 	mux.HandleFunc("DELETE /api/agents/{id}", a.authed(a.deleteAgent))
+	mux.HandleFunc("POST /api/agents/{id}/update", a.authed(a.ownerOnly(a.updateAgent)))
 	mux.HandleFunc("GET /api/nodes/{id}/metrics", a.authed(a.metrics))
 	mux.HandleFunc("GET /api/events", a.authed(a.events))
 
@@ -226,9 +227,10 @@ func (a *api) installScript(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(strings.ReplaceAll(script, "__GRIDLUME_CORE__", core)))
 }
 
-var agentFile = regexp.MustCompile(`^gridlume-agent-linux-(amd64|arm64)$`)
+var agentFile = regexp.MustCompile(`^(gridlume-agent-linux-(amd64|arm64)|SHA256SUMS|SHA256SUMS\.sig|release\.json)$`)
 
-// download serves agent builds from the agents folder (filled by `gridlume dev` or the release package).
+// download serves agent builds from the agents folder (filled by the installer and by updates, or by
+// `gridlume dev`), with the release's signed checksums so agents' updaters can check them.
 func (a *api) download(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("file")
 	if !agentFile.MatchString(name) || a.agentsDir == "" {

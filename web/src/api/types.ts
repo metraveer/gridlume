@@ -100,7 +100,14 @@ export type Agent = {
   mode: AgentMode
   lastSeen: number // unix seconds, 0 = never
   online: boolean
+  // Known only while connected:
+  build?: number // release run number; 0 = a local build
+  canUpdate?: boolean // its root updater is installed, so the core can update it
+  lastUpdate?: AgentUpdate
 }
+
+/** How the agent's last update went, as its updater recorded it. */
+export type AgentUpdate = { state: 'done' | 'up_to_date' | 'failed' | 'rolled_back'; from: string; to?: string; message?: string; at: number }
 
 /** One message of /api/events. */
 export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean; mapChanged?: boolean }
@@ -122,6 +129,8 @@ export type SystemInfo = {
   auto: boolean
   canUpdate: boolean // installed by install-core.sh: the update service exists
   coreNode: string // node of the machine the core runs on, '' if unknown
+  agentAuto: boolean // agents get a newer build as soon as they connect
+  agents?: { version: string; build: number } // the agent build this core hands out
   channels?: Partial<Record<Channel, ChannelInfo>>
   latest: Release | null // of the chosen channel
   newer: boolean

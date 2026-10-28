@@ -196,6 +196,26 @@ type Checked struct {
 	Manifest
 	base string // every file comes from this one release
 	sums map[string]string
+	// The signed files as they came, so the core can hand them to agents (SaveSigned).
+	rawSums, rawSig, rawManifest []byte
+}
+
+// Signed are the files that let anyone check this release: the checksums, their signature and release.json.
+var Signed = []string{"SHA256SUMS", "SHA256SUMS.sig", "release.json"}
+
+// SaveSigned writes the files named in Signed into dir. The core serves them with the agent builds, and
+// an agent's updater checks them against the key built into it, as the core does with GitHub.
+func (r *Checked) SaveSigned(dir string) error {
+	for i, b := range [][]byte{r.rawSums, r.rawSig, r.rawManifest} {
+		path := filepath.Join(dir, Signed[i])
+		if err := os.WriteFile(path+".part", b, 0o644); err != nil {
+			return err
+		}
+		if err := os.Rename(path+".part", path); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Latest finds the newest release of a channel and checks its signature and manifest.
@@ -216,7 +236,7 @@ func (c *Client) Latest(ctx context.Context, channel string) (*Checked, error) {
 	if err != nil || !ed25519.Verify(c.Key, sums, raw) {
 		return nil, ErrSignature
 	}
-	out := &Checked{base: base, sums: parseSums(sums)}
+	out := &Checked{base: base, sums: parseSums(sums), rawSums: sums, rawSig: sig}
 	manifest, err := c.get(ctx, base+"/release.json", 1<<16)
 	if err != nil {
 		return nil, err
@@ -227,6 +247,7 @@ func (c *Client) Latest(ctx context.Context, channel string) (*Checked, error) {
 	if err := json.Unmarshal(manifest, &out.Manifest); err != nil {
 		return nil, err
 	}
+	out.rawManifest = manifest
 	return out, nil
 }
 

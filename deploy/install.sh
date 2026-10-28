@@ -2,6 +2,7 @@
 # Gridlume agent installer.
 #
 #   curl -fsSL <core>/install.sh | sudo sh -s -- --code K7QM-2R9X [--mode user|readonly|root] [--lang ru|en]
+#   curl -fsSL <core>/install.sh | sudo sh -s -- --upgrade     new build and updater, keeping the enrollment
 #
 # Modes (docs/decisions.md, "Режимы прав агента"):
 #   user      own system user "gridlume" in the docker group (default)
@@ -17,6 +18,8 @@ BIN=/usr/local/bin/gridlume-agent
 STATE=/var/lib/gridlume-agent
 UNIT=/etc/systemd/system/gridlume-agent.service
 PROXY_UNIT=/etc/systemd/system/gridlume-docker-ro.service
+UPDATE_UNIT=/etc/systemd/system/gridlume-agent-update
+UPGRADE=0
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -24,6 +27,7 @@ while [ $# -gt 0 ]; do
 		--mode) MODE="${2:-}"; shift 2 ;;
 		--lang) LANG_UI="${2:-}"; shift 2 ;;
 		--core) CORE="${2:-}"; shift 2 ;;
+		--upgrade) UPGRADE=1; shift ;;
 		*) echo "unknown option: $1" >&2; exit 2 ;;
 	esac
 done
@@ -32,7 +36,14 @@ done
 say() { if [ "$LANG_UI" = ru ]; then printf '%s\n' "$2"; else printf '%s\n' "$1"; fi; }
 die() { say "Error: $1" "Ошибка: $2" >&2; exit 1; }
 
-[ -n "$CODE" ] || die "--code is required: copy the command from Gridlume" "нужен --code: скопируйте команду из Gridlume"
+# --upgrade: an agent that is already enrolled keeps its key, mode and core.
+if [ "$UPGRADE" = 1 ]; then
+	[ -f "$STATE/agent.json" ] || die "no agent here to upgrade: install it with --code" "здесь нет агента для обновления: установите его с --code"
+	MODE=$(sed -n 's/.*"mode": *"\([a-z]*\)".*/\1/p' "$STATE/agent.json")
+	MODE=${MODE:-user}
+else
+	[ -n "$CODE" ] || die "--code is required: copy the command from Gridlume" "нужен --code: скопируйте команду из Gridlume"
+fi
 case "$MODE" in user|readonly|root) ;; *) die "--mode must be user, readonly or root" "--mode: user, readonly или root" ;; esac
 [ "$(id -u)" = 0 ] || die "run with sudo" "запустите через sudo"
 [ "$(uname -s)" = Linux ] || die "only Linux is supported for now" "пока поддерживается только Linux"
@@ -104,7 +115,9 @@ fi
 
 mkdir -p "$STATE"
 systemctl stop gridlume-agent 2>/dev/null || true
-"$BIN" enroll --core "$CORE" --code "$CODE" --mode "$MODE" --state "$STATE" || die "the core did not accept the code (expired or already used?)" "ядро не приняло код (истёк или уже использован?)"
+if [ "$UPGRADE" = 0 ]; then
+	"$BIN" enroll --core "$CORE" --code "$CODE" --mode "$MODE" --state "$STATE" || die "the core did not accept the code (expired or already used?)" "ядро не приняло код (истёк или уже использован?)"
+fi
 chown -R "$RUN_USER:" "$STATE"
 chmod 700 "$STATE"
 
@@ -136,7 +149,29 @@ ReadWritePaths=$STATE
 WantedBy=multi-user.target
 EOF
 
+# Updates from the core: the agent (not root) leaves a request in its folder; this root service installs
+# the build the core hands out, after checking its signature, and puts the old one back if it fails.
+cat > "$UPDATE_UNIT.path" <<EOF
+[Unit]
+Description=Gridlume agent update request
+
+[Path]
+PathExists=$STATE/update-request
+
+[Install]
+WantedBy=paths.target
+EOF
+cat > "$UPDATE_UNIT.service" <<EOF
+[Unit]
+Description=Gridlume agent update
+
+[Service]
+Type=oneshot
+ExecStart=$BIN update --from-request --state $STATE
+EOF
+
 systemctl daemon-reload
+systemctl enable --now gridlume-agent-update.path >/dev/null 2>&1
 if [ "$PROXY_ON" = 1 ]; then
 	systemctl enable gridlume-docker-ro >/dev/null 2>&1
 	systemctl restart gridlume-docker-ro

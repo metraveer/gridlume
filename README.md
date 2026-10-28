@@ -40,7 +40,7 @@ interface in English and Russian.
   you confirm.
 - **Install and updates.** One command installs the core as a systemd service. Updates are signed releases
   from GitHub, applied from the web panel with a database backup and an automatic rollback if the new
-  version does not start.
+  version does not start. Agents on other machines update from the core the same way, automatically or with a button.
 - **Access.** The first account is created from a one-time setup link; sign-in sessions, password change.
 
 ![Inside a server: containers, live numbers and a suggested link](docs/images/server.png)
@@ -104,7 +104,7 @@ Design decisions and their reasons are in [`docs/decisions.md`](docs/decisions.m
 | Stage | Status |
 |---|---|
 | Map: areas, nodes, links, levels | ✅ done |
-| Agent, live data, Docker | ✅ done; live traffic on links and agent self-update in progress |
+| Agent, live data, Docker | ✅ done; live traffic on links in progress |
 | Signed releases, updates from the panel | ✅ done |
 | Problems and notifications: checks, one message per cause, Telegram | next |
 | Understanding: "what breaks if…", change journal, history | planned |

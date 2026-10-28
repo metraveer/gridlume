@@ -11,6 +11,8 @@ const (
 	SettingUpdateChannel = "update_channel" // stable or edge
 	SettingUpdateAuto    = "update_auto"    // "1" installs updates without asking
 	SettingCoreNode      = "core_node"      // node of the machine the core runs on
+	// SettingAgentUpdateAuto: "1" (the default) sends agents a newer build as soon as they connect.
+	SettingAgentUpdateAuto = "agent_update_auto"
 )
 
 // Setting returns a setting, or def when it was never set.

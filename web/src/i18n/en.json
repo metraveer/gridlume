@@ -431,5 +431,15 @@
   "rail.expand": "Show menu labels",
   "rail.collapse": "Collapse menu",
   "rail.stage": "stage {stage}",
-  "card.disk": "Disk"
+  "card.disk": "Disk",
+  "agent.update.available": "Version {v} is available",
+  "agent.update.running": "Updating to {v}…",
+  "agent.update.button": "Update agent",
+  "agent.update.tip": "The agent downloads the new build from this core, checks its signature and restarts. If the new version does not connect, the old one comes back.",
+  "agent.update.error": "Could not ask the agent to update: it went offline or is already up to date.",
+  "agent.update.noUpdater": "Version {v} is available, but this agent was installed before updates from Gridlume existed. Run this on the machine once:",
+  "agent.update.failed": "Update to {to} failed",
+  "agent.update.rolled_back": "Version {to} did not connect; {from} is back",
+  "update.agentAuto": "Update agents automatically",
+  "update.agentAuto.hint": "When the core has a newer agent build, agents install it themselves, with a signature check and rollback. A version that once failed to connect is only retried with the button."
 }

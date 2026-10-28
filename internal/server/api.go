@@ -34,6 +34,7 @@ func newAPI(opts Options, log *slog.Logger) *api {
 	a := &api{store: opts.Store, hub: hub, agentsDir: opts.AgentsDir, gate: &setupGate{code: opts.SetupCode}, setupDone: opts.SetupDone,
 		limit: newLimiter(10, time.Minute), log: log,
 		dataDir: opts.DataDir, updatesEnabled: opts.UpdatesEnabled, upd: &updates{client: release.Default()}}
+	hub.AutoUpdate = a.autoAgentUpdate
 	if opts.Context != nil {
 		go a.checkForUpdates(opts.Context)
 	}

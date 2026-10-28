@@ -128,6 +128,13 @@ export function UpdatesSection({ sys }: { sys: SystemInfo }) {
               <small>{t('update.auto.hint')}</small>
             </span>
           </label>
+          <label className={s.check}>
+            <input type="checkbox" checked={sys.agentAuto} disabled={busy} onChange={(e) => void act(() => api.saveSystem(sys.channel, sys.auto, e.target.checked))} />
+            <span>
+              {t('update.agentAuto')}
+              <small>{t('update.agentAuto.hint')}</small>
+            </span>
+          </label>
           <div>
             <Button size="sm" disabled={busy} onClick={() => void act(api.checkUpdates)}>{t('update.checkNow')}</Button>
           </div>

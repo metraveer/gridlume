@@ -3,7 +3,9 @@
 // The core speaks first: {"type":"challenge","nonce":...}. The agent signs SignedBytes(nonce) with the
 // Ed25519 key it made at enrollment and answers {"type":"hello",...}. The core checks the signature
 // against the public key it stored and replies {"type":"welcome"} or {"type":"error"}. After that the
-// agent sends a snapshot every few seconds.
+// agent sends a snapshot every few seconds, and the core may send {"type":"update","version":...}: the
+// agent leaves a request for its root updater (gridlume-agent update), which installs the build the
+// core hands out after checking its signature.
 package agentproto
 
 // Modes the agent can be installed in; see docs/decisions.md, "Режимы прав агента".
@@ -18,13 +20,14 @@ func ValidMode(m string) bool { return m == ModeUser || m == ModeReadOnly || m =
 
 // Message is the envelope of every message; only the fields of its type are set.
 type Message struct {
-	Type     string    `json:"type"` // challenge, hello, welcome, error, snapshot
+	Type     string    `json:"type"` // challenge, hello, welcome, error, snapshot, update
 	Nonce    []byte    `json:"nonce,omitempty"`
 	AgentID  string    `json:"agentId,omitempty"`
 	Sig      []byte    `json:"sig,omitempty"`
 	Info     *Info     `json:"info,omitempty"`
 	Snapshot *Snapshot `json:"snapshot,omitempty"`
-	Error    string    `json:"error,omitempty"` // a stable code, e.g. "unknown_agent"
+	Error    string    `json:"error,omitempty"`   // a stable code, e.g. "unknown_agent"
+	Version  string    `json:"version,omitempty"` // update: the version the core hands out
 }
 
 // SignedBytes is what the agent signs: a fixed prefix keeps the signature useless anywhere else.
@@ -34,12 +37,24 @@ func SignedBytes(nonce []byte) []byte {
 
 // Info describes the machine and the agent. Sent on enrollment and on every connection.
 type Info struct {
-	Hostname string `json:"hostname"`
-	OS       string `json:"os"`     // e.g. "Debian GNU/Linux 13 (trixie)"
-	Kernel   string `json:"kernel"` // e.g. "6.12.48-amd64"
-	Arch     string `json:"arch"`   // GOARCH
-	Version  string `json:"version"`
-	Mode     string `json:"mode"`
+	Hostname string        `json:"hostname"`
+	OS       string        `json:"os"`     // e.g. "Debian GNU/Linux 13 (trixie)"
+	Kernel   string        `json:"kernel"` // e.g. "6.12.48-amd64"
+	Arch     string        `json:"arch"`   // GOARCH
+	Version  string        `json:"version"`
+	Mode     string        `json:"mode"`
+	Build    int           `json:"build"`            // release run number: "newer" is a plain comparison (0 = a local build)
+	Updater  bool          `json:"updater"`          // the root updater is installed: the agent can be updated from the core
+	Update   *UpdateResult `json:"update,omitempty"` // how the last update went
+}
+
+// UpdateResult is written by the agent's updater to <state>/update-status.json and sent with Info.
+type UpdateResult struct {
+	State   string `json:"state"` // done, up_to_date, failed, rolled_back
+	From    string `json:"from"`
+	To      string `json:"to,omitempty"`
+	Message string `json:"message,omitempty"`
+	At      int64  `json:"at"` // unix seconds
 }
 
 // Snapshot is the state of the machine right now.

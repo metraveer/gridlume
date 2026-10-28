@@ -1,34 +1,42 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { LoginScreen, OfflineScreen, SetupScreen } from '../auth/AuthScreens'
 import { TooltipLayer, useScrollHints } from '../design'
+import { ErrorBanner, MapPage } from '../map/MapPage'
+import { NodesPage } from '../map/NodesPage'
+import { useApp } from '../state/app'
 import { DesignPage } from './DesignPage'
+import { useRoute } from './route'
 import { Shell } from './Shell'
-import { Welcome } from './Welcome'
 
-export type Route = 'map' | 'design'
+/** First run → owner setup, then sign-in, then the app itself. */
+function Gate() {
+  const route = useRoute()
+  const ready = useApp((st) => st.ready)
+  const needsSetup = useApp((st) => st.needsSetup)
+  const offline = useApp((st) => st.offline)
+  const user = useApp((st) => st.user)
+  const init = useApp((st) => st.init)
+  useEffect(() => void init(), [init])
 
-function readRoute(): Route {
-  return window.location.hash === '#/design' ? 'design' : 'map'
-}
-
-/** Hash routes keep the core simple: every page is index.html. */
-function useRoute(): [Route, (r: Route) => void] {
-  const [route, setRoute] = useState<Route>(readRoute)
-  useEffect(() => {
-    const onHash = () => setRoute(readRoute())
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
-  }, [])
-  return [route, (r) => (window.location.hash = r === 'design' ? '#/design' : '#/')]
+  // The design reference needs no account: it shows components only.
+  if (route === 'design') return <Shell route={route}><DesignPage /></Shell>
+  if (!ready) return null
+  if (offline) return <OfflineScreen />
+  if (needsSetup) return <SetupScreen />
+  if (!user) return <LoginScreen />
+  return (
+    <Shell route={route}>
+      {route === 'nodes' ? <NodesPage /> : <MapPage />}
+      <ErrorBanner />
+    </Shell>
+  )
 }
 
 export function App() {
-  const [route, go] = useRoute()
   useScrollHints()
   return (
     <>
-      <Shell route={route} onNavigate={go}>
-        {route === 'design' ? <DesignPage /> : <Welcome />}
-      </Shell>
+      <Gate />
       <TooltipLayer />
     </>
   )

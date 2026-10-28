@@ -114,6 +114,28 @@ window.GL_I18N = {
     'dlg.done': 'Готово',
     'lang.switch': 'English',
     'ds.title': 'Дизайн-система',
+    'type.camera': 'Камера',
+    'node.offline': 'нет сигнала {n} мин',
+    'flag.balance': 'баланс на 9 дней',
+    'flag.domain': 'домен до 12.03.27',
+    'flag.ssl': 'SSL: 12 дней',
+    'link.kind.wifi': 'Wi-Fi',
+    'link.down': 'нет связи',
+    'ev.camoff': 'Камера перестала отвечать',
+    'ev.camweak': 'Слабый сигнал Wi-Fi: −84 дБм',
+    'mean.camoff': 'Камера пропала из сети 6 минут назад, перед этим сигнал Wi-Fi был очень слабым. Проверьте питание камеры; если оно есть — роутер далеко или мешает стена. Помогут ретранслятор или кабель.',
+    'note.cam': 'Камера не отвечает 6 минут. Сначала проверьте, горит ли на ней индикатор питания. Подробности — в связи с роутером.',
+    'insp.lastseen': 'Последний сигнал',
+    'insp.lastseen.v': '6 минут назад',
+    'insp.cost': 'Стоимость',
+    'insp.cost.v': '1 200 ₽ в месяц',
+    'insp.balance': 'Баланс',
+    'insp.balance.v': 'хватит на 9 дней',
+    'act.restore': 'Восстановить из копии',
+    'act.restore.tip': 'Данные вернутся к состоянию из резервной копии. Всё, что изменилось после неё, пропадёт. Перед восстановлением сделаем копию текущего состояния.',
+    'confirm.danger.warn': '<strong>Это может остановить работу сервисов.</strong> Прочитайте, что произойдёт, прежде чем продолжить.',
+    'confirm.undo': 'Действие попадёт в журнал. Где возможно, там же будет кнопка отката.',
+    'confirm.type': 'Чтобы подтвердить, введите имя:',
     'link.kind.vpn': 'VPN-туннель',
     'link.kind.dns': 'Адрес сайта (DNS)',
     'link.kind.http': 'Запросы по HTTP',
@@ -280,6 +302,28 @@ window.GL_I18N = {
     'dlg.done': 'Done',
     'lang.switch': 'Русский',
     'ds.title': 'Design system',
+    'type.camera': 'Camera',
+    'node.offline': 'no signal for {n} min',
+    'flag.balance': 'balance for 9 days',
+    'flag.domain': 'domain until 12.03.27',
+    'flag.ssl': 'SSL: 12 days',
+    'link.kind.wifi': 'Wi-Fi',
+    'link.down': 'no link',
+    'ev.camoff': 'The camera stopped responding',
+    'ev.camweak': 'Weak Wi-Fi signal: −84 dBm',
+    'mean.camoff': 'The camera dropped off the network 6 minutes ago; before that the Wi-Fi signal was very weak. Check the camera power; if it is on, the router is too far or a wall is in the way. A repeater or a cable will help.',
+    'note.cam': 'The camera has not answered for 6 minutes. First check whether its power light is on. Details are on its link to the router.',
+    'insp.lastseen': 'Last seen',
+    'insp.lastseen.v': '6 minutes ago',
+    'insp.cost': 'Cost',
+    'insp.cost.v': '1,200 ₽ per month',
+    'insp.balance': 'Balance',
+    'insp.balance.v': 'lasts 9 more days',
+    'act.restore': 'Restore from backup',
+    'act.restore.tip': 'Data goes back to the backup state. Everything changed after it is lost. A copy of the current state is made first.',
+    'confirm.danger.warn': '<strong>This may stop services.</strong> Read what will happen before you continue.',
+    'confirm.undo': 'The action goes to the log. Where possible, a rollback button will be there.',
+    'confirm.type': 'To confirm, type the name:',
     'link.kind.vpn': 'VPN tunnel',
     'link.kind.dns': 'Site address (DNS)',
     'link.kind.http': 'HTTP requests',
@@ -357,6 +401,14 @@ window.GL = {
     root.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.placeholder = GL.t(el.dataset.i18nPh); });
     root.querySelectorAll('[data-i18n-tip]').forEach(function (el) { el.dataset.tip = GL.t(el.dataset.i18nTip); });
     root.querySelectorAll('[data-i18n-label]').forEach(function (el) { el.setAttribute('aria-label', GL.t(el.dataset.i18nLabel)); });
+  },
+
+  // Feature files bring their own strings: GL.add({ ru: {...}, en: {...} }).
+  add: function (dicts) {
+    Object.keys(dicts).forEach(function (lang) {
+      var target = window.GL_I18N[lang];
+      Object.keys(dicts[lang]).forEach(function (k) { target[k] = dicts[lang][k]; });
+    });
   },
 
   setLang: function (lang) {

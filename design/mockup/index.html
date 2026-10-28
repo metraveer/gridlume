@@ -62,6 +62,21 @@
   .insp-empty { padding: var(--s-8) var(--s-6); color: var(--fg-faint); text-align: center; }
   .note { padding: var(--s-3); border-radius: var(--r); background: var(--bg-raised); color: var(--fg-muted); font-size: var(--fs-12); }
 
+  /* Breadcrumbs: where you are inside the map */
+  .crumbs { display: flex; align-items: center; gap: 2px; min-width: 0; }
+  .crumbs button { height: 28px; padding: 0 var(--s-2); border: 0; border-radius: var(--r-sm); background: transparent; color: var(--fg-muted); cursor: pointer; white-space: nowrap; }
+  .crumbs button:hover { background: var(--bg-hover); color: var(--fg); }
+  .crumbs button[aria-current] { color: var(--fg); font-weight: 600; cursor: default; }
+  .crumbs button[aria-current]:hover { background: transparent; }
+  .crumbs .sep { color: var(--fg-faint); }
+
+  /* "Go inside" chip on nodes that contain something */
+  .kids { display: inline-flex; align-items: center; gap: 2px; height: 20px; padding: 0 6px; border: 1px solid var(--line); border-radius: 999px; color: var(--fg-muted); font-size: var(--fs-11); white-space: nowrap; cursor: pointer; }
+  .kids:hover { border-color: var(--lume-dim); color: var(--fg); }
+  .node.portal { border-style: dashed; background: transparent; opacity: 0.75; }
+  .world.enter { animation: enter var(--t) var(--ease); }
+  @keyframes enter { from { opacity: 0; transform-origin: 50% 50%; } }
+
   /* Places view: summary in group header */
   .place-sum { position: absolute; top: 9px; right: 14px; display: flex; gap: 6px; }
 </style>
@@ -78,11 +93,7 @@
       </div>
       <span class="brand-name">Gridlume</span>
     </div>
-    <div class="segmented" role="group" id="views">
-      <button data-view="network" aria-pressed="true" data-i18n="app.views.network" data-i18n-tip="app.views.network.tip"></button>
-      <button data-view="services" data-i18n="app.views.services" data-i18n-tip="app.views.services.tip"></button>
-      <button data-view="places" data-i18n="app.views.places" data-i18n-tip="app.views.places.tip"></button>
-    </div>
+    <nav class="crumbs" id="crumbs" aria-label="breadcrumbs"></nav>
     <label class="search">
       <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
       <input class="input" id="search" data-i18n-ph="app.search">

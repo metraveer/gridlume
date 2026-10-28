@@ -69,11 +69,21 @@ export function OfflineScreen() {
   )
 }
 
-/** First run: the code printed in the core's console creates the owner account. */
+/** The code from a first-login link (".../#setup=K7QM-2R9X"), once; the address bar is then cleaned. */
+function codeFromLink() {
+  const m = /setup=([A-Za-z0-9-]{8,12})/.exec(window.location.hash)
+  if (!m) return ''
+  window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/')
+  return m[1] ?? ''
+}
+
+/** First run: the link printed by the installer carries the one-time code that creates the owner account. */
 export function SetupScreen() {
   const { t } = useTranslation()
   const setup = useApp((st) => st.setup)
-  const [code, setCode] = useState('')
+  const [fromLink] = useState(codeFromLink)
+  const [code, setCode] = useState(fromLink)
+  const [typing, setTyping] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [repeat, setRepeat] = useState('')
@@ -85,8 +95,18 @@ export function SetupScreen() {
       <form className={s.card} onSubmit={submit}>
         <h1>{t('setup.title')}</h1>
         <p className={s.lead}>{t('setup.lead')}</p>
-        <Field label={t('setup.code')} hint={t('setup.code.hint')} value={code} onChange={(e) => setCode(e.target.value)} autoFocus required autoComplete="off" spellCheck={false} />
-        <Field label={t('auth.username')} value={username} onChange={(e) => setUsername(e.target.value)} required autoComplete="username" />
+        {fromLink && !typing ? (
+          <p className={s.ok}>{t('setup.fromLink')}</p>
+        ) : !code && !typing ? (
+          <div className={s.note}>
+            <p>{t('setup.noLink')}</p>
+            <code className="mono">sudo gridlume setup-link</code>
+            <button type="button" className={s.linkButton} onClick={() => setTyping(true)}>{t('setup.typeCode')}</button>
+          </div>
+        ) : (
+          <Field label={t('setup.code')} hint={t('setup.code.hint')} value={code} onChange={(e) => setCode(e.target.value)} autoFocus required autoComplete="off" spellCheck={false} />
+        )}
+        <Field label={t('auth.username')} value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus={!!fromLink} autoComplete="username" />
         <Field label={t('auth.password')} hint={t('setup.password.hint')} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" minLength={10} />
         <Field label={t('setup.repeat')} type="password" value={repeat} onChange={(e) => setRepeat(e.target.value)} required autoComplete="new-password" />
         {mismatch && <p className={s.error}>{t('setup.mismatch')}</p>}

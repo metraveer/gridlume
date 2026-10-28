@@ -39,6 +39,16 @@ func normCode(code string) string {
 // CreateEnrollCode stores a one-time code for connecting a machine. nodeID "" means
 // "create a new node named after the machine". Only the hash of the code is stored.
 func (s *Store) CreateEnrollCode(ctx context.Context, code, nodeID, mode string, ttl time.Duration) error {
+	return s.createEnrollCode(ctx, code, nodeID, mode, "", ttl)
+}
+
+// CreateCoreEnrollCode is CreateEnrollCode for the agent on the core's own machine, made by the core
+// installer: the node it creates is remembered as "the core runs here".
+func (s *Store) CreateCoreEnrollCode(ctx context.Context, code, mode string, ttl time.Duration) error {
+	return s.createEnrollCode(ctx, code, "", mode, "core", ttl)
+}
+
+func (s *Store) createEnrollCode(ctx context.Context, code, nodeID, mode, purpose string, ttl time.Duration) error {
 	if !agentproto.ValidMode(mode) {
 		return invalid("mode", "invalid")
 	}
@@ -58,8 +68,8 @@ func (s *Store) CreateEnrollCode(ctx context.Context, code, nodeID, mode string,
 		}
 		node = nodeID
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO enroll_codes (code_hash, node_id, mode, expires_at) VALUES (?, ?, ?, ?)`,
-		tokenHash(normCode(code)), node, mode, s.now().Add(ttl).Unix())
+	_, err := s.db.ExecContext(ctx, `INSERT INTO enroll_codes (code_hash, node_id, mode, purpose, expires_at) VALUES (?, ?, ?, ?, ?)`,
+		tokenHash(normCode(code)), node, mode, purpose, s.now().Add(ttl).Unix())
 	return err
 }
 
@@ -79,9 +89,9 @@ func (s *Store) Enroll(ctx context.Context, code string, pub ed25519.PublicKey, 
 	defer func() { _ = tx.Rollback() }()
 
 	var nodeID sql.NullString
-	var mode string
+	var mode, purpose string
 	hash := tokenHash(normCode(code))
-	err = tx.QueryRowContext(ctx, `SELECT node_id, mode FROM enroll_codes WHERE code_hash = ? AND expires_at > ?`, hash, s.now().Unix()).Scan(&nodeID, &mode)
+	err = tx.QueryRowContext(ctx, `SELECT node_id, mode, purpose FROM enroll_codes WHERE code_hash = ? AND expires_at > ?`, hash, s.now().Unix()).Scan(&nodeID, &mode, &purpose)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Agent{}, ErrCodeInvalid
 	}
@@ -114,6 +124,12 @@ func (s *Store) Enroll(ctx context.Context, code string, pub ed25519.PublicKey, 
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM agents WHERE node_id = ?`, nodeID.String); err != nil {
 		return Agent{}, err
+	}
+	if purpose == "core" {
+		_, err := tx.ExecContext(ctx, `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`, SettingCoreNode, nodeID.String)
+		if err != nil {
+			return Agent{}, err
+		}
 	}
 	a := Agent{ID: NewID(), NodeID: nodeID.String, Mode: mode, key: pub}
 	a.setInfo(info)

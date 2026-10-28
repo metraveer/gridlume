@@ -14,6 +14,7 @@ function core(session: unknown) {
       '/api/map': { places: [], nodes: [], links: [] },
       '/api/agents': [],
       '/api/suggestions': [],
+      '/api/system': { version: '0.0.0-dev', build: 0, commit: 'x', channel: 'stable', auto: false, canUpdate: false, coreNode: '', latest: null, newer: false, checkError: '', pending: false },
     }
     return new Response(JSON.stringify(body[url] ?? {}))
   })
@@ -24,11 +25,19 @@ beforeEach(() => {
   window.location.hash = '#/'
 })
 
-it('asks for the one-time code on first run', async () => {
+it('on first run without the link, says where to get it', async () => {
   vi.stubGlobal('fetch', core({ needsSetup: true, user: null }))
   render(<App />)
   expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Первый запуск')
-  expect(screen.getByText('Код из консоли')).toBeTruthy()
+  expect(screen.getByText('sudo gridlume setup-link')).toBeTruthy()
+})
+
+it('takes the code from the first-login link and cleans the address bar', async () => {
+  window.location.hash = '#setup=K7QM-2R9X'
+  vi.stubGlobal('fetch', core({ needsSetup: true, user: null }))
+  render(<App />)
+  expect(await screen.findByText('Код из ссылки подставлен — осталось придумать имя и пароль.')).toBeTruthy()
+  expect(window.location.hash).toBe('#/')
 })
 
 it('asks to sign in when there is no session', async () => {

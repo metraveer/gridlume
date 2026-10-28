@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { api, ApiError } from '../api/client'
-import type { Link, MapData, MapNode, Place, Suggestion, User } from '../api/types'
+import type { Link, MapData, MapNode, Place, Suggestion, SystemInfo, User } from '../api/types'
 import type { Level } from '../map/model'
 
 export type Selection = { kind: 'node' | 'link' | 'place'; id: string } | null
@@ -20,6 +20,7 @@ type State = {
   user: User | null
   map: MapData
   suggestions: Suggestion[]
+  system: SystemInfo | null
   level: Level
   selection: Selection
   focus: string | null // a node the map should bring into view (search, all-nodes page)
@@ -31,6 +32,7 @@ type State = {
   login: (username: string, password: string) => Promise<void>
   logout: () => Promise<void>
   loadMap: () => Promise<void>
+  setSystem: (s: SystemInfo) => void
   acceptSuggestion: (s: Suggestion, about: string, ifBroken: string) => Promise<void>
   dismissSuggestion: (s: Suggestion) => Promise<void>
 
@@ -63,6 +65,7 @@ export const useApp = create<State>((set, get) => ({
   user: null,
   map: empty,
   suggestions: [],
+  system: null,
   level: null,
   selection: null,
   focus: null,
@@ -98,13 +101,15 @@ export const useApp = create<State>((set, get) => ({
 
   loadMap: async () => {
     try {
-      const [map, suggestions] = await Promise.all([api.map(), api.suggestions()])
-      set({ map, suggestions })
+      const [map, suggestions, system] = await Promise.all([api.map(), api.suggestions(), api.system().catch(() => null)])
+      set({ map, suggestions, system })
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) set({ user: null })
       else set({ error: keyOf(e) })
     }
   },
+
+  setSystem: (system) => set({ system }),
 
   acceptSuggestion: async (sg, about, ifBroken) => {
     try {

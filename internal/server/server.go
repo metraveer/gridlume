@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io/fs"
 	"log/slog"
@@ -24,11 +25,19 @@ type Options struct {
 	Store *store.Store
 	// SetupCode lets the first visitor create the owner account; empty once an owner exists.
 	SetupCode string
+	// SetupDone is called once the owner account exists (the core then forgets the code file).
+	SetupDone func()
 	// Hub holds agent connections; nil makes a new one (tests).
 	Hub *agentlink.Hub
 	// AgentsDir holds agent builds served at /download/ for the install script.
 	AgentsDir string
-	Log       *slog.Logger
+	// DataDir is the core's data folder: update requests and results are files there.
+	DataDir string
+	// UpdatesEnabled: installed by install-core.sh, so the root update service can act on requests.
+	UpdatesEnabled bool
+	// Context ends background work (update checks); nil means it runs until the process ends.
+	Context context.Context
+	Log     *slog.Logger
 }
 
 // New returns the core HTTP handler.

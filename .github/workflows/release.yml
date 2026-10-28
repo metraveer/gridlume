@@ -1,0 +1,95 @@
+name: Release
+
+# edge:   every merge to main, once CI on it is green (a moving pre-release "edge")
+# stable: every tag vX.Y.Z (cut from main, which CI has already checked)
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, sign and publish
+    if: github.event_name == 'push' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: What to release
+        id: what
+        run: |
+          if [ "${{ github.event_name }}" = push ]; then
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "channel=edge" >> "$GITHUB_OUTPUT"
+            echo "version=edge-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+            echo "tag=edge" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.what.outputs.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build the interface (embedded into the core)
+        working-directory: web
+        run: npm ci && npm run build
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build core and agent for linux/amd64 and linux/arm64
+        run: |
+          SHA=${{ steps.what.outputs.sha }}
+          V=github.com/metraveer/gridlume/internal/version
+          LDFLAGS="-s -w -X $V.Version=${{ steps.what.outputs.version }} -X $V.Commit=${SHA::7} -X $V.Build=${{ github.run_number }} -X $V.Channel=${{ steps.what.outputs.channel }}"
+          mkdir dist
+          for arch in amd64 arm64; do
+            for cmd in gridlume gridlume-agent; do
+              CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o "dist/$cmd-linux-$arch" "./cmd/$cmd"
+            done
+          done
+          cp deploy/install-core.sh dist/
+          ls -lh dist
+
+      - name: Manifest and signature
+        env:
+          GRIDLUME_SIGNING_KEY: ${{ secrets.GRIDLUME_SIGNING_KEY }}
+        run: |
+          SHA=${{ steps.what.outputs.sha }}
+          go run ./tools/release manifest dist "${{ steps.what.outputs.version }}" "${{ steps.what.outputs.channel }}" "${{ github.run_number }}" "${SHA::7}" \
+            "https://github.com/${{ github.repository }}/releases/tag/${{ steps.what.outputs.tag }}"
+          go run ./tools/release sign dist
+          cat dist/release.json
+
+      - name: Publish edge
+        if: steps.what.outputs.channel == 'edge'
+        run: |
+          SHA=${{ steps.what.outputs.sha }}
+          gh release delete edge --cleanup-tag --yes || true
+          gh release create edge dist/* --prerelease --target "$SHA" \
+            --title "Edge ${{ github.run_number }} (${SHA::7})" \
+            --notes "Fresh build of main at ${SHA::7}. Changes: https://github.com/${{ github.repository }}/commits/$SHA"
+
+      - name: Publish stable
+        if: steps.what.outputs.channel == 'stable'
+        run: gh release create "${{ steps.what.outputs.tag }}" dist/* --title "${{ steps.what.outputs.tag }}" --generate-notes --latest

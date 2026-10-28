@@ -86,4 +86,6 @@
   background: var(--bg-panel);
 }
 
+.core { padding: 1px 8px; border: 1px solid var(--lume-dim); border-radius: 999px; color: var(--fg-muted); font-size: var(--fs-11); white-space: nowrap; }
+
 .confirm { display: grid; gap: 4px; margin-top: var(--s-3); color: var(--fg-muted); font-size: var(--fs-12); }

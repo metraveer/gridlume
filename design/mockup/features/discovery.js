@@ -79,7 +79,7 @@
 
   var FOUND = [
     { ip: '192.168.1.1', mac: 'Keenetic', type: 'type.router', icon: 'router', name: 'Keenetic', on: 'keenetic' },
-    { ip: '192.168.1.20', mac: 'HP', type: 'type.server', icon: 'server', name: 'junk', on: 'junk' },
+    { ip: '192.168.1.21', mac: 'HP', type: 'type.server', icon: 'server', name: 'junk', on: 'junk' },
     { ip: '192.168.1.33', mac: 'HP', ports: '631, 9100', type: 'type.printer', icon: 'app', name: 'HP LaserJet' },
     { ip: '192.168.1.47', mac: 'Hikvision', ports: '554', type: 'type.camera', icon: 'camera', name: 'Камера · двор', on: 'cam' },
     { ip: '192.168.1.52', mac: 'Samsung', ports: '8001', type: 'type.tv', icon: 'laptop', name: 'Samsung TV' },

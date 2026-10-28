@@ -14,11 +14,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/metraveer/gridlume/internal/devmode"
 	"github.com/metraveer/gridlume/internal/server"
+	"github.com/metraveer/gridlume/internal/store"
 	"github.com/metraveer/gridlume/internal/version"
 	"github.com/metraveer/gridlume/web"
 )
@@ -56,12 +58,30 @@ func run(log *slog.Logger, args []string, dev bool) error {
 	fs := flag.NewFlagSet("gridlume", flag.ExitOnError)
 	addr := fs.String("addr", defaultAddr, "address to listen on")
 	webDir := fs.String("web", "web", "web project folder (dev only)")
+	dataDir := fs.String("data", "data", "folder for the database")
 	_ = fs.Parse(args)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	opts := server.Options{Dist: web.Dist()}
+	db, err := store.Open(filepath.Join(*dataDir, "gridlume.db"))
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer db.Close()
+
+	// First run: nobody can sign in yet. Print a one-time code; whoever can read this console
+	// creates the owner account in the browser. Without it, anyone reaching the page could.
+	setupCode := ""
+	if n, err := db.CountUsers(ctx); err != nil {
+		return err
+	} else if n == 0 {
+		setupCode = server.NewSetupCode()
+		fmt.Fprintf(os.Stderr, "\n  Gridlume: first run. Open http://%s and enter this code to create the owner account:\n\n      %s\n\n", *addr, setupCode)
+	}
+	go purgeSessions(ctx, db)
+
+	opts := server.Options{Dist: web.Dist(), Store: db, SetupCode: setupCode, Log: log}
 	if dev {
 		ui, err := devmode.Start(ctx, *webDir, log)
 		if err != nil {
@@ -82,9 +102,22 @@ func run(log *slog.Logger, args []string, dev bool) error {
 		_ = srv.Shutdown(shutdown)
 	}()
 
-	log.Info("gridlume is running", "url", "http://"+*addr, "version", version.Version, "dev", dev)
+	log.Info("gridlume is running", "url", "http://"+*addr, "version", version.Version, "dev", dev, "data", *dataDir)
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
+}
+
+func purgeSessions(ctx context.Context, db *store.Store) {
+	t := time.NewTicker(time.Hour)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			_ = db.PurgeSessions(ctx)
+		}
+	}
 }

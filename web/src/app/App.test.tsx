@@ -13,6 +13,7 @@ function core(session: unknown) {
       '/api/session': session,
       '/api/map': { places: [], nodes: [], links: [] },
       '/api/agents': [],
+      '/api/suggestions': [],
     }
     return new Response(JSON.stringify(body[url] ?? {}))
   })

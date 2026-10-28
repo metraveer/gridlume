@@ -9,6 +9,8 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +30,8 @@ type Event struct {
 	Snapshot *agentproto.Snapshot `json:"snapshot,omitempty"`
 	NodeID   string               `json:"nodeId"`
 	Removed  bool                 `json:"removed,omitempty"` // the agent was unlinked from the node
+	// MapChanged: containers added nodes or the core found new link suggestions; the interface refetches.
+	MapChanged bool `json:"mapChanged,omitempty"`
 }
 
 // Status is an agent as the interface sees it: what is stored plus whether it is connected now.
@@ -52,7 +56,8 @@ type conn struct {
 	agent   store.Agent
 	cancel  context.CancelFunc
 	minute  *minute
-	removed bool // unlinked: say "removed" instead of "offline" when the connection ends
+	removed bool   // unlinked: say "removed" instead of "offline" when the connection ends
+	docker  string // signature of the containers last synced, so unchanged lists cost nothing
 }
 
 // New returns a hub. Call Run to flush metrics in the background.
@@ -231,8 +236,43 @@ func (h *Hub) serve(ctx context.Context, ws *websocket.Conn, c *conn) error {
 		if c.minute.add(snap, h.now()) {
 			h.flush(c, false)
 		}
+		if snap.Docker != nil {
+			h.syncDocker(ctx, c, snap.Docker.Containers)
+		}
 		h.publish(Event{NodeID: c.agent.NodeID, Snapshot: &snap})
 	}
+}
+
+// syncDocker turns new containers into nodes and looks for links between them, when the list changed.
+func (h *Hub) syncDocker(ctx context.Context, c *conn, cs []agentproto.Container) {
+	sig := dockerSignature(cs)
+	if sig == c.docker {
+		return
+	}
+	changed, err := h.store.SyncContainers(ctx, c.agent.NodeID, cs)
+	if err != nil {
+		h.log.Error("sync containers", "node", c.agent.NodeID, "err", err)
+		return
+	}
+	added, err := h.store.SaveSuggestions(ctx, c.agent.NodeID, store.GuessLinks(cs))
+	if err != nil {
+		h.log.Error("link suggestions", "node", c.agent.NodeID, "err", err)
+		return
+	}
+	c.docker = sig
+	if changed || added > 0 {
+		h.publish(Event{NodeID: c.agent.NodeID, MapChanged: true})
+	}
+}
+
+// dockerSignature covers what syncing and guessing depend on: which containers, and what they point at.
+func dockerSignature(cs []agentproto.Container) string {
+	parts := make([]string, 0, len(cs))
+	for _, c := range cs {
+		parts = append(parts, store.ContainerKey(c)+"|"+c.Image+"|"+strings.Join(c.Refs, ",")+"|"+strings.Join(c.DependsOn, ","))
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, "\n")
 }
 
 // flush writes the finished minute (or, when the agent leaves, the unfinished one too).

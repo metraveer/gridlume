@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { Link, MapNode, Place } from '../api/types'
 import { Dot, Icon } from '../design'
 import { useNodeLive } from '../state/live'
-import { cardLine } from './format'
+import { bytes, cardLine, percent } from './format'
 import { canContain, LINK_META, NODE_META } from './model'
 import s from './flow.module.css'
 
@@ -18,12 +18,15 @@ const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left]
 export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData }) {
   const { t } = useTranslation()
   const { node, kids, portal } = data
-  const { agent, snap, state } = useNodeLive(node)
+  const { agent, snap, container, state } = useNodeLive(node)
   const meta = NODE_META[node.kind]
-  // A machine with a connected agent shows its load instead of the static caption.
+  // A machine with a connected agent shows its load, a container its own load or why it is not running.
   const sub =
     state === 'planned' ? t('state.planned')
     : snap ? cardLine(snap)
+    : container === null ? t('docker.gone')
+    : container?.state === 'running' ? `CPU ${percent(container.cpu)} · ${bytes(t, container.memUsed)}`
+    : container ? t(`docker.state.${container.state}`)
     : agent && !agent.online ? t('agent.offline.short')
     : [node.subtitle || node.address, t(`kind.${node.kind}`)].filter(Boolean).join(' · ')
   const cls = [s.node, meta.small && s.small, selected && s.selected, state === 'planned' && s.planned, portal && s.portal].filter(Boolean).join(' ')

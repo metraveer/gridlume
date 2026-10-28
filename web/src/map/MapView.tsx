@@ -8,6 +8,7 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Edge,
   type Node,
 } from '@xyflow/react'
@@ -38,6 +39,9 @@ function Map() {
   const edit = useApp((st) => st.edit)
   const saveLayout = useApp((st) => st.saveLayout)
   const patchNode = useApp((st) => st.patchNode)
+  const focus = useApp((st) => st.focus)
+  const setFocus = useApp((st) => st.setFocus)
+  const flow = useReactFlow()
 
   const onResized = useCallback((p: Place) => void saveLayout([], [p]), [saveLayout])
 
@@ -81,6 +85,16 @@ function Map() {
     }))
     return { nodes: [...places, ...items] as Node[], edges: edges as Edge[] }
   }, [map, level, selection, enter, onResized])
+
+  // A node found by search: once its level is drawn, centre on it.
+  useEffect(() => {
+    if (!focus) return
+    const id = window.setTimeout(() => {
+      void flow.fitView({ nodes: [{ id: focus }], maxZoom: 1.2, duration: 300, padding: 0.6 })
+      setFocus(null)
+    }, 120)
+    return () => window.clearTimeout(id)
+  }, [focus, level, flow, setFocus])
 
   const [nodes, setNodes, onNodesChange] = useNodesState(derived.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(derived.edges)

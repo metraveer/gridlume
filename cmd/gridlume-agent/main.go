@@ -2,6 +2,7 @@
 //
 //	gridlume-agent enroll --core URL --code CODE [--mode user|readonly|root] [--state DIR]
 //	gridlume-agent run [--state DIR]
+//	gridlume-agent docker-proxy [--listen SOCKET] [--docker SOCKET]   read-only Docker for the "readonly" mode
 //	gridlume-agent version
 //
 // The install script (deploy/install.sh) runs enroll once and sets up `run` as a systemd service.
@@ -16,6 +17,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/metraveer/gridlume/agent/docker"
 	"github.com/metraveer/gridlume/agent/link"
 	"github.com/metraveer/gridlume/internal/agentproto"
 	"github.com/metraveer/gridlume/internal/version"
@@ -65,12 +67,21 @@ func main() {
 			log.Error("agent stopped", "err", err)
 			os.Exit(1)
 		}
+	case "docker-proxy":
+		fs := flag.NewFlagSet("docker-proxy", flag.ExitOnError)
+		listen := fs.String("listen", agentproto.DockerSocket(agentproto.ModeReadOnly), "socket the agent reads Docker from")
+		socket := fs.String("docker", "/var/run/docker.sock", "Docker's own socket")
+		_ = fs.Parse(args)
+		if err := docker.Proxy(ctx, *listen, *socket, log); err != nil {
+			log.Error("proxy stopped", "err", err)
+			os.Exit(1)
+		}
 	default:
 		usage()
 	}
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: gridlume-agent enroll|run|version (see the install script)")
+	fmt.Fprintln(os.Stderr, "usage: gridlume-agent enroll|run|docker-proxy|version (see the install script)")
 	os.Exit(2)
 }

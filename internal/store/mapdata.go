@@ -50,6 +50,10 @@ type Node struct {
 	Notes    string  `json:"notes"`
 	X        float64 `json:"x"`
 	Y        float64 `json:"y"`
+	// Source is "docker" for containers an agent reported, "" for nodes drawn by hand.
+	Source string `json:"source"`
+	// ExtKey is what the source calls the node, e.g. "docker:app/api"; the interface matches live data by it.
+	ExtKey string `json:"extKey,omitempty"`
 }
 
 // Link connects two nodes and explains itself.
@@ -89,13 +93,13 @@ func (s *Store) GetMap(ctx context.Context) (Map, error) {
 	}
 	rows.Close()
 
-	rows, err = s.db.QueryContext(ctx, `SELECT id, parent_id, place_id, kind, name, subtitle, address, state, notes, x, y FROM nodes ORDER BY created_at`)
+	rows, err = s.db.QueryContext(ctx, `SELECT `+nodeCols+` FROM nodes ORDER BY created_at`)
 	if err != nil {
 		return m, err
 	}
 	for rows.Next() {
-		var n Node
-		if err := rows.Scan(&n.ID, &n.ParentID, &n.PlaceID, &n.Kind, &n.Name, &n.Subtitle, &n.Address, &n.State, &n.Notes, &n.X, &n.Y); err != nil {
+		n, err := scanNode(rows)
+		if err != nil {
 			rows.Close()
 			return m, err
 		}
@@ -259,6 +263,14 @@ func (s *Store) validateNode(ctx context.Context, n *Node) error {
 	return nil
 }
 
+const nodeCols = `id, parent_id, place_id, kind, name, subtitle, address, state, notes, x, y, source, coalesce(ext_key, '')`
+
+func scanNode(row interface{ Scan(...any) error }) (Node, error) {
+	var n Node
+	err := row.Scan(&n.ID, &n.ParentID, &n.PlaceID, &n.Kind, &n.Name, &n.Subtitle, &n.Address, &n.State, &n.Notes, &n.X, &n.Y, &n.Source, &n.ExtKey)
+	return n, err
+}
+
 // CreateNode adds a node.
 func (s *Store) CreateNode(ctx context.Context, n Node) (Node, error) {
 	n.ID = NewID()
@@ -288,9 +300,7 @@ type NodePatch struct {
 
 // UpdateNode applies a patch and returns the result.
 func (s *Store) UpdateNode(ctx context.Context, id string, patch NodePatch) (Node, error) {
-	var n Node
-	err := s.db.QueryRowContext(ctx, `SELECT id, parent_id, place_id, kind, name, subtitle, address, state, notes, x, y FROM nodes WHERE id = ?`, id).
-		Scan(&n.ID, &n.ParentID, &n.PlaceID, &n.Kind, &n.Name, &n.Subtitle, &n.Address, &n.State, &n.Notes, &n.X, &n.Y)
+	n, err := scanNode(s.db.QueryRowContext(ctx, `SELECT `+nodeCols+` FROM nodes WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return n, ErrNotFound
 	} else if err != nil {

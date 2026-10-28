@@ -22,6 +22,7 @@ function Toolbar() {
           {level === null && <Button size="sm" icon="plus" tip={t('add.place.tip')} onClick={() => edit({ kind: 'place', place: {} })}>{t('add.place')}</Button>}
           <Button size="sm" icon="plus" tip={t('add.node.tip')} onClick={() => edit({ kind: 'node', node: {} })}>{t('add.node')}</Button>
           <Button size="sm" icon="link" tip={t('add.link.tip')} onClick={() => edit({ kind: 'link', link: {} })}>{t('add.link')}</Button>
+          {level === null && <Button size="sm" icon="server" tip={t('add.agent.tip')} onClick={() => edit({ kind: 'agent' })}>{t('add.agent')}</Button>}
         </>
       )}
     </div>

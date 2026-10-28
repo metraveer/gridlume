@@ -12,3 +12,10 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 }
+
+// jsdom has no EventSource; the live stream stays silent in tests unless a test drives the store.
+globalThis.EventSource ??= class {
+  onopen: (() => void) | null = null
+  onmessage: ((m: MessageEvent) => void) | null = null
+  close() {}
+} as unknown as typeof EventSource

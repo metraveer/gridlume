@@ -1,0 +1,29 @@
+.meters { display: grid; gap: var(--s-3); margin-bottom: var(--s-3); }
+.meter { display: grid; gap: 4px; }
+
+.meterHead {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  color: var(--fg-muted);
+  font-size: var(--fs-12);
+}
+
+.meterHead span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meterHead .mono, .meterHead :global(.mono) { color: var(--fg); font-size: var(--fs-11); white-space: nowrap; }
+
+.bar { height: 4px; overflow: hidden; border-radius: 2px; background: var(--bg-raised); }
+.bar span { display: block; height: 100%; border-radius: 2px; background: var(--fg-faint); transition: width var(--t-fast) var(--ease); }
+.bar .warn { background: var(--warn); }
+.bar .crit { background: var(--crit); }
+
+.charts { display: grid; gap: var(--s-3); margin-top: var(--s-3); }
+.chart { display: grid; gap: 4px; }
+.spark { display: block; width: 100%; height: 48px; }
+.line { fill: none; stroke: var(--fg-muted); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.band { fill: var(--bg-raised); stroke: none; }
+.noData { height: 48px; border-radius: var(--r); background: repeating-linear-gradient(90deg, var(--bg-raised) 0 4px, transparent 4px 8px); opacity: 0.4; }
+.muted { margin: var(--s-2) 0 0; color: var(--fg-faint); font-size: var(--fs-12); }
+
+.agentState { margin-bottom: var(--s-3); }
+.unlink { margin-top: var(--s-3); }

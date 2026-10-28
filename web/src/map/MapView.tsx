@@ -160,6 +160,7 @@ function Map() {
           <div className={s.emptyActions}>
             <Button variant="primary" icon="plus" onClick={() => edit({ kind: 'place', place: { tone: 'green' } })}>{t('add.place')}</Button>
             <Button icon="plus" onClick={() => edit({ kind: 'node', node: { kind: 'server' } })}>{t('add.node')}</Button>
+            <Button icon="server" tip={t('add.agent.tip')} onClick={() => edit({ kind: 'agent' })}>{t('add.agent')}</Button>
           </div>
         </div>
       )}

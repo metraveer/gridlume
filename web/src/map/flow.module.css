@@ -53,17 +53,35 @@
 
 .kids:hover { border-color: var(--lume-dim); color: var(--fg); }
 
-/* Connection handles: invisible until hover, so links are drawn by dragging from a node's edge. */
+/* Connection handles: a small "+" on each side, shown when the node is pointed at. Dragging from one
+   draws a link; the hand cursor says "this can be pulled" (React Flow's default crosshair did not). */
 .handle {
-  width: 10px !important;
-  height: 10px !important;
-  border: 2px solid var(--bg-panel) !important;
-  background: var(--lume-dim) !important;
+  display: grid !important;
+  place-items: center;
+  width: 16px !important;
+  height: 16px !important;
+  border: 1px solid var(--lume-dim) !important;
+  border-radius: 50% !important;
+  background: var(--bg-panel) !important;
+  cursor: grab !important;
   opacity: 0;
-  transition: opacity var(--t-fast) var(--ease);
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
 
+.handle::before,
+.handle::after {
+  content: '';
+  position: absolute;
+  background: var(--fg-muted);
+  pointer-events: none;
+}
+
+.handle::before { width: 8px; height: 1.5px; }
+.handle::after { width: 1.5px; height: 8px; }
 .node:hover .handle { opacity: 1; }
+.handle:hover { background: var(--lume) !important; transform: scale(1.15); }
+.handle:hover::before, .handle:hover::after { background: var(--bg-canvas); }
+.handle:active { cursor: grabbing !important; }
 
 /* Places */
 .place {
@@ -121,3 +139,13 @@
 }
 
 .pillSelected { border-color: var(--lume-dim); color: var(--fg); }
+
+/* A link being made from a drop on empty canvas. */
+.ghost { width: 12px; height: 12px; border: 2px solid var(--lume); border-radius: 50%; background: var(--bg-canvas); box-shadow: 0 0 0 4px var(--lume-glow); }
+.ghostHandle { opacity: 0; pointer-events: none; }
+.pendingEdge { fill: none; stroke: var(--lume); stroke-width: 1.6; stroke-dasharray: 6 5; animation: dash 0.8s linear infinite; }
+@keyframes dash { to { stroke-dashoffset: -11; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pendingEdge { animation: none; }
+}

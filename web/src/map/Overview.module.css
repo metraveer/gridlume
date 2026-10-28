@@ -1,23 +1,28 @@
+.panel { transition: right var(--t-fast) var(--ease); }
+
 .minimap {
-  overflow: hidden;
+  display: block;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  background: rgba(13, 15, 18, 0.88) !important;
+  background: var(--bg-canvas);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  transition: right var(--t-fast) var(--ease);
+  cursor: grab;
+  touch-action: none;
 }
 
-.minimap :global(.react-flow__minimap-svg) { display: block; cursor: pointer; }
+.minimap:active { cursor: grabbing; }
 
-/* Place names: sized in map units, so they stay readable however far the minimap zooms out. */
-.label { font-family: var(--font-ui); font-size: 40px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; pointer-events: none; }
+/* What the screen shows right now. */
+.view { fill: rgba(243, 238, 223, 0.04); stroke: var(--lume-dim); stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
 
-/* Node names on a big minimap: dark text on the state colour. */
-.nodeLabel { fill: #0d0f12; font-family: var(--font-ui); font-size: 28px; font-weight: 600; pointer-events: none; }
+.label { fill: var(--fg-faint); font-family: var(--font-ui); font-size: 22px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; pointer-events: none; }
+.nodeLabel { fill: var(--fg); font-family: var(--font-ui); font-size: 26px; font-weight: 600; pointer-events: none; }
 
 /* A small grip on the top-left corner. */
 .handle {
   position: absolute;
+  top: -7px;
+  left: -7px;
   z-index: 6;
   width: 14px;
   height: 14px;
@@ -26,7 +31,7 @@
   border-top-left-radius: 6px;
   cursor: nwse-resize;
   opacity: 0.6;
-  transition: opacity var(--t-fast) var(--ease), right var(--t-fast) var(--ease);
+  transition: opacity var(--t-fast) var(--ease);
   touch-action: none;
 }
 

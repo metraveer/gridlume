@@ -63,7 +63,14 @@ function NodeDialog({ initial, close, linkFrom }: { initial: Partial<MapNode>; c
   const machines = map.nodes.filter((x) => canContain(x) && x.id !== n.id)
   const edit = useApp((st) => st.edit)
   const { busy, error, save } = useSave(
-    () => saveNode(n).then((saved) => linkFrom && edit({ kind: 'link', link: { fromId: linkFrom.id, toId: saved.id, kind: linkFrom.kind } })),
+    () =>
+      saveNode(n).then((saved) => {
+        if (!linkFrom) return
+        // The dashed line now ends at the new node, until the link is saved or cancelled.
+        const p = useApp.getState().pending
+        if (p) useApp.getState().setPending({ ...p, toId: saved.id })
+        edit({ kind: 'link', link: { fromId: linkFrom.id, toId: saved.id, kind: linkFrom.kind } })
+      }),
     () => !linkFrom && close(),
   )
 

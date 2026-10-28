@@ -26,6 +26,9 @@ type State = {
   selection: Selection
   focus: string | null // a node the map should bring into view (search, all-nodes page); '*' = everything
   deleting: Selection // something a menu or the Delete key asked to delete; its inspector confirms
+  // A link dragged onto empty canvas, drawn dashed while its node and link are being made:
+  // to the point where it was dropped, then to the new node.
+  pending: { fromId: string; at: { x: number; y: number }; toId?: string } | null
   editing: Editing
   error: string | string[] | null // dictionary key(s) of the last error to show
 
@@ -41,6 +44,7 @@ type State = {
   select: (s: Selection) => void
   setFocus: (id: string | null) => void
   askDelete: (s: Selection) => void
+  setPending: (p: State['pending']) => void
   enter: (level: Level) => void
   edit: (e: Editing) => void
   clearError: () => void
@@ -73,6 +77,7 @@ export const useApp = create<State>((set, get) => ({
   selection: null,
   focus: null,
   deleting: null,
+  pending: null,
   editing: null,
   error: null,
 
@@ -137,6 +142,7 @@ export const useApp = create<State>((set, get) => ({
   setFocus: (focus) => set({ focus }),
   // Selecting it opens its inspector, which shows the confirmation (with risk and consequences).
   askDelete: (deleting) => set({ deleting, selection: deleting }),
+  setPending: (pending) => set({ pending }),
   enter: (level) => set({ level, selection: level ? { kind: 'node', id: level } : null }),
   edit: (editing) => set({ editing }),
   clearError: () => set({ error: null }),

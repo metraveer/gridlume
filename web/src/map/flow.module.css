@@ -1,0 +1,123 @@
+/* Map pieces drawn inside React Flow. Same look as design/mockup (node card, place area, link styles). */
+
+.node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 188px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+
+.node:hover { border-color: var(--line-strong); }
+.selected { border-color: var(--lume); box-shadow: 0 0 0 4px var(--lume-glow); }
+.planned { border-style: dashed; background: transparent; color: var(--fg-muted); }
+.portal { border-style: dashed; background: transparent; opacity: 0.75; }
+.small { width: 156px; min-height: 40px; padding: 6px 10px; }
+
+.glyph {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r);
+  background: var(--bg-raised);
+  color: var(--fg-muted);
+  flex: none;
+}
+
+.small .glyph { width: 24px; height: 24px; }
+.label { flex: 1; min-width: 0; }
+.name, .sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name { font-weight: 600; }
+.sub { color: var(--fg-faint); font-size: var(--fs-11); }
+.state { position: absolute; top: -4px; right: -4px; display: flex; pointer-events: none; }
+
+.kids {
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--fs-11);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kids:hover { border-color: var(--lume-dim); color: var(--fg); }
+
+/* Connection handles: invisible until hover, so links are drawn by dragging from a node's edge. */
+.handle {
+  width: 10px !important;
+  height: 10px !important;
+  border: 2px solid var(--bg-panel) !important;
+  background: var(--lume-dim) !important;
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease);
+}
+
+.node:hover .handle { opacity: 1; }
+
+/* Places */
+.place {
+  position: relative;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+}
+
+.tone_green { background: rgba(60, 207, 142, 0.05); }
+.tone_blue { background: rgba(106, 174, 255, 0.05); }
+.tone_violet { background: rgba(169, 139, 240, 0.05); }
+.tone_amber { background: rgba(242, 181, 68, 0.05); }
+.tone_gray { background: rgba(255, 255, 255, 0.025); }
+
+.placeLabel, .placeCount {
+  position: absolute;
+  top: 10px;
+  color: var(--fg-faint);
+  font-size: var(--fs-11);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.placeLabel { left: 14px; }
+.placeCount { right: 14px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.resizeLine { border-color: var(--lume-dim) !important; }
+.resizeHandle { width: 8px !important; height: 8px !important; border: 0 !important; background: var(--lume) !important; }
+
+/* Links */
+.edge { fill: none; stroke-width: 1.4; }
+.edge_lan, .edge_wifi { stroke: var(--link-lan); }
+.edge_wifi { stroke-dasharray: 2 4; }
+.edge_uplink { stroke: var(--link-uplink); stroke-width: 2.2; }
+.edge_vpn { stroke: var(--link-vpn); stroke-dasharray: 7 5; }
+.edge_power { stroke: var(--warn); stroke-dasharray: 6 4; }
+.edge_runs { stroke: var(--link-runs); }
+.edge_depends, .edge_http, .edge_db, .edge_queue, .edge_ws { stroke: var(--link-depends); stroke-dasharray: 4 4; }
+.edge_dns { stroke: var(--link-dns); stroke-dasharray: 1 4; stroke-linecap: round; stroke-width: 2; }
+.edgePlanned { stroke: var(--planned) !important; stroke-dasharray: 3 5 !important; opacity: 0.6; }
+.edgeSelected { stroke: var(--lume) !important; stroke-width: 2.4; }
+
+.pill {
+  position: absolute;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg-panel);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.pillSelected { border-color: var(--lume-dim); color: var(--fg); }

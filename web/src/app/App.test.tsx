@@ -1,23 +1,49 @@
 import { act, render, screen } from '@testing-library/react'
 import i18n from '../i18n'
+import { useApp } from '../state/app'
 import { App } from './App'
 
+const owner = { id: 'u1', username: 'ops', role: 'owner' }
+
+/** A fake core: answers by path, like the real API. */
+function core(session: unknown) {
+  return vi.fn(async (url: string) => {
+    const body: Record<string, unknown> = {
+      '/api/version': { version: '0.0.0-dev' },
+      '/api/session': session,
+      '/api/map': { places: [], nodes: [], links: [] },
+    }
+    return new Response(JSON.stringify(body[url] ?? {}))
+  })
+}
+
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ version: '0.0.0-dev' }))))
+  useApp.setState({ ready: false, needsSetup: false, offline: false, user: null, error: null })
+  window.location.hash = '#/'
 })
 
-it('shows the welcome screen in Russian', async () => {
+it('asks for the one-time code on first run', async () => {
+  vi.stubGlobal('fetch', core({ needsSetup: true, user: null }))
   render(<App />)
-  expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Gridlume: вся инфраструктура на одной схеме')
+  expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Первый запуск')
+  expect(screen.getByText('Код из консоли')).toBeTruthy()
+})
+
+it('asks to sign in when there is no session', async () => {
+  vi.stubGlobal('fetch', core({ needsSetup: false, user: null }))
+  render(<App />)
+  expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Вход в Gridlume')
+})
+
+it('shows the empty map when signed in, and switches to English', async () => {
+  vi.stubGlobal('fetch', core({ needsSetup: false, user: owner }))
+  render(<App />)
+  expect(await screen.findByText('Схема пока пустая')).toBeTruthy()
   expect(await screen.findByText('Ядро 0.0.0-dev на связи')).toBeTruthy()
-})
-
-it('switches to English', async () => {
-  render(<App />)
   await act(async () => {
     screen.getByRole('button', { name: 'EN' }).click()
   })
-  expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Gridlume: your whole infrastructure on one map')
+  expect(screen.getByText('The map is empty')).toBeTruthy()
   await act(async () => {
     await i18n.changeLanguage('ru')
   })
@@ -26,5 +52,5 @@ it('switches to English', async () => {
 it('reports when the core is unreachable', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline') }))
   render(<App />)
-  expect(await screen.findByText('Нет связи с ядром')).toBeTruthy()
+  expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Нет связи с ядром')
 })

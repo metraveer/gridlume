@@ -1,0 +1,42 @@
+.canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.canvas :global(.react-flow) {
+  background: var(--bg-canvas);
+}
+
+.canvas :global(.react-flow__node) {
+  font-family: var(--font-ui);
+  font-size: var(--fs-13);
+  color: var(--fg);
+}
+
+.canvas :global(.react-flow__node.selected),
+.canvas :global(.react-flow__node:focus-visible) {
+  outline: none;
+}
+
+.minimap {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: rgba(13, 15, 18, 0.85) !important;
+}
+
+.empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: var(--s-2);
+  width: min(460px, calc(100% - 48px));
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.empty h2 { margin: 0; font-size: var(--fs-18); font-weight: 600; }
+.empty p { margin: 0; color: var(--fg-muted); }
+.emptyActions { display: flex; gap: var(--s-2); margin-top: var(--s-3); pointer-events: all; }

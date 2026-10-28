@@ -25,6 +25,8 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: false,
+    // The real limit is scripts/budget.mjs (gzip size of the first load); this only silences Vite's 500 kB raw warning.
+    chunkSizeWarningLimit: 800,
   },
   test: {
     environment: 'jsdom',

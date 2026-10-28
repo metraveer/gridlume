@@ -12,6 +12,9 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Bitwise operators work on 32-bit integers in JavaScript: `1 << 50` is 2^18, not 2^50.
+      // Sizes here are bytes of terabyte disks, so use ** and Math.* instead.
+      'no-bitwise': 'error',
     },
   },
 )

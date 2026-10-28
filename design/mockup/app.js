@@ -26,11 +26,12 @@
   };
 
   var VIEWS = {
-    network: {
+    // Top level: places (coloured areas), machines, routers, internet. Machines with something inside get a "go inside" chip.
+    root: {
       groups: [
-        { cls: 'village', label: 'place.village', x: 40, y: 150, w: 440, h: 330 },
-        { cls: 'city', label: 'place.city', x: 520, y: 150, w: 300, h: 330 },
-        { cls: 'cloud', label: 'place.cloud', x: 860, y: 150, w: 300, h: 330 },
+        { cls: 'village', label: 'place.village', x: 40, y: 150, w: 440, h: 330, place: 'village' },
+        { cls: 'city', label: 'place.city', x: 520, y: 150, w: 300, h: 330, place: 'city' },
+        { cls: 'cloud', label: 'place.cloud', x: 860, y: 150, w: 300, h: 330, place: 'cloud' },
       ],
       nodes: { internet: [556, 24], rt: [80, 204], calibur: [80, 380], max: [276, 292], keenetic: [576, 204], junk: [576, 380], tw: [916, 204], domain: [916, 380] },
       edges: [
@@ -39,32 +40,38 @@
         ['calibur', 'junk', 'vpn planned', 'AmneziaWG'], ['domain', 'tw', 'dns', 'A 104.171.132.145'],
       ],
     },
-    services: {
-      groups: [
-        { cls: 'machine', label: 'calibur', x: 40, y: 110, w: 420, h: 250 },
-        { cls: 'machine', label: 'gridman.pro', x: 500, y: 110, w: 420, h: 250 },
-        { cls: 'machine', label: 'junk', x: 960, y: 110, w: 220, h: 140 },
-      ],
-      nodes: { komodo: [70, 160], mongo: [270, 160], periphery: [70, 270], glcore: [270, 270], web: [530, 160], api: [730, 160], worker: [530, 270], pg: [730, 270], ha: [990, 160], domain: [530, 24] },
+    // Inside a machine: its containers and services and how they depend on each other.
+    // Nodes from outside (dashed "portals") show where the machine connects to the rest.
+    'in-calibur': {
+      machine: 'calibur',
+      groups: [{ cls: 'machine', label: 'calibur', x: 40, y: 80, w: 520, h: 280 }],
+      nodes: { komodo: [70, 130], mongo: [370, 130], periphery: [70, 270], glcore: [370, 270] },
+      edges: [['komodo', 'mongo', 'depends', '', 'rq-komodo'], ['periphery', 'komodo', 'depends', '']],
+    },
+    'in-tw': {
+      machine: 'tw',
+      groups: [{ cls: 'machine', label: 'gridman.pro', x: 40, y: 80, w: 520, h: 280 }],
+      nodes: { domain: [70, -40], web: [70, 130], api: [370, 130], worker: [70, 270], pg: [370, 270] },
       edges: [
-        ['web', 'api', 'depends', '', 'rq-web'], ['api', 'pg', 'depends', '', 'rq-api'], ['worker', 'pg', 'depends', '', 'rq-worker'], ['worker', 'api', 'depends', ''],
-        ['komodo', 'mongo', 'depends', '', 'rq-komodo'], ['periphery', 'komodo', 'depends', ''], ['domain', 'web', 'dns', ''],
+        ['domain', 'web', 'dns', ''], ['web', 'api', 'depends', '', 'rq-web'], ['api', 'pg', 'depends', '', 'rq-api'],
+        ['worker', 'pg', 'depends', '', 'rq-worker'], ['worker', 'api', 'depends', ''],
       ],
     },
-    places: {
-      groups: [
-        { cls: 'village', label: 'place.village', x: 40, y: 60, w: 380, h: 330, place: 'village' },
-        { cls: 'city', label: 'place.city', x: 460, y: 60, w: 380, h: 220, place: 'city' },
-        { cls: 'cloud', label: 'place.cloud', x: 880, y: 60, w: 380, h: 330, place: 'cloud' },
-      ],
-      nodes: {
-        rt: [70, 110, 1], calibur: [70, 170, 1], max: [70, 230, 1], komodo: [244, 110, 1], mongo: [244, 170, 1], periphery: [244, 230, 1], glcore: [244, 290, 1],
-        keenetic: [490, 110, 1], junk: [490, 170, 1], ha: [664, 110, 1],
-        tw: [910, 110, 1], domain: [910, 170, 1], web: [1084, 110, 1], api: [1084, 170, 1], pg: [1084, 230, 1], worker: [1084, 290, 1],
-      },
+    'in-junk': {
+      machine: 'junk',
+      groups: [{ cls: 'machine', label: 'junk', x: 40, y: 80, w: 240, h: 150 }],
+      nodes: { ha: [70, 130] },
       edges: [],
     },
   };
+
+  // Which nodes live inside which machine (drives the "go inside" chip and breadcrumbs).
+  var KIDS = {};
+  Object.keys(NODES).forEach(function (id) { var on = NODES[id].on; if (on) (KIDS[on] = KIDS[on] || []).push(id); });
+  function viewOf(id) {
+    if (VIEWS.root.nodes[id]) return 'root';
+    return NODES[id].on ? 'in-' + NODES[id].on : 'root';
+  }
 
   var DETAILS = {
     calibur: {
@@ -113,7 +120,7 @@
   };
 
   // ---------- State ----------
-  var view = 'network';
+  var view = 'root';
   var selected = 'calibur';
   var selectedLink = null; // [linkId, fromNode, toNode]
   var zoom = 1, panX = 40, panY = 40;
@@ -158,10 +165,14 @@
       var n = NODES[id], p = pos[view][id], sz = nodeSize(id);
       var sub = (n.sub ? n.sub + ' · ' : '') + t(n.type);
       if (n.state === 'planned') sub = t('state.planned');
-      html += '<div class="node' + (sz[0] < 188 ? ' small' : '') + (n.state === 'planned' ? ' planned' : '') + (id === selected ? ' selected' : '') +
-        '" data-id="' + id + '" style="left:' + p[0] + 'px;top:' + p[1] + 'px" data-tip="' + nodeName(n) + ' · ' + t('state.' + n.state) + '">' +
+      var machine = VIEWS[view].machine;
+      var portal = machine && n.on !== machine;
+      var chip = view === 'root' && KIDS[id] ? '<span class="kids" data-enter="' + id + '">' + KIDS[id].length + ' ›</span>' : '';
+      var tip = nodeName(n) + ' · ' + t('state.' + n.state) + (chip ? '<br>' + t('node.enter.tip') : '') + (portal ? '<br>' + t('node.portal.tip') : '');
+      html += '<div class="node' + (sz[0] < 188 ? ' small' : '') + (n.state === 'planned' ? ' planned' : '') + (portal ? ' portal' : '') + (id === selected ? ' selected' : '') +
+        '" data-id="' + id + '" style="left:' + p[0] + 'px;top:' + p[1] + 'px" data-tip="' + tip + '">' +
         '<span class="glyph">' + glIcon(n.icon) + '</span><span class="label"><span class="name">' + nodeName(n) + '</span><span class="sub">' + sub + '</span></span>' +
-        '<span class="state"><span class="dot ' + stateClass(n.state) + '"></span></span></div>';
+        chip + '<span class="state"><span class="dot ' + stateClass(n.state) + '"></span></span></div>';
     });
     $('nodes').innerHTML = html;
   }
@@ -314,6 +325,11 @@
     html += '<div class="insp-state"><span class="badge ' + (n.state === 'unknown' || n.state === 'planned' ? '' : n.state) + '"><span class="dot ' + n.state + '"></span>' + t('state.' + n.state) + '</span>' +
       (n.place ? '<span class="badge">' + t('place.' + n.place) + '</span>' : '') + '</div>';
 
+    if (KIDS[selected] && view === 'root') {
+      html += '<div class="section"><button class="btn btn-primary" style="width:100%;justify-content:center" data-enter="' + selected + '">' +
+        t('insp.enter') + ' · ' + KIDS[selected].length + '</button></div>';
+    }
+
     if (d.note) html += '<div class="section"><div class="note">' + t(d.note) + '</div></div>';
 
     if (d.kv) {
@@ -329,11 +345,12 @@
       }).join('') + '</div>';
     }
 
-    if (d.children) html += '<div class="section"><h3 class="section-title">' + t('insp.containers') + ' <span class="faint">' + d.children.length + '</span></h3>' + d.children.map(function (c) { return linkRow(c); }).join('') + '</div>';
+    var children = d.children || KIDS[selected];
+    if (children) html += '<div class="section"><h3 class="section-title">' + t('insp.containers') + ' <span class="faint">' + children.length + '</span></h3>' + children.map(function (c) { return linkRow(c); }).join('') + '</div>';
     if (d.depends) html += '<div class="section"><h3 class="section-title">' + t('insp.dependson') + '</h3>' + d.depends.map(function (c) { return linkRow(c); }).join('') + '</div>';
     if (d.usedBy) html += '<div class="section"><h3 class="section-title">' + t('insp.usedby') + '</h3>' + d.usedBy.map(function (c) { return linkRow(c); }).join('') + '</div>';
 
-    if (!d.children && !d.depends) {
+    if (!children && !d.depends) {
       var links = [];
       Object.keys(VIEWS).forEach(function (v) { VIEWS[v].edges.forEach(function (e) {
         var other = e[0] === selected ? e[1] : e[1] === selected ? e[0] : null;
@@ -364,9 +381,32 @@
     renderNodes();
     renderEdges();
     renderInspector();
-    document.querySelectorAll('#views button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.view === view ? 'true' : 'false'); });
+    renderCrumbs();
     $('app').classList.toggle('no-inspector', !selected && !selectedLink);
   }
+
+  function renderCrumbs() {
+    var html = '<button data-crumb="root"' + (view === 'root' ? ' aria-current="page"' : '') + '>' + t('crumb.root') + '</button>';
+    var m = VIEWS[view].machine;
+    if (m) {
+      var n = NODES[m];
+      if (n.place) html += '<span class="sep">/</span><button data-crumb="root" data-place="' + n.place + '">' + t('place.' + n.place) + '</button>';
+      html += '<span class="sep">/</span><button aria-current="page">' + nodeName(n) + '</button>';
+    }
+    $('crumbs').innerHTML = html;
+  }
+
+  function go(v, select) {
+    view = v;
+    if (select !== undefined) { selected = select; selectedLink = null; }
+    render();
+    fit();
+    world.classList.remove('enter');
+    void world.offsetWidth; // restart the entry animation
+    world.classList.add('enter');
+  }
+
+  function enter(id) { if (KIDS[id]) go('in-' + id, id); }
 
   function renderLegend() {
     $('legend').innerHTML = [['lan', 'legend.lan'], ['wifi', 'legend.wifi'], ['uplink', 'legend.uplink'], ['vpn', 'legend.vpn'], ['runs', 'legend.runs'], ['depends', 'legend.depends'], ['dns', 'legend.dns'], ['planned', 'legend.planned']]
@@ -390,6 +430,8 @@
   canvas.addEventListener('mousedown', function (e) {
     var nodeEl = e.target.closest('.node');
     if (e.target.closest('.canvas-tools, .zoom, .legend')) return;
+    var enterEl = e.target.closest('[data-enter]');
+    if (enterEl) { enter(enterEl.dataset.enter); return; }
     var linkEl = e.target.closest('[data-link]');
     if (linkEl) {
       selectedLink = [linkEl.dataset.link, linkEl.dataset.from, linkEl.dataset.to];
@@ -440,17 +482,30 @@
     panX = mx - (mx - panX) * nz / zoom; panY = my - (my - panY) * nz / zoom; zoom = nz; applyTransform();
   }
 
-  $('views').addEventListener('click', function (e) {
-    var b = e.target.closest('button'); if (!b) return;
-    view = b.dataset.view;
-    if (selected && !pos[view][selected]) { /* keep inspector open even if node is hidden in this view */ }
-    render(); fit();
+  // Double-click a machine to go inside; double-click a dashed outside node to go back to where it lives.
+  canvas.addEventListener('dblclick', function (e) {
+    var nodeEl = e.target.closest('.node');
+    if (!nodeEl) return;
+    var id = nodeEl.dataset.id;
+    if (KIDS[id] && view === 'root') enter(id);
+    else if (nodeEl.classList.contains('portal')) go(viewOf(id), id);
+  });
+
+  $('crumbs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-crumb]');
+    if (b && view !== 'root') go('root', VIEWS[view].machine);
   });
 
   $('inspector').addEventListener('click', function (e) {
     if (e.target.closest('#insp-close')) { selected = null; selectedLink = null; render(); return; }
-    var go = e.target.closest('[data-goto]');
-    if (go) { selected = go.dataset.goto; selectedLink = null; render(); return; }
+    var enterBtn = e.target.closest('[data-enter]');
+    if (enterBtn) { enter(enterBtn.dataset.enter); return; }
+    var gotoEl = e.target.closest('[data-goto]');
+    if (gotoEl) {
+      var id = gotoEl.dataset.goto;
+      if (!pos[view][id]) { go(viewOf(id), id); return; } // the node lives on another level: travel there
+      selected = id; selectedLink = null; render(); return;
+    }
     var act = e.target.closest('[data-act]');
     if (act && act.dataset.act === 'move') openDialog('dlg-move');
   });
@@ -471,7 +526,12 @@
   $('copy-cmd').addEventListener('click', function (e) { e.target.textContent = '✓'; setTimeout(function () { GL.apply($('dlg-add')); }, 1200); });
 
   window.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') document.querySelectorAll('.scrim.open').forEach(function (s) { s.classList.remove('open'); });
+    if (e.key === 'Escape') {
+      var open = document.querySelectorAll('.scrim.open');
+      if (open.length) open.forEach(function (s) { s.classList.remove('open'); });
+      else if (view !== 'root') go('root', VIEWS[view].machine); // Esc = one level up
+    }
+    if (e.key === 'Enter' && selected && KIDS[selected] && view === 'root' && document.activeElement.tagName !== 'INPUT') enter(selected);
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); $('search').focus(); }
   });
 

@@ -1,0 +1,50 @@
+.wrap {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--s-6);
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(var(--line-soft) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.lang { position: fixed; top: var(--s-3); right: var(--s-3); }
+
+.card {
+  display: grid;
+  gap: var(--s-4);
+  width: min(400px, 100%);
+  padding: var(--s-8) var(--s-6);
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-pop);
+}
+
+.card h1 {
+  margin: 0;
+  font-size: var(--fs-18);
+  font-weight: 600;
+}
+
+.lead { margin: 0; color: var(--fg-muted); font-size: var(--fs-12); }
+
+.field {
+  display: grid;
+  gap: 4px;
+  color: var(--fg-muted);
+  font-size: var(--fs-12);
+}
+
+.input {
+  height: 34px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-canvas);
+  outline: none;
+}
+
+.input:focus { border-color: var(--lume-dim); box-shadow: 0 0 0 3px var(--lume-glow); }
+.hint { color: var(--fg-faint); font-size: var(--fs-11); }
+.error { margin: 0; color: var(--crit); font-size: var(--fs-12); }
+.card button[type='submit'] { justify-content: center; height: 34px; }

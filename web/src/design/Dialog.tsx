@@ -1,4 +1,5 @@
 import { useEffect, useId, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { IconButton } from './Button'
 import s from './Dialog.module.css'
@@ -12,7 +13,10 @@ type Props = {
   footer?: ReactNode
 }
 
-/** Modal dialog: closes on Esc and on a click outside. Dangerous ones show their risk next to the title. */
+/**
+ * Modal dialog: closes on Esc and on a click outside. Dangerous ones show their risk next to the title.
+ * Rendered into <body>, so a dialog opened from a scrolling panel is not clipped or dimmed with it.
+ */
 export function Dialog({ title, risk, onClose, children, footer }: Props) {
   const { t } = useTranslation()
   const titleId = useId()
@@ -22,7 +26,7 @@ export function Dialog({ title, risk, onClose, children, footer }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
+  return createPortal(
     <div className={s.scrim} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={s.dialog} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className={s.head}>
@@ -33,6 +37,7 @@ export function Dialog({ title, risk, onClose, children, footer }: Props) {
         <div className={s.body}>{children}</div>
         {footer && <div className={s.foot}>{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

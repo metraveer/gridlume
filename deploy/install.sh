@@ -5,7 +5,7 @@
 #
 # Modes (docs/decisions.md, "Режимы прав агента"):
 #   user      own system user "gridlume" in the docker group (default)
-#   readonly  own system user without write access to Docker
+#   readonly  own system user; Docker only through a read-only proxy run by the user "gridlume-docker"
 #   root      runs as root: sees everything, and can do everything if compromised
 set -eu
 
@@ -16,6 +16,7 @@ LANG_UI="en"
 BIN=/usr/local/bin/gridlume-agent
 STATE=/var/lib/gridlume-agent
 UNIT=/etc/systemd/system/gridlume-agent.service
+PROXY_UNIT=/etc/systemd/system/gridlume-docker-ro.service
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -65,6 +66,42 @@ else
 	fi
 fi
 
+# Read-only mode: a separate user in the docker group runs the proxy; the agent only reaches its socket.
+PROXY_ON=0
+if [ "$MODE" = readonly ] && getent group docker >/dev/null 2>&1; then
+	if ! id gridlume-docker >/dev/null 2>&1; then
+		useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin --gid gridlume gridlume-docker
+	fi
+	usermod -aG docker gridlume-docker
+	cat > "$PROXY_UNIT" <<PROXY
+[Unit]
+Description=Gridlume read-only Docker proxy
+Before=gridlume-agent.service
+
+[Service]
+User=gridlume-docker
+Group=gridlume
+SupplementaryGroups=docker
+RuntimeDirectory=gridlume-docker
+RuntimeDirectoryMode=0750
+ExecStart=$BIN docker-proxy
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+PROXY
+	PROXY_ON=1
+elif [ -f "$PROXY_UNIT" ]; then
+	# Another mode now: the proxy is not needed any more.
+	systemctl disable --now gridlume-docker-ro >/dev/null 2>&1 || true
+	rm -f "$PROXY_UNIT"
+fi
+
 mkdir -p "$STATE"
 systemctl stop gridlume-agent 2>/dev/null || true
 "$BIN" enroll --core "$CORE" --code "$CODE" --mode "$MODE" --state "$STATE" || die "the core did not accept the code (expired or already used?)" "ядро не приняло код (истёк или уже использован?)"
@@ -80,7 +117,7 @@ cat > "$UNIT" <<EOF
 [Unit]
 Description=Gridlume agent
 Documentation=https://github.com/metraveer/gridlume
-After=network-online.target
+After=network-online.target gridlume-docker-ro.service
 Wants=network-online.target
 
 [Service]
@@ -100,7 +137,12 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now gridlume-agent >/dev/null 2>&1
+if [ "$PROXY_ON" = 1 ]; then
+	systemctl enable gridlume-docker-ro >/dev/null 2>&1
+	systemctl restart gridlume-docker-ro
+fi
+systemctl enable gridlume-agent >/dev/null 2>&1
+systemctl restart gridlume-agent
 sleep 2
 if systemctl is-active --quiet gridlume-agent; then
 	say "Done: the agent is running (mode: $MODE). The machine will appear on the map in a few seconds." \

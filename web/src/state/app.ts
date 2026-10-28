@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { api, ApiError } from '../api/client'
-import type { Link, MapData, MapNode, Place, User } from '../api/types'
+import type { Link, MapData, MapNode, Place, Suggestion, User } from '../api/types'
 import type { Level } from '../map/model'
 
 export type Selection = { kind: 'node' | 'link' | 'place'; id: string } | null
@@ -19,8 +19,10 @@ type State = {
   offline: boolean // the session check failed, so we do not know whether to show setup or sign-in
   user: User | null
   map: MapData
+  suggestions: Suggestion[]
   level: Level
   selection: Selection
+  focus: string | null // a node the map should bring into view (search, all-nodes page)
   editing: Editing
   error: string | string[] | null // dictionary key(s) of the last error to show
 
@@ -29,8 +31,11 @@ type State = {
   login: (username: string, password: string) => Promise<void>
   logout: () => Promise<void>
   loadMap: () => Promise<void>
+  acceptSuggestion: (s: Suggestion, about: string, ifBroken: string) => Promise<void>
+  dismissSuggestion: (s: Suggestion) => Promise<void>
 
   select: (s: Selection) => void
+  setFocus: (id: string | null) => void
   enter: (level: Level) => void
   edit: (e: Editing) => void
   clearError: () => void
@@ -57,8 +62,10 @@ export const useApp = create<State>((set, get) => ({
   offline: false,
   user: null,
   map: empty,
+  suggestions: [],
   level: null,
   selection: null,
+  focus: null,
   editing: null,
   error: null,
 
@@ -91,14 +98,34 @@ export const useApp = create<State>((set, get) => ({
 
   loadMap: async () => {
     try {
-      set({ map: await api.map() })
+      const [map, suggestions] = await Promise.all([api.map(), api.suggestions()])
+      set({ map, suggestions })
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) set({ user: null })
       else set({ error: keyOf(e) })
     }
   },
 
+  acceptSuggestion: async (sg, about, ifBroken) => {
+    try {
+      const link = await api.acceptSuggestion(sg.id, about, ifBroken)
+      set((s) => ({ map: { ...s.map, links: [...s.map.links, link] }, suggestions: s.suggestions.filter((x) => x.id !== sg.id) }))
+    } catch (e) {
+      set({ error: keyOf(e) })
+    }
+  },
+
+  dismissSuggestion: async (sg) => {
+    set((s) => ({ suggestions: s.suggestions.filter((x) => x.id !== sg.id) }))
+    try {
+      await api.dismissSuggestion(sg.id)
+    } catch (e) {
+      set({ error: keyOf(e) })
+    }
+  },
+
   select: (selection) => set({ selection }),
+  setFocus: (focus) => set({ focus }),
   enter: (level) => set({ level, selection: level ? { kind: 'node', id: level } : null }),
   edit: (editing) => set({ editing }),
   clearError: () => set({ error: null }),

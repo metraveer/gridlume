@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { api } from '../api/client'
-import type { Agent, LiveEvent, MapNode, NodeState, Snapshot } from '../api/types'
+import type { Agent, Container, LiveEvent, MapNode, NodeState, Snapshot } from '../api/types'
 import { useApp } from './app'
 
 type Live = {
@@ -31,6 +31,8 @@ export const useLive = create<Live>((set) => ({
   },
 
   apply: (e) => {
+    // New containers became nodes, or the core found links to suggest.
+    if (e.mapChanged) void useApp.getState().loadMap()
     if (e.removed) {
       set((s) => ({ agents: without(s.agents, e.nodeId), snaps: without(s.snaps, e.nodeId) }))
       return
@@ -76,15 +78,40 @@ export function startLive() {
   return () => es.close()
 }
 
-/** State shown for a node: live from its agent if it has one, otherwise what the user set. */
-export function liveState(node: MapNode, agent: Agent | undefined): NodeState {
+/** The key the core gives a container's node; the same rule as store.ContainerKey. */
+export function containerKey(c: Container) {
+  return c.project && c.service ? `docker:${c.project}/${c.service}` : `docker:${c.name}`
+}
+
+/**
+ * The live container of a node made from Docker. undefined: no data now (agent offline, no snapshot yet);
+ * null: the machine reports its containers and this one is not among them any more.
+ */
+export function findContainer(node: MapNode, parentSnap: Snapshot | undefined): Container | null | undefined {
+  if (node.source !== 'docker' || !parentSnap?.docker) return undefined
+  return parentSnap.docker.containers.find((c) => containerKey(c) === node.extKey) ?? null
+}
+
+export function containerState(c: Container): NodeState {
+  if (c.state === 'running') return c.health === 'unhealthy' ? 'crit' : c.health === 'starting' ? 'warn' : 'ok'
+  if (c.state === 'restarting') return 'warn'
+  if (c.state === 'exited' || c.state === 'dead') return 'crit'
+  return 'unknown'
+}
+
+/** State shown for a node: live from its agent or container if there is one, otherwise what the user set. */
+export function liveState(node: MapNode, agent: Agent | undefined, container?: Container | null): NodeState {
+  if (container) return containerState(container)
+  if (container === null) return 'unknown' // the container is gone
   if (!agent) return node.state
   return agent.online ? 'ok' : 'crit'
 }
 
-/** The node's agent and state, re-rendering only when they change. */
+/** The node's agent, snapshot, container and state, re-rendering only when they change. */
 export function useNodeLive(node: MapNode) {
   const agent = useLive((s) => s.agents[node.id])
   const snap = useLive((s) => s.snaps[node.id])
-  return { agent, snap, state: liveState(node, agent) }
+  const parentSnap = useLive((s) => (node.parentId ? s.snaps[node.parentId] : undefined))
+  const container = findContainer(node, parentSnap)
+  return { agent, snap, container, state: liveState(node, agent, container) }
 }

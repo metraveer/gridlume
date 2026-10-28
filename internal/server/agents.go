@@ -32,6 +32,10 @@ func (a *api) agentRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/agents/{id}", a.authed(a.deleteAgent))
 	mux.HandleFunc("GET /api/nodes/{id}/metrics", a.authed(a.metrics))
 	mux.HandleFunc("GET /api/events", a.authed(a.events))
+
+	mux.HandleFunc("GET /api/suggestions", a.authed(a.suggestions))
+	mux.HandleFunc("POST /api/suggestions/{id}/accept", a.authed(a.acceptSuggestion))
+	mux.HandleFunc("POST /api/suggestions/{id}/dismiss", a.authed(a.dismissSuggestion))
 }
 
 func (a *api) createCode(w http.ResponseWriter, r *http.Request) {
@@ -106,6 +110,40 @@ func (a *api) deleteAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.hub.Unlinked(ag.ID, ag.NodeID)
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (a *api) suggestions(w http.ResponseWriter, r *http.Request) {
+	out, err := a.store.Suggestions(r.Context())
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// acceptSuggestion makes the link; the interface sends the explanation in the user's language.
+func (a *api) acceptSuggestion(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		About    string `json:"about"`
+		IfBroken string `json:"ifBroken"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	l, err := a.store.AcceptSuggestion(r.Context(), r.PathValue("id"), body.About, body.IfBroken)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, l)
+}
+
+func (a *api) dismissSuggestion(w http.ResponseWriter, r *http.Request) {
+	if err := a.store.DismissSuggestion(r.Context(), r.PathValue("id")); err != nil {
+		a.fail(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 

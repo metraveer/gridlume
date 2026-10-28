@@ -1,4 +1,4 @@
-import type { Agent, AgentMode, Link, MapData, MapNode, MetricPoint, MetricRange, Place, SessionInfo, Snapshot, User } from './types'
+import type { Agent, AgentMode, Link, MapData, MapNode, MetricPoint, MetricRange, Place, SessionInfo, Snapshot, Suggestion, User } from './types'
 
 /** An error answer from the core, e.g. { error: "validation", field: "name", code: "required" }. */
 export class ApiError extends Error {
@@ -70,6 +70,9 @@ export const api = {
   /** A one-time code for the install command; nodeId "" makes a new node named after the machine. */
   agentCode: (nodeId: string, mode: AgentMode) => request<{ code: string; expiresAt: number }>('POST', '/api/agents/codes', { nodeId, mode }),
   unlinkAgent: (id: string) => request('DELETE', `/api/agents/${id}`),
+  suggestions: () => request<Suggestion[]>('GET', '/api/suggestions'),
+  acceptSuggestion: (id: string, about: string, ifBroken: string) => request<Link>('POST', `/api/suggestions/${id}/accept`, { about, ifBroken }),
+  dismissSuggestion: (id: string) => request('POST', `/api/suggestions/${id}/dismiss`, {}),
   metrics: (nodeId: string, series: string[], range: MetricRange) =>
     request<{ step: number; series: Record<string, MetricPoint[]> }>('GET', `/api/nodes/${nodeId}/metrics?series=${series.join(',')}&range=${range}`),
 }

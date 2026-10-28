@@ -57,6 +57,50 @@ type Snapshot struct {
 	Disks     []Disk  `json:"disks"`
 	Net       []Iface `json:"net"`
 	Temps     []Temp  `json:"temps"`
+	// Docker is nil when Docker is not installed; DockerError says why it could not be read.
+	Docker      *Docker `json:"docker,omitempty"`
+	DockerError string  `json:"dockerError,omitempty"` // "no_access" or "unavailable"
+}
+
+// Docker is the containers on the machine.
+type Docker struct {
+	Containers []Container `json:"containers"`
+}
+
+// Container is one container. Environment values are never sent: Refs holds only the host names they point at.
+type Container struct {
+	ID        string   `json:"id"` // short id
+	Name      string   `json:"name"`
+	Image     string   `json:"image"`
+	State     string   `json:"state"`  // running, exited, restarting, paused, created, dead
+	Status    string   `json:"status"` // as `docker ps` says it, e.g. "Up 3 hours (healthy)"
+	Health    string   `json:"health,omitempty"`
+	Project   string   `json:"project,omitempty"` // docker compose project
+	Service   string   `json:"service,omitempty"` // docker compose service
+	CPU       float64  `json:"cpu"`               // percent of the whole machine
+	MemUsed   uint64   `json:"memUsed"`
+	MemLimit  uint64   `json:"memLimit"`
+	Restarts  int      `json:"restarts"`
+	Ports     []Port   `json:"ports,omitempty"`
+	Networks  []string `json:"networks,omitempty"`
+	Refs      []string `json:"refs,omitempty"`      // hosts named in environment values, e.g. "db"
+	DependsOn []string `json:"dependsOn,omitempty"` // compose depends_on
+}
+
+type Port struct {
+	Private int    `json:"private"`
+	Public  int    `json:"public,omitempty"` // published on the machine
+	Proto   string `json:"proto"`
+	IP      string `json:"ip,omitempty"`
+}
+
+// DockerSocket is where the agent finds Docker in each mode. The read-only mode talks to a proxy
+// (gridlume-agent docker-proxy) that refuses everything except reading.
+func DockerSocket(mode string) string {
+	if mode == ModeReadOnly {
+		return "/run/gridlume-docker/docker.sock"
+	}
+	return "/var/run/docker.sock"
 }
 
 type Disk struct {

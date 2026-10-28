@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gridlume — дизайн-система</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body { overflow: auto; }
+  .ds { max-width: 1080px; margin: 0 auto; padding: 40px 24px 96px; }
+  .ds-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+  .ds-head h1 { margin: 0; font-size: var(--fs-24); font-weight: 600; letter-spacing: -0.01em; }
+  .ds-head a { color: var(--fg-muted); }
+  .ds-lead { max-width: 640px; color: var(--fg-muted); margin: 0 0 40px; }
+  .ds h2 { margin: 56px 0 16px; font-size: var(--fs-15); font-weight: 600; }
+  .ds h2 small { margin-left: 8px; color: var(--fg-faint); font-weight: 400; font-size: var(--fs-12); }
+  .grid { display: grid; gap: 12px; }
+  .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 760px) { .g4, .g3, .g2 { grid-template-columns: 1fr 1fr; } }
+  .swatch { border: 1px solid var(--line-soft); border-radius: var(--r-lg); overflow: hidden; background: var(--bg-panel); }
+  .swatch .chip { height: 56px; }
+  .swatch .meta { padding: 8px 10px; font-size: var(--fs-12); }
+  .swatch .meta code { display: block; color: var(--fg-faint); font-family: var(--font-mono); font-size: var(--fs-11); }
+  .panel { padding: 20px; border: 1px solid var(--line-soft); border-radius: var(--r-lg); background: var(--bg-panel); }
+  .stack { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .type-row { display: grid; grid-template-columns: 120px 1fr; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+  .type-row code { color: var(--fg-faint); font-family: var(--font-mono); font-size: var(--fs-11); }
+  .space-bar { height: 10px; border-radius: 2px; background: var(--lume); }
+  .principles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .principles .panel h3 { margin: 0 0 6px; font-size: var(--fs-13); }
+  .principles .panel p { margin: 0; color: var(--fg-muted); font-size: var(--fs-12); }
+  .node-demo { position: relative; height: 72px; }
+  .node-demo .node { position: relative; }
+  .edge-demo { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 16px; height: 36px; }
+  .edge-demo svg { width: 120px; height: 12px; }
+  .lang { position: fixed; top: 16px; right: 16px; }
+</style>
+</head>
+<body>
+<button class="btn btn-sm lang" id="lang" data-i18n="lang.switch"></button>
+<main class="ds">
+  <div class="ds-head">
+    <h1>Gridlume · <span data-i18n="ds.title"></span></h1>
+    <a href="index.html">→ макет</a>
+  </div>
+  <p class="ds-lead">Одна тёмная тема «ночная консоль». Цвет несёт только смысл — состояние, выбор, тип связи; всё остальное — оттенки графита. Текста на экране мало, объяснения — в подсказках. Все токены — в <code class="mono">tokens.css</code>, компоненты — в <code class="mono">components.css</code>.</p>
+
+  <section class="principles">
+    <div class="panel"><h3>Схема — главное</h3><p>Интерфейс отступает: панели узкие, приглушённые. Взгляд идёт на узлы и связи.</p></div>
+    <div class="panel"><h3>Цвет = смысл</h3><p>Зелёный, жёлтый, красный — только состояние. Тёплый «свет» — только действие и выбор.</p></div>
+    <div class="panel"><h3>Объяснять, а не пугать</h3><p>У каждого действия — уровень риска, план шагов и откат. Длинное — в подсказке «?».</p></div>
+  </section>
+
+  <h2>Поверхности и текст <small>tokens.css</small></h2>
+  <div class="grid g4" id="sw-base"></div>
+
+  <h2>Состояние</h2>
+  <div class="grid g4" id="sw-state"></div>
+
+  <h2>Связи</h2>
+  <div class="grid g4" id="sw-link"></div>
+
+  <h2>Типографика <small>Onest · JetBrains Mono</small></h2>
+  <div class="panel">
+    <div class="type-row"><code>32 / 600</code><span style="font-size:var(--fs-32);font-weight:600;letter-spacing:-0.02em">Вся инфраструктура</span></div>
+    <div class="type-row"><code>24 / 600</code><span style="font-size:var(--fs-24);font-weight:600">calibur</span></div>
+    <div class="type-row"><code>15 / 600</code><span style="font-size:var(--fs-15);font-weight:600">Перенести gridman-api на max</span></div>
+    <div class="type-row"><code>13 / 400</code><span>Основной текст интерфейса. Короткие фразы, глаголы в действиях.</span></div>
+    <div class="type-row"><code>12 / 400</code><span class="muted">Подписи, строки списков, подсказки.</span></div>
+    <div class="type-row"><code>11 / 600 caps</code><span class="section-title" style="margin:0">Заголовок секции</span></div>
+    <div class="type-row"><code>mono 12</code><span class="mono">192.168.1.63 · 4.2 GB / 5.7 GB · 2000 MHz</span></div>
+  </div>
+
+  <h2>Отступы и формы <small>шаг 4 px</small></h2>
+  <div class="panel">
+    <div class="grid" style="grid-template-columns: 80px 1fr; gap: 8px 16px; align-items: center;" id="spaces"></div>
+    <div class="stack" style="margin-top: 20px;">
+      <div style="width:56px;height:40px;border:1px solid var(--line-strong);border-radius:var(--r-sm)"></div><span class="faint mono">r-sm 4</span>
+      <div style="width:56px;height:40px;border:1px solid var(--line-strong);border-radius:var(--r)"></div><span class="faint mono">r 6</span>
+      <div style="width:56px;height:40px;border:1px solid var(--line-strong);border-radius:var(--r-lg)"></div><span class="faint mono">r-lg 10</span>
+    </div>
+  </div>
+
+  <h2>Кнопки</h2>
+  <div class="panel stack">
+    <button class="btn btn-primary">Перенести</button>
+    <button class="btn">Логи</button>
+    <button class="btn btn-ghost">Отмена</button>
+    <button class="btn btn-danger">Остановить</button>
+    <button class="btn" disabled>Недоступно</button>
+    <button class="btn btn-sm">Маленькая</button>
+    <button class="icon-btn" aria-label="Приблизить" id="ib1"></button>
+    <button class="icon-btn" aria-pressed="true" aria-label="Схема" id="ib2"></button>
+  </div>
+
+  <h2>Состояние и риск</h2>
+  <div class="panel stack">
+    <span class="badge ok"><span class="dot ok"></span>Работает</span>
+    <span class="badge warn"><span class="dot warn"></span>Внимание</span>
+    <span class="badge crit"><span class="dot crit"></span>Недоступен</span>
+    <span class="badge"><span class="dot unknown"></span>Нет данных</span>
+    <span class="badge"><span class="dot planned"></span>В планах</span>
+    <span style="width:24px"></span>
+    <span class="risk safe">безопасно</span>
+    <span class="risk careful">осторожно</span>
+    <span class="risk danger">опасно</span>
+  </div>
+
+  <h2>Поля и подсказки</h2>
+  <div class="panel stack">
+    <input class="input" placeholder="Найти узел, сервис, IP…" style="width:260px">
+    <span class="kbd">Ctrl</span><span class="kbd">K</span>
+    <span class="help" data-tip="Подсказка появляется через 0,35 с. Сюда уходит всё длинное: что делает функция, чем рискуете, как откатить.">?</span>
+    <span class="faint">← наведите</span>
+  </div>
+
+  <h2>Узлы</h2>
+  <div class="grid g3" id="nodes"></div>
+
+  <h2>Линии связей</h2>
+  <div class="panel" id="edges"></div>
+
+  <h2>Метрики</h2>
+  <div class="panel" style="max-width:360px" id="metrics"></div>
+
+  <h2>Диалог подтверждения</h2>
+  <div class="dialog" style="margin: 0;">
+    <div class="dialog-head"><span class="risk danger">опасно</span><h2>Остановить postgres</h2></div>
+    <div class="dialog-body">
+      <div class="callout warn"><span><strong>Перестанут работать 2 сервиса:</strong> gridman-api, gridman-web.</span></div>
+      <p style="margin:12px 0 6px">Чтобы подтвердить, введите имя контейнера:</p>
+      <input class="input" style="width:100%" placeholder="postgres">
+    </div>
+    <div class="dialog-foot"><button class="btn btn-ghost">Отмена</button><button class="btn btn-danger" disabled>Остановить</button></div>
+  </div>
+</main>
+
+<script src="icons.js"></script>
+<script src="i18n.js"></script>
+<script>
+  var css = getComputedStyle(document.documentElement);
+  function swatches(id, list) {
+    document.getElementById(id).innerHTML = list.map(function (s) {
+      var v = css.getPropertyValue(s[0]).trim();
+      return '<div class="swatch"><div class="chip" style="background:var(' + s[0] + ')' + (s[2] ? ';border-bottom:1px solid var(--line)' : '') + '"></div>' +
+        '<div class="meta">' + s[1] + '<code>' + s[0] + ' · ' + v + '</code></div></div>';
+    }).join('');
+  }
+  swatches('sw-base', [
+    ['--bg-canvas', 'Холст', 1], ['--bg-panel', 'Панель', 1], ['--bg-raised', 'Поднятый', 1], ['--bg-hover', 'Наведение', 1],
+    ['--line', 'Линия'], ['--fg', 'Текст'], ['--fg-muted', 'Вторичный'], ['--lume', 'Свет: действие, выбор'],
+  ]);
+  swatches('sw-state', [['--ok', 'Работает'], ['--warn', 'Внимание'], ['--crit', 'Недоступен'], ['--unknown', 'Нет данных']]);
+  swatches('sw-link', [['--link-uplink', 'Интернет'], ['--link-vpn', 'VPN'], ['--link-depends', 'Зависит от'], ['--link-dns', 'Домен → IP']]);
+
+  document.getElementById('spaces').innerHTML = [['s-1', 4], ['s-2', 8], ['s-3', 12], ['s-4', 16], ['s-6', 24], ['s-8', 32], ['s-10', 40]].map(function (s) {
+    return '<span class="mono faint">' + s[0] + ' · ' + s[1] + '</span><div class="space-bar" style="width:' + s[1] * 3 + 'px"></div>';
+  }).join('');
+
+  document.getElementById('ib1').innerHTML = glIcon('plus');
+  document.getElementById('ib2').innerHTML = glIcon('map');
+
+  var demo = [
+    ['server', 'calibur', 'Сервер · Debian 13', 'ok', ''],
+    ['router', 'Keenetic', 'Роутер · дом', 'ok', ''],
+    ['cloud', 'gridman.pro', 'Облачный сервер', 'warn', ''],
+    ['box', 'postgres', 'Контейнер', 'ok', 'small'],
+    ['router', 'Ростелеком', 'Роутер · нет API', 'unknown', ''],
+    ['server', 'max', 'Мини-ПК · в планах', 'planned', 'planned'],
+  ];
+  document.getElementById('nodes').innerHTML = demo.map(function (n, i) {
+    return '<div class="panel node-demo"><div class="node ' + n[4] + (i === 0 ? ' selected' : '') + '">' +
+      '<span class="glyph">' + glIcon(n[0]) + '</span><span class="label"><span class="name">' + n[1] + '</span><span class="sub">' + n[2] + '</span></span>' +
+      '<span class="state"><span class="dot ' + n[3] + '"></span></span></div></div>';
+  }).join('');
+
+  document.getElementById('edges').innerHTML = [
+    ['lan', 'legend.lan'], ['wifi', 'legend.wifi'], ['uplink', 'legend.uplink'], ['vpn', 'legend.vpn'],
+    ['runs', 'legend.runs'], ['depends', 'legend.depends'], ['dns', 'legend.dns'], ['planned', 'legend.planned'],
+  ].map(function (e) {
+    return '<div class="edge-demo"><svg viewBox="0 0 120 12"><path class="edge ' + e[0] + '" d="M2 6 H118"/></svg><span data-i18n="' + e[1] + '"></span></div>';
+  }).join('');
+
+  function spark(values) {
+    var max = Math.max.apply(null, values), min = Math.min.apply(null, values);
+    var pts = values.map(function (v, i) { return (i * 96 / (values.length - 1)).toFixed(1) + ',' + (20 - (v - min) / ((max - min) || 1) * 18).toFixed(1); });
+    return '<svg class="spark" viewBox="0 0 96 22"><path d="M' + pts.join(' L') + '"/></svg>';
+  }
+  document.getElementById('metrics').innerHTML =
+    '<div class="metric"><span>Процессор</span>' + spark([4, 6, 5, 9, 22, 18, 7, 5, 6, 8, 5, 4]) + '<span class="val">6%</span></div>' +
+    '<div class="metric"><span>Память</span>' + spark([30, 31, 31, 33, 34, 34, 35, 35, 36, 36, 36, 37]) + '<span class="val">37%</span></div>' +
+    '<div class="metric"><span>Температура</span><svg class="spark warn" viewBox="0 0 96 22"><path d="M0,18 L16,16 L32,12 L48,8 L64,5 L80,4 L96,3"/></svg><span class="val" style="color:var(--warn)">78°</span></div>';
+
+  GL.apply();
+  document.getElementById('lang').onclick = function () { GL.setLang(GL.lang === 'ru' ? 'en' : 'ru'); };
+</script>
+</body>
+</html>

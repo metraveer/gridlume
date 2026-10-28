@@ -6,7 +6,7 @@
   var t = GL.t;
 
   // Feature files register here (see GLAPP at the bottom).
-  var HOOKS = { afterRender: [], afterEdges: [], nodeInspector: [], action: [], journal: [], tick: [], ready: [], view: [] };
+  var HOOKS = { afterRender: [], afterEdges: [], nodeInspector: [], linkInspector: [], action: [], journal: [], tick: [], ready: [], view: [] };
   var state = { paused: false };
 
   // ---------- Demo data ----------
@@ -420,6 +420,7 @@
     }
 
     if (L.broken) html += '<div class="section"><h3 class="section-title">' + t('link.broken') + '</h3><p style="margin:0" class="muted">' + txt(L.broken) + '</p></div>';
+    HOOKS.linkInspector.forEach(function (fn) { html += fn(id, L) || ''; });
 
     if (L.events && L.events.length) {
       html += '<div class="section"><h3 class="section-title">' + t('link.events') + '</h3>' + L.events.map(function (ev) {

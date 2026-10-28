@@ -14,6 +14,8 @@
       'pr.show': 'Показать',
       'pr.empty': 'Всё работает. Если что-то случится, появится здесь и придёт в Telegram.',
       'prob.cam': 'Камера во дворе не отвечает 6 минут',
+      'prob.cam.merged': 'Объединено 3 сигнала: камера не отвечает, пропала связь Wi-Fi, слабый сигнал',
+      'pr.merged.tip': 'Когда у нескольких сигналов одна причина, мы показываем и присылаем одно сообщение, а не три.',
       'prob.upcity': 'Домашний интернет теряет 3% данных',
       'prob.worker': 'Очередь кодирования видео растёт',
       'prob.port': 'Кабель к junk работает на 100 Мбит вместо 1 Гбит',
@@ -35,6 +37,8 @@
       'pr.show': 'Show',
       'pr.empty': 'Everything works. If something happens it shows up here and in Telegram.',
       'prob.cam': 'The yard camera has not answered for 6 minutes',
+      'prob.cam.merged': '3 signals merged: camera not answering, Wi-Fi link lost, weak signal',
+      'pr.merged.tip': 'When several signals share one cause, we show and send one message, not three.',
       'prob.upcity': 'Home internet is losing 3% of data',
       'prob.worker': 'The video encoding queue is growing',
       'prob.port': 'The cable to junk runs at 100 Mbit instead of 1 Gbit',
@@ -50,7 +54,7 @@
   });
 
   var PROBLEMS = [
-    { sev: 'crit', node: 'cam', title: 'prob.cam', time: '14:20' },
+    { sev: 'crit', node: 'cam', title: 'prob.cam', time: '14:20', merged: 'prob.cam.merged' },
     { sev: 'warn', link: 'up-city', title: 'prob.upcity', time: '14:02' },
     { sev: 'warn', node: 'worker', title: 'prob.worker', time: '13:40' },
     { sev: 'warn', link: 'lan-junk', title: 'prob.port', time: '09:12' },
@@ -91,7 +95,9 @@
     var list = tab === 'problems'
       ? (PROBLEMS.length ? PROBLEMS.map(function (p, i) {
         return '<div class="pr-item" data-pi="' + i + '"><span class="dot ' + p.sev + '"></span><div class="grow"><div>' + t(p.title) + '</div>' +
-          '<div class="faint">' + [where(p), p.time].filter(Boolean).join(' · ') + '</div></div><button class="btn btn-sm">' + t('pr.show') + '</button></div>';
+          '<div class="faint">' + [where(p), p.time].filter(Boolean).join(' · ') + '</div>' +
+          (p.merged ? '<div class="merged" data-tip="' + A.attr(t('pr.merged.tip')) + '">' + glIcon('layers') + t(p.merged) + '</div>' : '') +
+          '</div><button class="btn btn-sm">' + t('pr.show') + '</button></div>';
       }).join('') : '<p class="faint" style="padding:16px;margin:0">' + t('pr.empty') + '</p>')
       : ADVICE.map(function (a, i) {
         return '<div class="pr-item" data-ai="' + i + '"><span class="dot info" style="background:var(--info)"></span><div class="grow">' + t(a.text) + '</div><button class="btn btn-sm">' + t('pr.show') + '</button></div>';

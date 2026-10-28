@@ -116,6 +116,11 @@
       var minutesAgo = (14 * 60 + 31) - m; // demo "now" is 14:31
       return '<span class="tl-mark ' + e[1] + '" style="left:' + (100 - minutesAgo / (24 * 60) * 100).toFixed(2) + '%" data-tip="' + e[0] + ' · ' + A.attr(t(e[2])) + '"></span>';
     }).join('');
+    // Changes (updates, settings, restarts) as diamonds, so "what changed right before" is visible at a glance.
+    marks += (A.CHANGES || []).map(function (c) {
+      var parts = c.time.split(':'), minutesAgo = (14 * 60 + 31) - (+parts[0] * 60 + +parts[1]);
+      return '<span class="tl-mark chg" style="left:' + (100 - minutesAgo / (24 * 60) * 100).toFixed(2) + '%" data-tip="' + c.time + ' · ' + A.attr(A.txt(c.text)) + '"></span>';
+    }).join('');
     var label = sliderMin === 0 ? t('dr.hist.now') : timeLabel(sliderMin);
     return '<div class="dr-pad"><div class="dr-tools" style="padding:0 0 10px"><span class="mono">' + label + '</span><span class="help" data-tip="' + A.attr(t('dr.hist.tip')) + '">?</span>' +
       (sliderMin ? '<button class="btn btn-sm" id="tl-now">' + t('dr.hist.back') + '</button>' : '') + '</div>' +

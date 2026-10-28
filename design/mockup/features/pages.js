@@ -50,6 +50,21 @@
       'ch.mail': 'Email', 'ch.mail.s': 'не настроен',
       'ch.hook': 'Webhook', 'ch.hook.s': 'для своих систем',
       'ch.connect': 'Подключить',
+      'nz.title': 'Без лишнего шума',
+      'nz.lead': 'Главная беда систем уведомлений — десятки сообщений про одну проблему и тревоги из-за секундного сбоя. Вот как Gridlume этого избегает.',
+      'nz.group': 'Одна причина — одно сообщение',
+      'nz.group.d': 'Если пропал интернет в деревне, придёт «пропал интернет, недоступны 7 узлов», а не 7 сообщений.',
+      'nz.recheck': 'Перепроверять перед тревогой',
+      'nz.recheck.d': 'Узел не ответил — через 30 секунд проверяем ещё раз, и с другой машины. Тревога только если подтвердилось.',
+      'nz.deps': 'Учитывать зависимости',
+      'nz.deps.d': 'Если упал роутер, не сообщаем отдельно про каждую машину за ним — пишем про роутер.',
+      'nz.recover': 'Сообщать, когда всё вернулось',
+      'nz.recover.d': 'Короткое «снова работает, простой 12 минут» — чтобы не проверять вручную.',
+      'nz.preview': 'Так выглядит сообщение в Telegram',
+      'nz.msg': '<b>● Деревня: пропал интернет</b><br>Канал Ростелекома не отвечает с 03:12 (8 мин).<br>Из-за этого недоступны 7 узлов: calibur, max, сайты на calibur…<br><br><b>Что сделать:</b> проверьте, есть ли свет и горит ли индикатор интернета на роутере. Если горит — позвоните провайдеру: 8 800 100-08-00.',
+      'nz.msg.open': 'Открыть схему',
+      'nz.msg.mute': 'Не беспокоить 1 час',
+      'nz.instead': 'Вместо 8 отдельных сообщений «calibur недоступен», «komodo недоступен»…',
       'pg.settings.title': 'Настройки',
       'pg.set.lang': 'Язык интерфейса',
       'pg.set.agents': 'Обновлять агентов автоматически',
@@ -104,6 +119,21 @@
       'ch.mail': 'Email', 'ch.mail.s': 'not set up',
       'ch.hook': 'Webhook', 'ch.hook.s': 'for your own systems',
       'ch.connect': 'Connect',
+      'nz.title': 'No needless noise',
+      'nz.lead': 'The main trouble with alerting is dozens of messages about one problem and alarms over a one-second glitch. This is how Gridlume avoids it.',
+      'nz.group': 'One cause — one message',
+      'nz.group.d': 'If the village loses the internet you get "internet lost, 7 nodes unreachable", not 7 messages.',
+      'nz.recheck': 'Recheck before alarming',
+      'nz.recheck.d': 'A node did not answer — we check again in 30 seconds, and from another machine. Alarm only if confirmed.',
+      'nz.deps': 'Respect dependencies',
+      'nz.deps.d': 'If a router is down we do not report every machine behind it — we report the router.',
+      'nz.recover': 'Tell when it is back',
+      'nz.recover.d': 'A short "working again, 12 minutes of downtime" so you do not have to check.',
+      'nz.preview': 'What the Telegram message looks like',
+      'nz.msg': '<b>● Village: internet lost</b><br>The Rostelecom channel has not answered since 03:12 (8 min).<br>Because of it 7 nodes are unreachable: calibur, max, sites on calibur…<br><br><b>What to do:</b> check there is power and the router internet light is on. If it is, call the provider: 8 800 100-08-00.',
+      'nz.msg.open': 'Open the map',
+      'nz.msg.mute': 'Mute for 1 hour',
+      'nz.instead': 'Instead of 8 separate messages "calibur unreachable", "komodo unreachable"…',
       'pg.settings.title': 'Settings',
       'pg.set.lang': 'Interface language',
       'pg.set.agents': 'Update agents automatically',
@@ -200,6 +230,12 @@
       '<div class="rules">' + rules.map(function (r) {
         return '<label class="rule"><input type="checkbox" class="switch"' + (r[1] ? ' checked' : '') + '><span class="grow">' + t(r[0]) + '</span><span class="faint">' + t('r.to') + '</span><span class="badge">Telegram</span></label>';
       }).join('') + '</div><p class="faint" style="font-size:var(--fs-12)">' + t('pg.rules.quiet') + '</p>' +
+      '<h2>' + t('nz.title') + '</h2><p class="muted lead">' + t('nz.lead') + '</p><div class="noise">' +
+      '<div class="rules">' + [['nz.group', 'nz.group.d'], ['nz.recheck', 'nz.recheck.d'], ['nz.deps', 'nz.deps.d'], ['nz.recover', 'nz.recover.d']].map(function (r) {
+        return '<label class="rule"><input type="checkbox" class="switch" checked><span class="grow">' + t(r[0]) + '<br><span class="faint" style="font-size:var(--fs-12)">' + t(r[1]) + '</span></span></label>';
+      }).join('') + '</div>' +
+      '<div class="tg-preview"><div class="tg-head faint">' + t('nz.preview') + '</div><div class="tg-bubble">' + t('nz.msg') + '<div class="tg-btns"><span>' + t('nz.msg.open') + '</span><span>' + t('nz.msg.mute') + '</span></div></div>' +
+      '<div class="tg-instead faint">' + t('nz.instead') + '</div></div></div>' +
       '<h2>' + t('pg.rules.channels') + '</h2><div class="channels">' + channels.map(function (c) {
         return '<div class="channel"><b>' + t(c[0]) + '</b><span class="faint">' + t(c[0] + '.s') + '</span>' +
           (c[1] === 'ok' ? '<span class="badge ok"><span class="dot ok"></span>on</span>' : '<button class="btn btn-sm">' + t('ch.connect') + '</button>') + '</div>';

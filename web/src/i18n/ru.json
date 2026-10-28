@@ -425,5 +425,6 @@
   "update.last.interrupted": "Обновление до {to} прервалось (машина перезагрузилась или служба остановилась)",
   "update.reloaded.title": "Gridlume обновлён до {v}",
   "update.reloaded.lead": "Обновите страницу, чтобы загрузить новый интерфейс.",
-  "update.reloaded.button": "Обновить страницу"
+  "update.reloaded.button": "Обновить страницу",
+  "card.disk": "Диск"
 }

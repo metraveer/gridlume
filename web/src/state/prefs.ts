@@ -9,7 +9,7 @@ export type Prefs = {
 }
 
 const KEY = 'gridlume.prefs'
-const defaults: Prefs = { minimap: true, linkLabels: true, grid: true, minimapWidth: 220 }
+const defaults: Prefs = { minimap: true, linkLabels: true, grid: true, minimapWidth: 280 }
 
 function load(): Prefs {
   try {

@@ -4,6 +4,7 @@ import type { Link, MapNode, Place } from '../api/types'
 import { Button, Dialog, Icon, IconButton, KV, Section, StateBadge, type Risk } from '../design'
 import { useApp } from '../state/app'
 import { useNodeLive } from '../state/live'
+import { usePrefs } from '../state/prefs'
 import { AgentSection, HistorySection, LiveSection, unlinkAgent } from './AgentPanel'
 import { ContainerSection, DockerSummary, SuggestionsSection } from './DockerPanel'
 import { speed } from './flow'
@@ -166,10 +167,10 @@ function NodePanel({ node }: { node: MapNode }) {
 
       {!viewer && (
         <div className={s.actions}>
-          <Button icon="gear" onClick={() => edit({ kind: 'node', node })}>{t('common.edit')}</Button>
-          {canContain(node) && <Button icon="chevron" onClick={() => enter(node.id)}>{t('insp.open')}</Button>}
-          <Button icon="link" onClick={() => edit({ kind: 'link', link: { fromId: node.id, kind: 'lan' } })}>{t('add.link')}</Button>
-          <Button variant="danger" icon="x" onClick={() => setConfirm(true)}>{t('common.delete')}</Button>
+          <Button size="sm" icon="gear" onClick={() => edit({ kind: 'node', node })}>{t('common.edit')}</Button>
+          {canContain(node) && <Button size="sm" icon="chevron" onClick={() => enter(node.id)}>{t('insp.open')}</Button>}
+          <Button size="sm" icon="link" onClick={() => edit({ kind: 'link', link: { fromId: node.id, kind: 'lan' } })}>{t('add.link')}</Button>
+          <Button size="sm" variant="danger" icon="x" onClick={() => setConfirm(true)}>{t('common.delete')}</Button>
         </div>
       )}
 
@@ -247,9 +248,9 @@ function LinkPanel({ link }: { link: Link }) {
 
       {!viewer && (
         <div className={s.actions}>
-          <Button icon="gear" onClick={() => edit({ kind: 'link', link })}>{t('common.edit')}</Button>
-          <Button icon="restart" tip={t('insp.swap.tip')} onClick={() => void swapLink(link.id)}>{t('insp.swap')}</Button>
-          <Button variant="danger" icon="x" onClick={() => setConfirm(true)}>{t('common.delete')}</Button>
+          <Button size="sm" icon="gear" onClick={() => edit({ kind: 'link', link })}>{t('common.edit')}</Button>
+          <Button size="sm" icon="restart" tip={t('insp.swap.tip')} onClick={() => void swapLink(link.id)}>{t('insp.swap')}</Button>
+          <Button size="sm" variant="danger" icon="x" onClick={() => setConfirm(true)}>{t('common.delete')}</Button>
         </div>
       )}
 
@@ -293,9 +294,9 @@ function PlacePanel({ place }: { place: Place }) {
       </Section>
       {!viewer && (
         <div className={s.actions}>
-          <Button icon="gear" onClick={() => edit({ kind: 'place', place })}>{t('common.edit')}</Button>
-          <Button icon="plus" onClick={() => edit({ kind: 'node', node: { placeId: place.id, parentId: null, x: place.x + 40, y: place.y + 60 } })}>{t('add.node')}</Button>
-          <Button variant="danger" icon="x" onClick={() => setConfirm(true)}>{t('common.delete')}</Button>
+          <Button size="sm" icon="gear" onClick={() => edit({ kind: 'place', place })}>{t('common.edit')}</Button>
+          <Button size="sm" icon="plus" onClick={() => edit({ kind: 'node', node: { placeId: place.id, parentId: null, x: place.x + 40, y: place.y + 60 } })}>{t('add.node')}</Button>
+          <Button size="sm" variant="danger" icon="x" onClick={() => setConfirm(true)}>{t('common.delete')}</Button>
         </div>
       )}
       {confirm && (
@@ -331,7 +332,7 @@ export function Inspector() {
     if (p) body = <PlacePanel place={p} />
   }
   if (!body) return null
-  return <aside className={s.panel} data-scroll>{body}</aside>
+  return <InspectorFrame>{body}</InspectorFrame>
 }
 
 /** Opens a panel's delete confirmation when a menu or the Delete key asked for it. */
@@ -343,4 +344,41 @@ function useAskedDelete(kind: 'node' | 'link' | 'place', id: string, open: () =>
       open()
     }
   }, [deleting, kind, id, open])
+}
+
+// 440 is both the usual width and the least that fits the action buttons in one row (with room for the scrollbar).
+export const INSPECTOR_MIN = 440
+export const INSPECTOR_MAX = 640
+
+/** The panel on the right: 440 px, up to 640 px by dragging its left edge (remembered on this device). */
+function InspectorFrame({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation()
+  const width = Math.min(INSPECTOR_MAX, Math.max(INSPECTOR_MIN, usePrefs((p) => p.inspectorWidth)))
+  const setPrefs = usePrefs((p) => p.set)
+  const [drag, setDrag] = useState<{ x: number; w: number } | null>(null)
+  return (
+    <aside className={s.panel} style={{ width }} data-nofade>
+      <div
+        className={s.resize}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t('insp.resize')}
+        data-tip={t('insp.resize')}
+        data-active={!!drag}
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.currentTarget.setPointerCapture(e.pointerId)
+          setDrag({ x: e.clientX, w: width })
+        }}
+        onPointerMove={(e) => {
+          if (!drag) return
+          // The edge is on the left: dragging left makes the panel wider.
+          setPrefs({ inspectorWidth: Math.round(Math.min(INSPECTOR_MAX, Math.max(INSPECTOR_MIN, drag.w + drag.x - e.clientX))) })
+        }}
+        onPointerUp={() => setDrag(null)}
+        onDoubleClick={() => setPrefs({ inspectorWidth: INSPECTOR_MIN })}
+      />
+      <div className={s.scroll}>{children}</div>
+    </aside>
+  )
 }

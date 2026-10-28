@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Icon, IconButton, Menu, type IconName } from '../design'
+import { Icon, Menu, type IconName } from '../design'
 import { NODE_META } from '../map/model'
 import { matches, reveal } from '../map/NodesPage'
 import { useApp } from '../state/app'
+import { usePrefs } from '../state/prefs'
 import { CoreStatus } from './CoreStatus'
 import { go, type Route } from './route'
 import s from './Shell.module.css'
@@ -151,8 +152,11 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+  const railOpen = usePrefs((p) => p.railOpen)
+  const setPrefs = usePrefs((p) => p.set)
   return (
-    <div className={s.app}>
+    // The left menu is 52 px of icons, or 208 px with their names; the choice is remembered on this device.
+    <div className={s.app} style={{ ['--rail-w' as string]: railOpen ? '208px' : '52px' }}>
       <header className={s.topbar}>
         <div className={s.left}>
           <span className={s.mark}><Brand /></span>
@@ -167,18 +171,40 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
         </div>
       </header>
 
-      <nav className={s.rail} aria-label="sections">
-        {RAIL.map((item) => (
-          <IconButton
-            key={item.label}
-            icon={item.icon}
-            label={item.stage ? `${t(item.label)} · ${t('common.soon', { stage: item.stage })}` : t(item.label)}
-            aria-pressed={item.route === route}
-            // aria-disabled, not disabled: disabled buttons get no hover, so the "coming in stage N" tip would not show.
-            aria-disabled={!item.route}
-            onClick={() => item.route && go(item.route)}
-          />
-        ))}
+      <nav className={s.rail} aria-label={t('rail.label')} data-open={railOpen}>
+        {RAIL.map((item) => {
+          const soon = item.stage ? t('common.soon', { stage: item.stage }) : ''
+          return (
+            <button
+              key={item.label}
+              type="button"
+              className={s.railItem}
+              aria-label={soon ? `${t(item.label)} · ${soon}` : t(item.label)}
+              // Names are on screen when open; when closed (or for "coming in stage N") the tip says them.
+              data-tip={!railOpen || soon ? (soon ? `${t(item.label)} · ${soon}` : t(item.label)) : undefined}
+              aria-pressed={item.route === route}
+              // aria-disabled, not disabled: disabled buttons get no hover, so the "coming in stage N" tip would not show.
+              aria-disabled={!item.route}
+              onClick={() => item.route && go(item.route)}
+            >
+              <Icon name={item.icon} />
+              {railOpen && <span className={s.railLabel}>{t(item.label)}</span>}
+              {railOpen && item.stage && <span className={s.railSoon}>{t('rail.stage', { stage: item.stage })}</span>}
+            </button>
+          )
+        })}
+        <span className={s.grow} />
+        <button
+          type="button"
+          className={`${s.railItem} ${s.railToggle}`}
+          aria-expanded={railOpen}
+          aria-label={railOpen ? t('rail.collapse') : t('rail.expand')}
+          data-tip={railOpen ? undefined : t('rail.expand')}
+          onClick={() => setPrefs({ railOpen: !railOpen })}
+        >
+          <Icon name="chevron" />
+          {railOpen && <span className={s.railLabel}>{t('rail.collapse')}</span>}
+        </button>
       </nav>
 
       <main className={s.main}>{children}</main>

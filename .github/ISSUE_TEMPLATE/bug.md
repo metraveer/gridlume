@@ -1,16 +1,18 @@
 ---
-name: Ошибка · Bug
-about: Что-то работает не так, как ожидалось
+name: Bug · Ошибка
+about: Something does not work as expected · Что-то работает не так, как ожидалось
 labels: bug
 ---
 
-**Что произошло**
+<!-- English or Russian is fine. · Можно на русском или английском. -->
 
-**Что ожидалось**
+**What happened · Что произошло**
 
-**Как повторить**
+**What you expected · Что ожидалось**
+
+**How to reproduce · Как повторить**
 
 1.
 2.
 
-**Версия** (`gridlume version`), система, браузер:
+**Version · Версия** (`gridlume version`, or Settings → Updates), OS, browser:

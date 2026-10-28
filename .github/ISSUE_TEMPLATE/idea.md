@@ -1,11 +1,14 @@
 ---
-name: Идея · Idea
-about: Чего не хватает, что сделать удобнее
+name: Idea · Идея
+about: Something missing or awkward · Чего не хватает, что сделать удобнее
 labels: idea
 ---
 
-**Какую задачу это решит** (не «добавить кнопку», а «хочу понять, почему…»)
+<!-- English or Russian is fine. · Можно на русском или английском. -->
 
-**Как это видится**
+**What problem would it solve · Какую задачу это решит**
+(not "add a button" but "I want to understand why…" · не «добавить кнопку», а «хочу понять, почему…»)
 
-**Как сейчас обходитесь без этого**
+**How you see it · Как это видится**
+
+**How you manage without it now · Как сейчас обходитесь без этого**

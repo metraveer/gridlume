@@ -1,5 +1,9 @@
 # Как вести разработку · Contributing
 
+> **EN.** This guide is in Russian. In short: run `go run ./cmd/gridlume dev`, keep every visible string in
+> `web/src/i18n/{ru,en}.json`, use design tokens only, and run the checks below before a pull request.
+> Issues are welcome in English; outside pull requests wait for a contributor agreement (CLA).
+
 Проект пока пишется владельцем; чужие pull request'ы начнём принимать после подключения CLA
 (соглашения участника) — см. [`docs/decisions.md`](docs/decisions.md), раздел «Лицензия».
 

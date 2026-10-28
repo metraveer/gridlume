@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web — lint, types, tests, build, size budget
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Size budget (first load ≤ 400 KB gzip)
+        run: npm run budget
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+          retention-days: 3
+
+  go:
+    name: Core — format, vet, tests, build, memory budget
+    runs-on: ubuntu-latest
+    needs: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+      - name: gofmt
+        run: test -z "$(gofmt -l . | tee /dev/stderr)"
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: Build linux/amd64 and linux/arm64
+        run: |
+          LDFLAGS="-s -w -X github.com/metraveer/gridlume/internal/version.Commit=${GITHUB_SHA::7}"
+          for arch in amd64 arm64; do
+            for cmd in gridlume gridlume-agent; do
+              CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o "bin/$cmd-linux-$arch" "./cmd/$cmd"
+            done
+          done
+          ls -lh bin
+      - name: Memory budget (core ≤ 50 MB after start)
+        run: |
+          ./bin/gridlume-linux-amd64 serve --addr 127.0.0.1:7420 &
+          PID=$!
+          for i in $(seq 1 20); do curl -fs http://127.0.0.1:7420/api/health && break; sleep 0.5; done
+          curl -fs http://127.0.0.1:7420/ > /dev/null
+          RSS_KB=$(awk '/VmRSS/ {print $2}' /proc/$PID/status)
+          kill $PID
+          echo "core RSS: $((RSS_KB / 1024)) MB (budget 50 MB)"
+          test "$RSS_KB" -le $((50 * 1024))
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: bin/
+          retention-days: 7

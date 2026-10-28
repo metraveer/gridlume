@@ -4,9 +4,20 @@
 
 **EN** · Your whole infrastructure on one map: servers, routers, cloud, containers and the links between them — understood at a glance and managed from one place.
 
-> Статус: проектирование. Рабочего кода пока нет — см. [`docs/decisions.md`](docs/decisions.md) и макет в [`design/mockup`](design/mockup).
+> Статус: этап 0 — основа проекта. Карта, агент и остальное появятся по [плану](docs/plan.md).
+> Как выглядит и работает задуманное — [макет](design/mockup), решения — [`docs/decisions.md`](docs/decisions.md).
 >
-> Status: design stage. No working code yet — see [`docs/decisions.md`](docs/decisions.md) and the mockup in [`design/mockup`](design/mockup).
+> Status: stage 0 — project foundation. The map, agent and the rest follow the [plan](docs/plan.md).
+> The intended look and behaviour — [mockup](design/mockup); decisions — [`docs/decisions.md`](docs/decisions.md).
+
+## Запуск для разработки · Development
+
+```bash
+cd web && npm ci && cd ..
+go run ./cmd/gridlume dev
+```
+
+Откройте · Open http://127.0.0.1:7420. Подробнее · More: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Как устроено · How it works
 

@@ -1,0 +1,121 @@
+/* Base styles: page, type, focus, scrollbars. Everything uses tokens.css. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg-canvas);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: var(--fs-13);
+  line-height: var(--lh);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+code,
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+}
+
+:focus-visible {
+  outline: 2px solid var(--lume);
+  outline-offset: 2px;
+}
+
+/* Scrollbars stay out of the way: invisible at rest, a thin thumb on hover or while scrolling.
+   A fade at the edge (useScrollHints) shows there is more to scroll. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover,
+.is-scrolling {
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: transparent;
+}
+
+*:hover::-webkit-scrollbar-thumb,
+.is-scrolling::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+}
+
+.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+}
+
+.fade-top {
+  -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to top, #000 calc(100% - 40px), transparent);
+}
+
+.fade-top.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+}
+
+/* Tooltip layer (see Tooltip.tsx) */
+.gl-tip {
+  position: fixed;
+  z-index: 100;
+  max-width: 300px;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-pop);
+  color: var(--fg);
+  font-size: var(--fs-12);
+  line-height: var(--lh);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.gl-tip.show {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -20,3 +20,29 @@ func TestSystemSettingsAndUpdateRequests(t *testing.T) {
 		t.Fatalf("update without the installer: %d %v", code, body)
 	}
 }
+
+func TestChangePassword(t *testing.T) {
+	c := signedIn(t)
+	if code, body := c.do("POST", "/api/account/password", map[string]string{"current": "wrong one here", "next": "a brand new password"}, true); code != 400 || body["field"] != "current" {
+		t.Fatalf("wrong current password: %d %v", code, body)
+	}
+	if code, body := c.do("POST", "/api/account/password", map[string]string{"current": "correct horse battery", "next": "short"}, true); code != 400 || body["code"] != "too_short" {
+		t.Fatalf("short new password: %d %v", code, body)
+	}
+	if code, _ := c.do("POST", "/api/account/password", map[string]string{"current": "correct horse battery", "next": "a brand new password"}, false); code != 403 {
+		t.Fatalf("CSRF header required: %d", code)
+	}
+	if code, _ := c.do("POST", "/api/account/password", map[string]string{"current": "correct horse battery", "next": "a brand new password"}, true); code != 200 {
+		t.Fatalf("change: %d", code)
+	}
+	// This session stays; the old password no longer works, the new one does.
+	if code, body := c.do("GET", "/api/session", nil, false); code != 200 || body["user"] == nil {
+		t.Fatalf("session after change: %d %v", code, body)
+	}
+	if code, _ := c.do("POST", "/api/login", map[string]string{"username": "ops", "password": "correct horse battery"}, true); code != 401 {
+		t.Fatalf("old password must fail: %d", code)
+	}
+	if code, _ := c.do("POST", "/api/login", map[string]string{"username": "ops", "password": "a brand new password"}, true); code != 200 {
+		t.Fatalf("new password must work: %d", code)
+	}
+}

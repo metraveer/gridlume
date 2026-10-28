@@ -65,3 +65,23 @@ func TestEnrollIntoExistingNodeAndMetrics(t *testing.T) {
 		t.Fatal("metrics must go with the node")
 	}
 }
+
+func TestChangePasswordEndsOtherSessions(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	u, _ := s.CreateUser(ctx, "ops", "correct horse battery", "owner")
+	here, _ := s.CreateSession(ctx, u.ID, time.Hour)
+	elsewhere, _ := s.CreateSession(ctx, u.ID, time.Hour)
+	if err := s.ChangePassword(ctx, u.ID, "correct horse battery", "correct horse battery", here); err == nil {
+		t.Fatal("the same password again must be refused")
+	}
+	if err := s.ChangePassword(ctx, u.ID, "correct horse battery", "a brand new password", here); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SessionUser(ctx, here); err != nil {
+		t.Fatal("this session must stay")
+	}
+	if _, err := s.SessionUser(ctx, elsewhere); !errors.Is(err, ErrNotFound) {
+		t.Fatal("other sessions must end")
+	}
+}

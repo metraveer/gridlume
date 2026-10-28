@@ -174,3 +174,43 @@ func (s *Store) PurgeSessions(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at <= ?`, s.now().Unix())
 	return err
 }
+
+// ErrWrongPassword means the current password given to ChangePassword was wrong.
+var ErrWrongPassword = errors.New("wrong current password")
+
+// ChangePassword sets a new password after checking the current one, and ends every other session of
+// the user: whoever might have had the old password is signed out everywhere but here.
+func (s *Store) ChangePassword(ctx context.Context, userID, current, next, keepToken string) error {
+	var hash string
+	err := s.db.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = ?`, userID).Scan(&hash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	if !checkPassword(hash, current) {
+		return ErrWrongPassword
+	}
+	if err := ValidateCredentials("x", next); err != nil {
+		return err
+	}
+	if next == current {
+		return invalid("password", "same")
+	}
+	newHash, err := hashPassword(next)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `UPDATE users SET password_hash = ? WHERE id = ?`, newHash, userID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ? AND token_hash <> ?`, userID, tokenHash(keepToken)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

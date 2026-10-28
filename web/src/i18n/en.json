@@ -392,5 +392,18 @@
   "core.here": "Gridlume runs here",
   "core.here.tip": "The Gridlume core runs on this machine. If it stops, the panel goes too.",
   "err.not_installed": "The core was not started by the installer: update it by hand.",
-  "err.channel.invalid": "Choose an update channel."
+  "err.channel.invalid": "Choose an update channel.",
+  "account.title": "Account",
+  "account.role": "Role",
+  "account.password": "Change password",
+  "account.password.lead": "You stay signed in here; every other device is signed out.",
+  "account.current": "Current password",
+  "account.next": "New password",
+  "account.change": "Change password",
+  "account.changed": "Password changed. Other sessions are signed out.",
+  "lang.lead": "Interface language on this device.",
+  "err.current.wrong": "The current password is wrong.",
+  "err.password.same": "The new password is the same as the current one.",
+  "lang.ru": "Русский",
+  "lang.en": "English"
 }

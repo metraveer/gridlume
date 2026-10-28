@@ -6,7 +6,7 @@ import { Button, Icon, KV, Segmented, StateBadge, type IconName } from '../desig
 import { setLanguage, type Language } from '../i18n'
 import { ago } from '../map/format'
 import { useApp } from '../state/app'
-import { usePrefs, type Prefs } from '../state/prefs'
+import { usePrefs } from '../state/prefs'
 import s from './SettingsPage.module.css'
 
 /** Change the password: the current one is asked again, other sessions end. */
@@ -71,7 +71,7 @@ const SECTIONS: { id: Section; icon: IconName }[] = [
 ]
 
 /** A switch for one interface preference, with a line that says what it does. */
-function Toggle({ pref, label, hint }: { pref: keyof Prefs; label: string; hint: string }) {
+function Toggle({ pref, label, hint }: { pref: 'minimap' | 'linkLabels' | 'grid'; label: string; hint: string }) {
   const on = usePrefs((p) => p[pref])
   const set = usePrefs((p) => p.set)
   return (

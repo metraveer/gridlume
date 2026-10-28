@@ -179,8 +179,6 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
             onClick={() => item.route && go(item.route)}
           />
         ))}
-        <span className={s.grow} />
-        <IconButton icon="gear" label={t('rail.settings')} aria-pressed={route === 'settings'} onClick={() => go('settings')} />
       </nav>
 
       <main className={s.main}>{children}</main>

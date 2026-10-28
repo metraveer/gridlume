@@ -18,14 +18,14 @@ import type { Place } from '../api/types'
 import { Button, Menu, useMenu, type MenuItem } from '../design'
 import { useApp } from '../state/app'
 import { usePrefs } from '../state/prefs'
-import { ItemNodeView, LinkEdgeView, PlaceNodeView, type ItemData, type LinkData, type PlaceData } from './flow'
+import { GhostNodeView, ItemNodeView, LinkEdgeView, PendingEdgeView, PlaceNodeView, type ItemData, type LinkData, type PlaceData } from './flow'
 import { dropMenu, linkMenu, nodeMenu, paneMenu, placeMenu } from './menus'
 import { Overview } from './Overview'
 import { canContain, levelContent, NODE_META } from './model'
 import s from './MapView.module.css'
 
-const nodeTypes = { item: ItemNodeView, place: PlaceNodeView }
-const edgeTypes = { link: LinkEdgeView }
+const nodeTypes = { item: ItemNodeView, place: PlaceNodeView, ghost: GhostNodeView }
+const edgeTypes = { link: LinkEdgeView, pending: PendingEdgeView }
 
 function size(kind: keyof typeof NODE_META) {
   return NODE_META[kind].small ? { w: 156, h: 40 } : { w: 188, h: 52 }
@@ -46,6 +46,9 @@ function Map() {
   const viewer = useApp((st) => st.user?.role === 'viewer')
   const inspectorOpen = useApp((st) => st.selection !== null)
   const prefs = usePrefs()
+  const pending = useApp((st) => st.pending)
+  const editing = useApp((st) => st.editing)
+  const setPending = useApp((st) => st.setPending)
   const flow = useReactFlow()
   const [menu, openMenu, closeMenu] = useMenu<MenuItem[]>()
   // Set when a dragged link was dropped on a node: then there is nothing to offer.
@@ -91,8 +94,22 @@ function Map() {
       markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: '#8a93a0' },
       data: { link: l },
     }))
-    return { nodes: [...places, ...items] as Node[], edges: edges as Edge[] }
-  }, [map, level, selection, enter, onResized])
+    // The link being made after a drop on empty canvas (see pending in the store).
+    const extraNodes: Node[] = []
+    const extraEdges: Edge[] = []
+    if (pending && content.own.some((n) => n.id === pending.fromId)) {
+      if (!pending.toId) {
+        extraNodes.push({ id: '__drop', type: 'ghost', position: { x: pending.at.x + 84, y: pending.at.y + 20 }, draggable: false, selectable: false, connectable: false, data: {} })
+      }
+      extraEdges.push({ id: '__pending', type: 'pending', source: pending.fromId, target: pending.toId ?? '__drop', selectable: false, focusable: false, data: {} })
+    }
+    return { nodes: [...places, ...items, ...extraNodes] as Node[], edges: [...edges, ...extraEdges] as Edge[] }
+  }, [map, level, selection, enter, onResized, pending])
+
+  // The dashed link goes away once its menu was dismissed or its dialogs closed.
+  useEffect(() => {
+    if (pending && !menu && !editing) setPending(null)
+  }, [pending, menu, editing, setPending])
 
   // A node found by search (or '*' for everything): once its level is drawn, bring it into view.
   useEffect(() => {
@@ -208,7 +225,9 @@ function Map() {
           const pt = 'changedTouches' in e ? e.changedTouches[0] : e
           if (!pt) return
           const at = where(pt)
-          openMenu(pt, dropMenu(ctx, (state.fromNode.data as ItemData).node, at, placeUnder(at)))
+          const from = (state.fromNode.data as ItemData).node
+          setPending({ fromId: from.id, at })
+          openMenu(pt, dropMenu(ctx, from, at, placeUnder(at)))
         }}
         connectionMode={ConnectionMode.Loose}
         zoomOnDoubleClick={false} // double-click opens a machine

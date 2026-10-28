@@ -35,7 +35,7 @@ export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData })
   return (
     <div className={cls} data-tip={tip}>
       {SIDES.map((p) => (
-        <Handle key={p} id={p} type="source" position={p} className={s.handle} />
+        <Handle key={p} id={p} type="source" position={p} className={s.handle} data-tip={t('map.handle.tip')} />
       ))}
       <span className={s.glyph}>
         <Icon name={meta.icon} />
@@ -145,4 +145,26 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
 
 export function speed(mbit: number, t: (k: string, o?: Record<string, unknown>) => string) {
   return mbit >= 1000 ? t('unit.gbit', { n: +(mbit / 1000).toFixed(1) }) : t('unit.mbit', { n: mbit })
+}
+
+/** Where a dragged link was dropped, while the menu or dialogs are open. */
+export function GhostNodeView() {
+  return (
+    <div className={s.ghost}>
+      <Handle type="target" position={Position.Top} className={s.ghostHandle} isConnectable={false} />
+    </div>
+  )
+}
+
+/** The link being made: dashed, from the node it started at to the drop point or the new node. */
+export function PendingEdgeView({ source, target }: EdgeProps) {
+  const a = useInternalNode(source)
+  const b = useInternalNode(target)
+  if (!a || !b) return null
+  const ca = { x: a.internals.positionAbsolute.x + (a.measured.width ?? 0) / 2, y: a.internals.positionAbsolute.y + (a.measured.height ?? 0) / 2 }
+  const rb = { ...b.internals.positionAbsolute, w: b.measured.width ?? 0, h: b.measured.height ?? 0 }
+  const ra = { ...a.internals.positionAbsolute, w: a.measured.width ?? 0, h: a.measured.height ?? 0 }
+  const p1 = exitPoint(ra, rb.x + rb.w / 2, rb.y + rb.h / 2)
+  const p2 = rb.w > 20 ? exitPoint(rb, ca.x, ca.y) : { x: rb.x + rb.w / 2, y: rb.y + rb.h / 2 }
+  return <path d={`M${p1.x},${p1.y} L${p2.x},${p2.y}`} className={s.pendingEdge} />
 }

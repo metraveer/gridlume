@@ -424,7 +424,7 @@
   "update.last.installed": "Installed by the installer: {to}",
   "update.last.interrupted": "The update to {to} was interrupted (the machine restarted or the service stopped)",
   "update.reloaded.title": "Gridlume was updated to {v}",
-  "update.reloaded.lead": "Reload the page to load the new interface.",
+  "update.reloaded.lead": "The page will reload by itself once you finish with the open window or field.",
   "update.reloaded.button": "Reload page",
   "insp.resize": "Drag left to make the panel wider (up to 640 px). Double-click for the usual width.",
   "rail.label": "Sections",

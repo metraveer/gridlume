@@ -28,7 +28,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -36,7 +35,7 @@ import (
 // Repo is where releases are published.
 const Repo = "metraveer/gridlume"
 
-// Channels: stable follows tags vX.Y.Z, edge follows every merge to main.
+// Channels: stable follows tags vX.Y.Z, edge follows every merge to main and the stable releases too.
 const (
 	Stable = "stable"
 	Edge   = "edge"
@@ -92,17 +91,22 @@ func GitHub(ctx context.Context, c *Client, channel string) (string, error) {
 			return "", err
 		}
 		var list []struct {
-			Tag   string `json:"tag_name"`
-			Draft bool   `json:"draft"`
+			Tag       string    `json:"tag_name"`
+			Draft     bool      `json:"draft"`
+			Published time.Time `json:"published_at"`
 		}
 		if err := json.Unmarshal(b, &list); err != nil {
 			return "", err
 		}
-		best := -1
+		// Edge takes stable releases too, so its users get them without switching channels. The newest by
+		// publication: a stable tag carries no run number, and its run is the latest one when it comes out.
+		var best time.Time
 		for _, r := range list {
-			n, ok := edgeNumber(r.Tag)
-			if ok && !r.Draft && n > best {
-				best, tag = n, r.Tag
+			if r.Draft || !(devTag.MatchString(r.Tag) || stableTag.MatchString(r.Tag)) {
+				continue
+			}
+			if tag == "" || r.Published.After(best) {
+				best, tag = r.Published, r.Tag
 			}
 		}
 		if tag == "" {
@@ -128,17 +132,10 @@ func GitHub(ctx context.Context, c *Client, channel string) (string, error) {
 	return "https://github.com/" + Repo + "/releases/download/" + tag, nil
 }
 
-var devTag = regexp.MustCompile(`^v\d+\.\d+\.\d+-dev\.(\d+)$`)
-
-// edgeNumber reads N from a development build's tag "vX.Y.Z-dev.N".
-func edgeNumber(tag string) (int, bool) {
-	m := devTag.FindStringSubmatch(tag)
-	if m == nil {
-		return 0, false
-	}
-	n, err := strconv.Atoi(m[1])
-	return n, err == nil
-}
+var (
+	devTag    = regexp.MustCompile(`^v\d+\.\d+\.\d+-dev\.\d+$`)
+	stableTag = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
+)
 
 func (c *Client) get(ctx context.Context, url string, limit int64) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

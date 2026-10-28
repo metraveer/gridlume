@@ -2,6 +2,7 @@ import { act, render, screen } from '@testing-library/react'
 import i18n from '../i18n'
 import { useApp } from '../state/app'
 import { App } from './App'
+import { page } from './CoreStatus'
 
 const owner = { id: 'u1', username: 'ops', role: 'owner' }
 
@@ -73,8 +74,9 @@ it('reports when the core is unreachable', async () => {
   expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Нет связи с ядром')
 })
 
-it('offers to reload when the core comes back with another version', async () => {
+it('reloads by itself when the core comes back with another version', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true })
+  const reload = vi.spyOn(page, 'reload').mockImplementation(() => {})
   let v = '0.2.0'
   const base = core({ needsSetup: false, user: owner })
   vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/api/version' ? new Response(JSON.stringify({ version: v })) : base(url))))
@@ -84,7 +86,32 @@ it('offers to reload when the core comes back with another version', async () =>
   await act(async () => {
     await vi.advanceTimersByTimeAsync(15_000)
   })
+  expect(reload).toHaveBeenCalled()
+  expect(screen.queryByText('Gridlume обновлён до 0.3.0')).toBeNull()
+  vi.useRealTimers()
+})
+
+it('waits with the reload while something is being typed', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const reload = vi.spyOn(page, 'reload').mockImplementation(() => {})
+  let v = '0.2.0'
+  const base = core({ needsSetup: false, user: owner })
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/api/version' ? new Response(JSON.stringify({ version: v })) : base(url))))
+  render(<App />)
+  expect(await screen.findByRole('status', { name: 'Ядро 0.2.0 на связи' })).toBeTruthy()
+  const search = document.getElementById('global-search') as HTMLInputElement
+  search.focus()
+  v = '0.3.0'
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(15_000)
+  })
   expect(await screen.findByText('Gridlume обновлён до 0.3.0')).toBeTruthy()
+  expect(reload).not.toHaveBeenCalled()
+  await act(async () => {
+    search.blur()
+    await vi.advanceTimersByTimeAsync(400)
+  })
+  expect(reload).toHaveBeenCalled()
   vi.useRealTimers()
 })
 

@@ -1,13 +1,14 @@
 import { create } from 'zustand'
 import { api, ApiError } from '../api/client'
-import type { Link, MapData, MapNode, Place, Suggestion, SystemInfo, User } from '../api/types'
+import type { Link, LinkKind, MapData, MapNode, Place, Suggestion, SystemInfo, User } from '../api/types'
 import type { Level } from '../map/model'
 
 export type Selection = { kind: 'node' | 'link' | 'place'; id: string } | null
 
 /** What the "add / edit" dialogs are working on. */
 export type Editing =
-  | { kind: 'node'; node: Partial<MapNode> }
+  // linkFrom: the node was made by dropping a link from another one; link them once it exists.
+  | { kind: 'node'; node: Partial<MapNode>; linkFrom?: { id: string; kind: LinkKind } }
   | { kind: 'link'; link: Partial<Link> }
   | { kind: 'place'; place: Partial<Place> }
   | { kind: 'agent'; nodeId?: string } // connect a machine: to this node, or as a new one
@@ -23,7 +24,8 @@ type State = {
   system: SystemInfo | null
   level: Level
   selection: Selection
-  focus: string | null // a node the map should bring into view (search, all-nodes page)
+  focus: string | null // a node the map should bring into view (search, all-nodes page); '*' = everything
+  deleting: Selection // something a menu or the Delete key asked to delete; its inspector confirms
   editing: Editing
   error: string | string[] | null // dictionary key(s) of the last error to show
 
@@ -38,6 +40,7 @@ type State = {
 
   select: (s: Selection) => void
   setFocus: (id: string | null) => void
+  askDelete: (s: Selection) => void
   enter: (level: Level) => void
   edit: (e: Editing) => void
   clearError: () => void
@@ -69,6 +72,7 @@ export const useApp = create<State>((set, get) => ({
   level: null,
   selection: null,
   focus: null,
+  deleting: null,
   editing: null,
   error: null,
 
@@ -131,6 +135,8 @@ export const useApp = create<State>((set, get) => ({
 
   select: (selection) => set({ selection }),
   setFocus: (focus) => set({ focus }),
+  // Selecting it opens its inspector, which shows the confirmation (with risk and consequences).
+  askDelete: (deleting) => set({ deleting, selection: deleting }),
   enter: (level) => set({ level, selection: level ? { kind: 'node', id: level } : null }),
   edit: (editing) => set({ editing }),
   clearError: () => set({ error: null }),

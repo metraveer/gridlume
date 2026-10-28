@@ -50,10 +50,13 @@ it('shows the empty map when signed in, and switches to English', async () => {
   vi.stubGlobal('fetch', core({ needsSetup: false, user: owner }))
   render(<App />)
   expect(await screen.findByText('Схема пока пустая')).toBeTruthy()
-  expect(await screen.findByText('Ядро 0.0.0-dev на связи')).toBeTruthy()
+  expect(await screen.findByRole('status', { name: 'Ядро 0.0.0-dev на связи' })).toBeTruthy()
   // The language is switched in Settings.
   await act(async () => {
     window.location.hash = '#/settings'
+  })
+  await act(async () => {
+    ;(await screen.findByRole('button', { name: 'Интерфейс' })).click()
   })
   await act(async () => {
     ;(await screen.findByRole('button', { name: 'English' })).click()

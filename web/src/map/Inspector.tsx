@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Link, MapNode, Place } from '../api/types'
 import { Button, Dialog, Icon, IconButton, KV, Section, StateBadge, type Risk } from '../design'
@@ -67,6 +67,7 @@ function NodePanel({ node }: { node: MapNode }) {
   const { edit, enter, select, patchNode, remove } = useApp.getState()
   const [notes, setNotes] = useState(node.notes)
   const [confirm, setConfirm] = useState(false)
+  useAskedDelete('node', node.id, () => setConfirm(true))
   const [confirmUnlink, setConfirmUnlink] = useState(false)
   const { agent, snap, container, state } = useNodeLive(node)
   const isCore = useApp((st) => !!st.system?.coreNode && st.system.coreNode === node.id)
@@ -213,6 +214,7 @@ function LinkPanel({ link }: { link: Link }) {
   const viewer = useApp((st) => st.user?.role === 'viewer')
   const { edit, select, swapLink, remove } = useApp.getState()
   const [confirm, setConfirm] = useState(false)
+  useAskedDelete('link', link.id, () => setConfirm(true))
   const name = (id: string) => nodes.find((n) => n.id === id)?.name ?? ''
 
   return (
@@ -273,6 +275,7 @@ function PlacePanel({ place }: { place: Place }) {
   const viewer = useApp((st) => st.user?.role === 'viewer')
   const { edit, select, remove } = useApp.getState()
   const [confirm, setConfirm] = useState(false)
+  useAskedDelete('place', place.id, () => setConfirm(true))
   const inside = nodes.filter((n) => n.placeId === place.id && n.parentId === null)
 
   return (
@@ -329,4 +332,15 @@ export function Inspector() {
   }
   if (!body) return null
   return <aside className={s.panel} data-scroll>{body}</aside>
+}
+
+/** Opens a panel's delete confirmation when a menu or the Delete key asked for it. */
+function useAskedDelete(kind: 'node' | 'link' | 'place', id: string, open: () => void) {
+  const deleting = useApp((st) => st.deleting)
+  useEffect(() => {
+    if (deleting?.kind === kind && deleting.id === id) {
+      useApp.setState({ deleting: null })
+      open()
+    }
+  }, [deleting, kind, id, open])
 }

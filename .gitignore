@@ -31,3 +31,6 @@ Thumbs.db
 
 # Local agent and editor settings
 .claude/
+
+# Design mockup: a local reference only, not part of the product
+/design/

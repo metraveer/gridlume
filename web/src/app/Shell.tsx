@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Icon, IconButton, type IconName } from '../design'
+import { Icon, IconButton, Menu, type IconName } from '../design'
 import { NODE_META } from '../map/model'
 import { matches, reveal } from '../map/NodesPage'
 import { useApp } from '../state/app'
@@ -30,48 +30,13 @@ function Brand() {
   )
 }
 
-/** Where you are: the whole map, or a machine (with its place) opened from it. */
-function Crumbs({ route }: { route: Route }) {
-  const { t } = useTranslation()
-  const level = useApp((st) => st.level)
-  const map = useApp((st) => st.map)
-  const enter = useApp((st) => st.enter)
-  const machine = map.nodes.find((n) => n.id === level)
-  const place = map.places.find((p) => p.id === machine?.placeId)
-  if (route !== 'map') {
-    return (
-      <nav className={s.crumbs} aria-label="breadcrumbs">
-        <span aria-current="page">{t(route === 'nodes' ? 'rail.nodes' : route === 'settings' ? 'rail.settings' : 'rail.design')}</span>
-      </nav>
-    )
-  }
-  return (
-    <nav className={s.crumbs} aria-label="breadcrumbs">
-      {machine ? (
-        <>
-          <button type="button" className={s.crumb} onClick={() => enter(null)}>{t('app.crumb.root')}</button>
-          {place && (
-            <>
-              <span className={s.sep}>/</span>
-              <span className={s.crumbDim}>{place.name}</span>
-            </>
-          )}
-          <span className={s.sep}>/</span>
-          <span aria-current="page">{machine.name}</span>
-        </>
-      ) : (
-        <span aria-current="page">{t('app.crumb.root')}</span>
-      )}
-    </nav>
-  )
-}
-
-/** Finds nodes by name, address or kind and shows the chosen one on the map. */
+/** Finds nodes by name, address or kind and shows the chosen one on the map. "/" focuses it. */
 function Search() {
   const { t } = useTranslation()
   const nodes = useApp((st) => st.map.nodes)
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
   const found = q.trim() ? nodes.filter((n) => matches(n, q, t(`kind.${n.kind}`))).slice(0, 8) : []
   const pick = (i: number) => {
     const n = found[i]
@@ -82,28 +47,35 @@ function Search() {
   }
   return (
     <div className={s.searchBox}>
+      <Icon name="search" />
       <input
+        id="global-search"
         className={s.search}
         value={q}
         placeholder={t('app.search')}
         aria-label={t('app.search')}
+        autoComplete="off"
         onChange={(e) => {
           setQ(e.target.value)
+          setActive(0)
           setOpen(true)
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') pick(0)
-          if (e.key === 'Escape') setOpen(false)
+          if (e.key === 'Enter') pick(active)
+          if (e.key === 'Escape') (e.target as HTMLInputElement).blur()
+          if (e.key === 'ArrowDown') setActive((a) => Math.min(a + 1, found.length - 1))
+          if (e.key === 'ArrowUp') setActive((a) => Math.max(a - 1, 0))
         }}
       />
+      <kbd className={s.key} data-tip={t('app.search.key')}>/</kbd>
       {open && q.trim() && (
         <ul className={s.results} role="listbox">
           {found.length === 0 && <li className={s.noResults}>{t('app.search.none')}</li>}
           {found.map((n, i) => (
             <li key={n.id}>
-              <button type="button" className={s.result} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(i)}>
+              <button type="button" className={s.result} aria-selected={i === active} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setActive(i)} onClick={() => pick(i)}>
                 <Icon name={NODE_META[n.kind].icon} />
                 <span className={s.resultName}>{n.name}</span>
                 <span className={s.resultMeta}>{n.address || t(`kind.${n.kind}`)}</span>
@@ -128,35 +100,71 @@ function UpdateBadge() {
   )
 }
 
+/** Avatar with the name; opens a menu with Settings and Sign out. */
 function UserMenu() {
   const { t } = useTranslation()
   const user = useApp((st) => st.user)
   const logout = useApp((st) => st.logout)
+  const ref = useRef<HTMLButtonElement>(null)
+  const [at, setAt] = useState<{ x: number; y: number } | null>(null)
   if (!user) return null
+  const open = () => {
+    const r = ref.current?.getBoundingClientRect()
+    if (r) setAt({ x: r.right - 220, y: r.bottom + 6 })
+  }
   return (
-    <span className={s.user}>
-      <span className={s.userName} data-tip={t(`role.${user.role}`)}>{user.username}</span>
-      <Button size="sm" variant="ghost" onClick={() => void logout()}>{t('auth.logout')}</Button>
-    </span>
+    <>
+      <button ref={ref} type="button" className={s.user} aria-haspopup="menu" aria-expanded={!!at} onClick={() => (at ? setAt(null) : open())}>
+        <span className={s.avatar} aria-hidden="true">{user.username.slice(0, 1).toUpperCase()}</span>
+        <span className={s.userName}>{user.username}</span>
+        <Icon name="chevron" />
+      </button>
+      {at && (
+        <Menu
+          x={at.x}
+          y={at.y}
+          label={user.username}
+          onClose={() => setAt(null)}
+          items={[
+            { heading: `${user.username} · ${t(`role.${user.role}`).split(':')[0]}` },
+            { label: t('rail.settings'), icon: 'gear', onSelect: () => go('settings') },
+            { separator: true },
+            { label: t('auth.logout'), icon: 'power', onSelect: () => void logout() },
+          ]}
+        />
+      )}
+    </>
   )
 }
 
 /** Top bar, left rail and the main area. Items of later stages are visible but say when they arrive. */
 export function Shell({ route, children }: { route: Route; children: ReactNode }) {
   const { t } = useTranslation()
+  // "/" anywhere outside a text field jumps to search, as on GitHub and in many panels.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || el.closest('input, textarea, select, [contenteditable]')) return
+      e.preventDefault()
+      document.getElementById('global-search')?.focus()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   return (
     <div className={s.app}>
       <header className={s.topbar}>
-        <div className={s.brand}>
+        <div className={s.left}>
           <span className={s.mark}><Brand /></span>
           <span className={s.name}>Gridlume</span>
+          {route !== 'map' && <span className={s.page}>{t(route === 'nodes' ? 'rail.nodes' : 'rail.settings')}</span>}
         </div>
-        <Crumbs route={route} />
         <Search />
-        <span className={s.grow} />
-        <UpdateBadge />
-        <CoreStatus />
-        <UserMenu />
+        <div className={s.right}>
+          <UpdateBadge />
+          <CoreStatus />
+          <UserMenu />
+        </div>
       </header>
 
       <nav className={s.rail} aria-label="sections">
@@ -172,7 +180,6 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
           />
         ))}
         <span className={s.grow} />
-        <IconButton icon="layers" label={t('rail.design')} aria-pressed={route === 'design'} onClick={() => go('design')} />
         <IconButton icon="gear" label={t('rail.settings')} aria-pressed={route === 'settings'} onClick={() => go('settings')} />
       </nav>
 

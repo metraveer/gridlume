@@ -1,4 +1,4 @@
-// Gridlume design system. Tokens: tokens.css. Reference: design/mockup/design-system.html.
+// Gridlume design system. Tokens: tokens.css.
 export { Button, IconButton } from './Button'
 export { Dialog } from './Dialog'
 export { Icon, type IconName } from './Icon'
@@ -8,3 +8,4 @@ export { Segmented } from './Segmented'
 export { Badge, Dot, RiskLabel, StateBadge, type Risk, type State } from './Status'
 export { TooltipLayer } from './Tooltip'
 export { useScrollHints } from './useScrollHints'
+export { Menu, useMenu, type MenuItem } from './Menu'

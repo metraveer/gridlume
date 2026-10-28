@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 
-export type Route = 'map' | 'nodes' | 'settings' | 'design'
+export type Route = 'map' | 'nodes' | 'settings'
 
-const HASH: Record<Route, string> = { map: '#/', nodes: '#/nodes', settings: '#/settings', design: '#/design' }
+const HASH: Record<Route, string> = { map: '#/', nodes: '#/nodes', settings: '#/settings' }
 
 function readRoute(): Route {
   const h = window.location.hash

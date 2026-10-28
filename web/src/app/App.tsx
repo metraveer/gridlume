@@ -5,7 +5,6 @@ import { ErrorBanner, MapPage } from '../map/MapPage'
 import { NodesPage } from '../map/NodesPage'
 import { useApp } from '../state/app'
 import { startLive } from '../state/live'
-import { DesignPage } from './DesignPage'
 import { SettingsPage } from './SettingsPage'
 import { useRoute } from './route'
 import { Shell } from './Shell'
@@ -26,8 +25,6 @@ function Gate() {
   const init = useApp((st) => st.init)
   useEffect(() => void init(), [init])
 
-  // The design reference needs no account: it shows components only.
-  if (route === 'design') return <Shell route={route}><DesignPage /></Shell>
   if (!ready) return null
   if (offline) return <OfflineScreen />
   if (needsSetup) return <SetupScreen />

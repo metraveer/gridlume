@@ -1,4 +1,4 @@
-import type { Agent, AgentMode, Change, Channel, CheckResult, HistoryData, Link, MapData, MapNode, MetricPoint, MetricRange, NotifyRules, NotifyState, Place, Problem, SessionInfo, Snapshot, Suggestion, SystemInfo, User, WatchState } from './types'
+import type { Agent, AgentMode, Change, Channel, CheckResult, HistoryData, Link, MapData, MapNode, MetricPoint, MetricRange, NotifyRules, NotifyState, Place, Problem, SessionInfo, Snapshot, Suggestion, SystemInfo, User, OutsideState, WatchState } from './types'
 
 /** An error answer from the core, e.g. { error: "validation", field: "name", code: "required" }. */
 export class ApiError extends Error {
@@ -87,6 +87,8 @@ export const api = {
   testTelegram: () => request<NotifyState>('POST', '/api/notify/test', {}),
   saveNotifyRules: (rules: NotifyRules) => request<NotifyState>('PUT', '/api/notify/rules', rules),
   watch: () => request<WatchState>('GET', '/api/watch'),
+  outside: () => request<OutsideState>('GET', '/api/outside'),
+  checkOutside: () => request<OutsideState>('POST', '/api/outside/check', {}),
   saveWatchAgents: (agents: string[], after: number) => request<WatchState>('PUT', '/api/watch/agents', { agents, after }),
   makeDutyCode: () => request<WatchState>('POST', '/api/watch/duty', {}),
   dropDutyCode: () => request<WatchState>('DELETE', '/api/watch/duty'),

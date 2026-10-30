@@ -10,6 +10,7 @@ type Live = {
   snaps: Record<string, Snapshot> // by node id, only while connected
   checks: Record<string, CheckResult> // the core's own checks of nodes without an agent, by node id
   changed: Record<string, number> // by machine node id: bumped when the core noticed a change there
+  outsideTick: number // bumped when the duty core reported a check from outside
   load: () => Promise<void>
   loadChecks: () => Promise<void>
   apply: (e: LiveEvent) => void
@@ -25,6 +26,7 @@ export const useLive = create<Live>((set) => ({
   snaps: {},
   checks: {},
   changed: {},
+  outsideTick: 0,
 
   loadChecks: async () => set({ checks: await api.checks() }),
 
@@ -44,6 +46,10 @@ export const useLive = create<Live>((set) => ({
     if (e.mapChanged) void useApp.getState().loadMap()
     if (e.changes) {
       set((s) => ({ changed: { ...s.changed, [e.nodeId]: (s.changed[e.nodeId] ?? 0) + 1 } }))
+      return
+    }
+    if (e.outside) {
+      set((s) => ({ outsideTick: s.outsideTick + 1 }))
       return
     }
     if (e.problems) {

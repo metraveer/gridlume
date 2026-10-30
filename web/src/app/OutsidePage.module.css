@@ -1,0 +1,19 @@
+.lead { margin: var(--s-2) 0 0; color: var(--fg-muted); font-size: var(--fs-13); line-height: 1.5; }
+.host { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); min-width: 0; overflow-wrap: anywhere; }
+.host .mono { color: var(--fg-faint); font-size: var(--fs-12); font-weight: 400; }
+
+/* Open ports: the number, what it is, how risky, where it leads. The left edge carries the risk. */
+.ports { display: grid; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+.port { display: flex; gap: var(--s-3); padding: var(--s-2) var(--s-3); border-left: 3px solid var(--line); border-radius: var(--r); background: var(--bg-raised); }
+.port[data-risk='nopass'] { border-left-color: var(--crit); }
+.port[data-risk='login'] { border-left-color: var(--warn); }
+.num { flex: none; width: 52px; font-size: var(--fs-15); }
+.about { display: grid; gap: 2px; min-width: 0; font-size: var(--fs-13); line-height: 1.45; }
+.about > span { color: var(--fg-muted); font-size: var(--fs-12); }
+.leads button { margin-right: var(--s-2); padding: 0; border: 0; background: none; color: var(--lume); font: inherit; cursor: pointer; }
+.leads button:hover { text-decoration: underline; }
+.unmapped { color: var(--warn) !important; }
+
+.what { color: var(--fg-muted); font-size: var(--fs-12); line-height: 1.5; }
+.what summary { cursor: pointer; }
+.what p { margin: var(--s-2) 0 0; overflow-wrap: anywhere; }

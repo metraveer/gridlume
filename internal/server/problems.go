@@ -68,7 +68,9 @@ func (a *api) checkProblems(ctx context.Context, now time.Time) problems.Change 
 	}
 	a.checks.SetTargets(checks.Targets(m, withAgent))
 	in := problems.Input{Map: m, Agents: st, Snaps: a.hub.Snapshots(), Checks: a.checks.Results(), Now: now}
-	ch, err := a.problems.Step(ctx, append(problems.Detect(in), a.watchSignals(ctx, now)...), problems.HeldIn(in), now)
+	signals := append(problems.Detect(in), a.watchSignals(ctx, now)...)
+	signals = append(signals, a.outsideSignals(ctx, m)...)
+	ch, err := a.problems.Step(ctx, signals, problems.HeldIn(in), now)
 	if err != nil {
 		a.log.Warn("problems: step", "err", err)
 		return ch

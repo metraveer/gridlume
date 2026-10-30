@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/metraveer/gridlume/internal/outside"
 	"github.com/metraveer/gridlume/internal/problems"
 	"github.com/metraveer/gridlume/internal/version"
 )
@@ -96,7 +97,8 @@ func (a *api) makeDutyCode(w http.ResponseWriter, r *http.Request) {
 
 func (a *api) dropDutyCode(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	for _, k := range []string{settingDutyCode, settingDutySeen, settingDutyName} {
+	// What the duty core saw from outside goes with it: nobody would bring it up to date.
+	for _, k := range []string{settingDutyCode, settingDutySeen, settingDutyName, settingOutside, settingOutsideAsk, settingOutsideGiven} {
 		if err := a.store.SetSetting(ctx, k, ""); err != nil {
 			a.fail(w, err)
 			return
@@ -105,7 +107,8 @@ func (a *api) dropDutyCode(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, a.watchStatus(ctx))
 }
 
-// dutyPing answers the duty core: alive, and who it is. It says nothing else about this installation.
+// dutyPing answers the duty core: alive, and who it is; when a check from outside is due, also the
+// addresses and ports to check. It says nothing else about this installation.
 func (a *api) dutyPing(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	code, _ := a.store.Setting(ctx, settingDutyCode, "")
@@ -118,7 +121,11 @@ func (a *api) dutyPing(w http.ResponseWriter, r *http.Request) {
 	if name := strings.TrimSpace(r.Header.Get(dutyNameHeader)); name != "" && len(name) <= 80 {
 		_ = a.store.SetSetting(ctx, settingDutyName, name)
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"name": a.coreName(ctx), "version": version.Version})
+	out := map[string]any{"name": a.coreName(ctx), "version": version.Version}
+	if t := a.outsideDue(ctx, time.Now()); t != nil {
+		out["outside"] = t
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // setWatchTarget makes this core the duty core of another: it checks the address and code at once.
@@ -136,7 +143,7 @@ func (a *api) setWatchTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	name, err := a.pingWatched(ctx, u, strings.TrimSpace(body.Code))
+	ans, err := a.pingWatched(ctx, u, strings.TrimSpace(body.Code))
 	if err != nil {
 		code := "unreachable"
 		if errors.Is(err, errBadCode) {
@@ -145,7 +152,7 @@ func (a *api) setWatchTarget(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "validation", "field": "watch", "code": code})
 		return
 	}
-	for k, v := range map[string]string{settingWatchedURL: u, settingWatchedCode: strings.TrimSpace(body.Code), settingWatchedName: name} {
+	for k, v := range map[string]string{settingWatchedURL: u, settingWatchedCode: strings.TrimSpace(body.Code), settingWatchedName: ans.Name} {
 		if err := a.store.SetSetting(ctx, k, v); err != nil {
 			a.fail(w, err)
 			return
@@ -154,6 +161,9 @@ func (a *api) setWatchTarget(w http.ResponseWriter, r *http.Request) {
 	a.watched.mu.Lock()
 	a.watched.OK, a.watched.Fails, a.watched.Error, a.watched.LastOK, a.watched.At = true, 0, "", time.Now().Unix(), time.Now().UnixMilli()
 	a.watched.mu.Unlock()
+	if ans.Outside != nil {
+		go a.checkOutside(context.WithoutCancel(ctx), u, strings.TrimSpace(body.Code), *ans.Outside)
+	}
 	writeJSON(w, http.StatusOK, a.watchStatus(ctx))
 }
 
@@ -175,31 +185,35 @@ var errBadCode = errors.New("the core does not accept this code")
 
 var dutyClient = &http.Client{Timeout: 15 * time.Second}
 
-// pingWatched asks the watched core whether it is alive; it returns the core's name.
-func (a *api) pingWatched(ctx context.Context, url, code string) (string, error) {
+// pingAnswer is what the watched core says: its name, and what to check from outside when that is due.
+type pingAnswer struct {
+	Name    string          `json:"name"`
+	Outside *outside.Target `json:"outside,omitempty"`
+}
+
+// pingWatched asks the watched core whether it is alive.
+func (a *api) pingWatched(ctx context.Context, url, code string) (pingAnswer, error) {
+	var out pingAnswer
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/api/watch/ping", nil)
 	if err != nil {
-		return "", err
+		return out, err
 	}
 	req.Header.Set(dutyHeader, code)
 	req.Header.Set(dutyNameHeader, a.coreName(ctx))
 	res, err := dutyClient.Do(req)
 	if err != nil {
-		return "", err
+		return out, err
 	}
 	defer res.Body.Close()
-	b, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+	b, _ := io.ReadAll(io.LimitReader(res.Body, 16<<10))
 	if res.StatusCode == http.StatusUnauthorized {
-		return "", errBadCode
+		return out, errBadCode
 	}
 	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP %d", res.StatusCode)
-	}
-	var out struct {
-		Name string `json:"name"`
+		return out, fmt.Errorf("HTTP %d", res.StatusCode)
 	}
 	_ = json.Unmarshal(b, &out)
-	return out.Name, nil
+	return out, nil
 }
 
 // watchTheCore checks the watched core every DutyEvery until ctx ends (a duty core's job).
@@ -222,7 +236,10 @@ func (a *api) checkWatched(ctx context.Context) {
 		return
 	}
 	code, _ := a.store.Setting(ctx, settingWatchedCode, "")
-	name, err := a.pingWatched(ctx, u, code)
+	ans, err := a.pingWatched(ctx, u, code)
+	if err == nil && ans.Outside != nil {
+		go a.checkOutside(ctx, u, code, *ans.Outside)
+	}
 	a.watched.mu.Lock()
 	defer a.watched.mu.Unlock()
 	a.watched.At = time.Now().UnixMilli()
@@ -233,8 +250,8 @@ func (a *api) checkWatched(ctx context.Context) {
 	}
 	a.watched.OK, a.watched.Fails, a.watched.Error, a.watched.LastOK = true, 0, "", time.Now().Unix()
 	_ = a.store.SetSetting(ctx, settingWatchedOK, strconv.FormatInt(a.watched.LastOK, 10))
-	if name != "" {
-		_ = a.store.SetSetting(ctx, settingWatchedName, name)
+	if ans.Name != "" {
+		_ = a.store.SetSetting(ctx, settingWatchedName, ans.Name)
 	}
 }
 

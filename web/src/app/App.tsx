@@ -6,6 +6,7 @@ import { NodesPage } from '../map/NodesPage'
 import { useApp } from '../state/app'
 import { startLive } from '../state/live'
 import { NotificationsPage } from './NotificationsPage'
+import { OutsidePage } from './OutsidePage'
 import { SettingsPage } from './SettingsPage'
 import { useRoute } from './route'
 import { Shell } from './Shell'
@@ -32,7 +33,7 @@ function Gate() {
   if (!user) return <LoginScreen />
   return (
     <Shell route={route}>
-      {route === 'nodes' ? <NodesPage /> : route === 'settings' ? <SettingsPage /> : route === 'alerts' ? <NotificationsPage /> : <MapPage />}
+      {route === 'nodes' ? <NodesPage /> : route === 'settings' ? <SettingsPage /> : route === 'alerts' ? <NotificationsPage /> : route === 'outside' ? <OutsidePage /> : <MapPage />}
       <ErrorBanner />
       <LiveSync />
     </Shell>

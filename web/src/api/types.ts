@@ -114,7 +114,7 @@ export type Agent = {
 export type AgentUpdate = { state: 'done' | 'up_to_date' | 'failed' | 'rolled_back'; from: string; to?: string; message?: string; at: number }
 
 /** One message of /api/events. */
-export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean; mapChanged?: boolean; problems?: boolean; changes?: boolean }
+export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean; mapChanged?: boolean; problems?: boolean; changes?: boolean; outside?: boolean }
 
 export type Channel = 'stable' | 'edge'
 
@@ -172,6 +172,18 @@ export type WatchState = {
     watching?: { url: string; name: string; ok: boolean; fails: number; lastOk?: number; error?: string; at?: number }
   }
   code?: string
+}
+
+/** An open port seen from outside: what it usually is, its risk, the nodes it probably leads to. */
+export type OutsidePort = { port: number; ms: number; service: string; risk: '' | 'login' | 'nopass'; nodes: string[] }
+
+/** What is visible from the internet (GET /api/outside): the duty core's last check and what the next will look at. */
+export type OutsideState = {
+  target: { hosts: string[]; ports: number[] }
+  duty: WatchState['duty']
+  asked: number // unix ms
+  every: number // seconds
+  result?: { at: number; by: string; ports: number[]; found: { ip: string; names: string[]; open: OutsidePort[] }[]; skip?: string[] }
 }
 
 /** The core's own check of a node without an agent (GET /api/checks): ping, TCP or HTTP. */

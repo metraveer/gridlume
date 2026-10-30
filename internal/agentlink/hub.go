@@ -38,6 +38,8 @@ type Event struct {
 	Problems bool `json:"problems,omitempty"`
 	// Changes: something changed on this machine (a new image, a restart...); its changes are refetched.
 	Changes bool `json:"changes,omitempty"`
+	// Outside: the duty core reported a check from outside; the page refetches /api/outside.
+	Outside bool `json:"outside,omitempty"`
 }
 
 // Status is an agent as the interface sees it: what is stored plus whether it is connected now.

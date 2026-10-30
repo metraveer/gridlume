@@ -1,6 +1,6 @@
 import { BaseEdge, EdgeLabelRenderer, Handle, NodeResizer, Position, useInternalNode, type EdgeProps, type NodeProps } from '@xyflow/react'
 import { useTranslation } from 'react-i18next'
-import type { Link, MapNode, Place } from '../api/types'
+import type { CheckResult, Link, MapNode, Place } from '../api/types'
 import { Dot, Icon } from '../design'
 import { useNodeLive } from '../state/live'
 import { usePrefs } from '../state/prefs'
@@ -25,7 +25,7 @@ export function shortImage(image: string) {
 export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData }) {
   const { t } = useTranslation()
   const { node, kids, portal } = data
-  const { agent, snap, container, state } = useNodeLive(node)
+  const { agent, snap, container, check, state } = useNodeLive(node)
   const meta = NODE_META[node.kind]
   // The card shows everything it says in full: it grows up to 300 px and wraps a long line instead of
   // cutting it with "…" (there is no way to widen a card to read the rest).
@@ -43,6 +43,10 @@ export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData })
     chips.push({ label: 'CPU', value: percent(snap.cpu), level: snap.cpu })
     if (snap.memTotal) chips.push({ label: 'RAM', value: percent(mem), level: mem })
     if (snap.disks?.length) chips.push({ label: t('card.disk'), value: percent(disk), level: disk })
+  } else if (check?.at && (check.ok || check.kind === 'ping')) {
+    // The core's check: how fast it answers (and the HTTP code).
+    const c = checkChip(t, check)
+    if (c) chips.push(c)
   } else if (container?.state === 'running') {
     chips.push({ label: 'CPU', value: percent(container.cpu), level: container.cpu })
     chips.push({ label: 'RAM', value: bytes(t, container.memUsed), level: container.memLimit ? (100 * container.memUsed) / container.memLimit : 0 })
@@ -201,6 +205,16 @@ function Flow({ path, rate, reverse }: { path: string; rate: number; reverse?: b
       ))}
     </g>
   )
+}
+
+function checkChip(t: (k: string, o?: Record<string, unknown>) => string, c: CheckResult) {
+  if (c.kind === 'ping') {
+    if (!c.sent || c.error) return null
+    if ((c.loss ?? 0) >= 100) return { label: 'ping', value: t('link.ping.none'), level: 100 }
+    return { label: 'ping', value: t('link.ping.ms', { n: c.rtt >= 10 ? Math.round(c.rtt) : +c.rtt.toFixed(1) }), level: (c.loss ?? 0) > 0 ? 85 : 0 }
+  }
+  const ms = t('link.ping.ms', { n: Math.round(c.rtt) })
+  return { label: c.kind === 'http' ? (c.target.startsWith('https') ? 'HTTPS' : 'HTTP') : 'TCP', value: c.status ? `${c.status} · ${ms}` : ms, level: 0 }
 }
 
 export function speed(mbit: number, t: (k: string, o?: Record<string, unknown>) => string) {

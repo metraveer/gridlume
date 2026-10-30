@@ -14,6 +14,7 @@ import (
 
 	"github.com/metraveer/gridlume/internal/agentlink"
 	"github.com/metraveer/gridlume/internal/agentproto"
+	"github.com/metraveer/gridlume/internal/checks"
 	"github.com/metraveer/gridlume/internal/store"
 )
 
@@ -25,6 +26,10 @@ const (
 	MemWarn      = 95.0
 	TempWarn     = 90.0 // °C
 	LossCrit     = 50.0 // percent of pings lost in the last minute: the link is down
+	TCPFails     = 3    // TCP checks failed in a row (20 s apart) before "does not answer"
+	HTTPFails    = 2    // HTTP checks failed in a row (a minute apart) before "does not open"
+	CertWarnDays = 14
+	CertCritDays = 3
 )
 
 // Signal is one thing wrong at this moment.
@@ -45,6 +50,7 @@ type Input struct {
 	Map    store.Map
 	Agents []agentlink.Status
 	Snaps  map[string]agentproto.Snapshot // by node id
+	Checks map[string]checks.Result       // the core's own checks, by node id
 	Now    time.Time
 }
 
@@ -125,7 +131,67 @@ func Detect(in Input) []Signal {
 			}
 		}
 	}
+	// In a fixed order: when two signals fold into one, the same one must stay from one look to the next,
+	// or its problem would end and start again.
+	ids := make([]string, 0, len(in.Checks))
+	for id := range in.Checks {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		if _, ok := nodes[id]; ok {
+			out = append(out, checkSignals(in.Checks[id], in.Now)...)
+		}
+	}
 	return group(out, offline, nodes, links)
+}
+
+// checkSignals: a host that does not answer pings, a port that refuses, a site that does not open,
+// a certificate about to expire. Each check already waits for its failures to repeat.
+func checkSignals(r checks.Result, now time.Time) []Signal {
+	var out []Signal
+	base := map[string]any{"target": r.Target}
+	with := func(kv ...any) map[string]any {
+		m := map[string]any{}
+		for k, v := range base {
+			m[k] = v
+		}
+		for i := 0; i+1 < len(kv); i += 2 {
+			m[kv[i].(string)] = kv[i+1]
+		}
+		return m
+	}
+	switch r.Kind {
+	case "ping":
+		if r.Error != "" || r.Sent < 2 || r.Loss == 0 {
+			break
+		}
+		kind, sev := "node_loss", "warn"
+		if r.Loss >= LossCrit {
+			kind, sev = "node_unreachable", "crit"
+		}
+		out = append(out, Signal{Key: "check:" + r.NodeID, Kind: kind, Severity: sev, NodeID: r.NodeID, Params: with("host", r.Target, "loss", round(r.Loss))})
+	case "tcp":
+		if r.Fails >= TCPFails {
+			out = append(out, Signal{Key: "check:" + r.NodeID, Kind: "port_down", Severity: "crit", NodeID: r.NodeID, Params: with("error", r.Error)})
+		}
+	case "http":
+		if r.Fails >= HTTPFails {
+			out = append(out, Signal{Key: "check:" + r.NodeID, Kind: "site_down", Severity: "crit", NodeID: r.NodeID, Params: with("error", r.Error, "status", r.Status)})
+		}
+	}
+	if r.CertUntil > 0 {
+		days := int(time.Unix(r.CertUntil, 0).Sub(now).Hours() / 24)
+		if days <= CertWarnDays {
+			sev := "warn"
+			if days <= CertCritDays {
+				sev = "crit"
+			}
+			out = append(out, Signal{Key: "cert:" + r.NodeID, Kind: "cert_expiring", Severity: sev, NodeID: r.NodeID,
+				Params: with("days", days, "until", r.CertUntil)})
+		}
+	}
+	return out
 }
 
 func machine(nodeID string, s agentproto.Snapshot) []Signal {
@@ -258,11 +324,11 @@ func group(sigs []Signal, offline map[string]bool, nodes map[string]store.Node, 
 			out[i].Merged = append(out[i].Merged, s.Kind)
 			continue
 		}
-		if s.LinkID != "" {
-			host := fmt.Sprint(s.Params["host"])
+		if h, ok := s.Params["host"]; ok && (s.LinkID != "" || s.Kind == "node_unreachable" || s.Kind == "node_loss") {
+			host := fmt.Sprint(h)
 			if i, ok := hosts[host]; ok {
 				out[i].Merged = append(out[i].Merged, s.Kind)
-				if s.Severity == "crit" {
+				if s.Severity == "crit" && out[i].Severity != "crit" {
 					out[i].Severity, out[i].Kind = "crit", s.Kind
 				}
 				continue

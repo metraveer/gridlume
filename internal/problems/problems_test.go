@@ -8,6 +8,7 @@ import (
 
 	"github.com/metraveer/gridlume/internal/agentlink"
 	"github.com/metraveer/gridlume/internal/agentproto"
+	"github.com/metraveer/gridlume/internal/checks"
 	"github.com/metraveer/gridlume/internal/store"
 )
 
@@ -195,5 +196,44 @@ func TestFoldUnderTheMachine(t *testing.T) {
 	}
 	if len(open[1].Merged) != 0 {
 		t.Fatal("the stored problem must not change")
+	}
+}
+
+func TestCheckSignals(t *testing.T) {
+	m := store.Map{
+		Nodes: []store.Node{
+			{ID: "router", Address: "192.168.1.1"}, {ID: "srv"}, {ID: "nas"}, {ID: "site"}, {ID: "dom"},
+		},
+		Links: []store.Link{{ID: "l", FromID: "router", ToID: "srv", Kind: "lan"}},
+	}
+	soon := now.Add(5 * 24 * time.Hour).Unix()
+	sigs := Detect(Input{Map: m, Now: now,
+		Agents: []agentlink.Status{{Agent: store.Agent{NodeID: "srv"}, Online: true}},
+		Snaps:  map[string]agentproto.Snapshot{"srv": {Probes: []agentproto.ProbeResult{{ID: "l", Host: "192.168.1.1", Sent: 6, Loss: 100}}}},
+		Checks: map[string]checks.Result{
+			"router": {NodeID: "router", Kind: "ping", Target: "192.168.1.1", Sent: 6, Loss: 100},
+			"nas":    {NodeID: "nas", Kind: "tcp", Target: "nas.lan:5000", Fails: 3, Error: "connection refused"},
+			"site":   {NodeID: "site", Kind: "http", Target: "https://cloud.example.org/", Fails: 1, CertUntil: soon},
+			"dom":    {NodeID: "dom", Kind: "http", Target: "https://example.org/", Fails: 2, Status: 502, Error: "HTTP 502"},
+		},
+	})
+	k := kinds(sigs)
+	// The router seen down by the agent's link and by the core's own ping: one problem.
+	if s, ok := k["link_down"]; !ok || len(s.Merged) != 1 || s.Merged[0] != "node_unreachable" {
+		t.Errorf("router down, seen twice: %+v", sigs)
+	}
+	if s := k["port_down"]; s.NodeID != "nas" || s.Params["error"] != "connection refused" {
+		t.Errorf("port: %+v", s)
+	}
+	if s := k["site_down"]; s.NodeID != "dom" || s.Params["status"] != 502 {
+		t.Errorf("site: %+v", s)
+	}
+	if s := k["cert_expiring"]; s.NodeID != "site" || s.Severity != "warn" || s.Params["days"] != 5 {
+		t.Errorf("certificate in 5 days: %+v", s)
+	}
+	for _, s := range sigs {
+		if s.Kind == "site_down" && s.NodeID == "site" {
+			t.Error("one failed request is not a site that is down")
+		}
 	}
 }

@@ -1,4 +1,4 @@
-import type { Agent, AgentMode, Channel, Link, MapData, MapNode, MetricPoint, MetricRange, Place, Problem, SessionInfo, Snapshot, Suggestion, SystemInfo, User } from './types'
+import type { Agent, AgentMode, Channel, CheckResult, Link, MapData, MapNode, MetricPoint, MetricRange, Place, Problem, SessionInfo, Snapshot, Suggestion, SystemInfo, User } from './types'
 
 /** An error answer from the core, e.g. { error: "validation", field: "name", code: "required" }. */
 export class ApiError extends Error {
@@ -78,6 +78,7 @@ export const api = {
   startUpdate: () => request<SystemInfo>('POST', '/api/system/update', {}),
   suggestions: () => request<Suggestion[]>('GET', '/api/suggestions'),
   problems: () => request<{ open: Problem[]; ended: Problem[] }>('GET', '/api/problems'),
+  checks: () => request<Record<string, CheckResult>>('GET', '/api/checks'),
   acceptSuggestion: (id: string, about: string, ifBroken: string) => request<Link>('POST', `/api/suggestions/${id}/accept`, { about, ifBroken }),
   dismissSuggestion: (id: string) => request('POST', `/api/suggestions/${id}/dismiss`, {}),
   metrics: (nodeId: string, series: string[], range: MetricRange) =>

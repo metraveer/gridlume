@@ -156,14 +156,18 @@ func (a *api) system(w http.ResponseWriter, r *http.Request) {
 	if rel, ok := a.agentRelease(); ok {
 		out["agents"] = map[string]any{"version": rel.Version, "build": rel.Build}
 	}
+	last, hasLast := upd.ReadStatus(a.dataDir)
+	// The request stays until the update finishes. While the update service reports it is working on it
+	// (a slow download can take minutes), the service is clearly not off.
+	working := hasLast && last.State == "running" && time.Since(last.At) < upd.Stuck
 	if st, err := os.Stat(upd.RequestFile(a.dataDir)); err == nil {
 		out["pending"] = true
-		out["pendingStuck"] = time.Since(st.ModTime()) > PendingTooLong
+		out["pendingStuck"] = !working && time.Since(st.ModTime()) > PendingTooLong
 	} else {
 		out["pending"] = false
 	}
-	if st, ok := upd.ReadStatus(a.dataDir); ok {
-		if shown, ok := upd.Shown(st, version.Version, time.Now()); ok {
+	if hasLast {
+		if shown, ok := upd.Shown(last, version.Version, time.Now()); ok {
 			out["last"] = shown
 		}
 	}

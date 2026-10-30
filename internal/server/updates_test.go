@@ -12,9 +12,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/metraveer/gridlume/internal/release"
 	"github.com/metraveer/gridlume/internal/store"
@@ -101,5 +103,29 @@ func TestUpdatesSeeBothChannels(t *testing.T) {
 	_ = upd.MarkInstalled(data, "0.2.0")
 	if out := systemOf(t, a); out["last"].(map[string]any)["state"] != "installed" {
 		t.Fatalf("this install must be shown: %v", out)
+	}
+}
+
+func TestSlowUpdateIsNotCalledStuck(t *testing.T) {
+	data := t.TempDir()
+	s, err := store.Open(filepath.Join(data, "gridlume.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	a := newAPI(Options{Store: s, DataDir: data, UpdatesEnabled: true}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	old := time.Now().Add(-2 * PendingTooLong)
+
+	// A request nobody picked up: the update service looks off.
+	_ = upd.WriteRequest(data, release.Edge)
+	_ = os.Chtimes(upd.RequestFile(data), old, old)
+	if out := systemOf(t, a); out["pendingStuck"] != true {
+		t.Fatalf("an untouched request must be reported: %v", out)
+	}
+	// The service is downloading slowly: the request is still there, but it is being worked on.
+	b, _ := json.Marshal(upd.Status{State: "running", From: "0.4.0-dev.19", To: "0.4.0-dev.20", At: time.Now().UTC()})
+	_ = os.WriteFile(upd.StatusFile(data), b, 0o644)
+	if out := systemOf(t, a); out["pending"] != true || out["pendingStuck"] != false {
+		t.Fatalf("a running update is not a stuck request: %v", out)
 	}
 }

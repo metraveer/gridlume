@@ -21,6 +21,7 @@ import (
 	"github.com/metraveer/gridlume/agent/docker"
 	"github.com/metraveer/gridlume/agent/link"
 	"github.com/metraveer/gridlume/agent/selfupdate"
+	"github.com/metraveer/gridlume/agent/watch"
 	"github.com/metraveer/gridlume/internal/agentproto"
 	"github.com/metraveer/gridlume/internal/version"
 )
@@ -65,6 +66,11 @@ func main() {
 			log.Error("not enrolled", "err", err)
 			os.Exit(1)
 		}
+		// Keeps an eye on the core when the owner turned that on: the alarm the core cannot send itself.
+		host, _ := os.Hostname()
+		w := watch.New(*state, c.Core, host, log)
+		link.Listener = w
+		go w.Run(ctx)
 		if err := link.Run(ctx, c, version.Version, log); err != nil {
 			log.Error("agent stopped", "err", err)
 			os.Exit(1)

@@ -155,11 +155,29 @@ export type SystemInfo = {
   }
 }
 
+/** The core's own check of a node without an agent (GET /api/checks): ping, TCP or HTTP. */
+export type CheckResult = {
+  nodeId: string
+  kind: 'ping' | 'tcp' | 'http'
+  target: string
+  ok: boolean
+  fails: number // failed in a row (tcp, http)
+  rtt: number // ms
+  loss?: number // ping: % lost in the last minute
+  sent?: number // ping: pings in that minute
+  status?: number
+  certUntil?: number // unix seconds
+  error?: string
+  at: number // unix ms; 0 = not checked yet
+}
+
 /** Something wrong the core noticed (GET /api/problems). Times are unix milliseconds. */
 export type Problem = {
   id: string
   key: string
-  kind: 'agent_offline' | 'container_down' | 'container_restarting' | 'container_unhealthy' | 'disk_full' | 'mem_high' | 'temp_high' | 'link_loss' | 'link_down'
+  kind:
+    | 'agent_offline' | 'container_down' | 'container_restarting' | 'container_unhealthy' | 'disk_full' | 'mem_high' | 'temp_high'
+    | 'link_loss' | 'link_down' | 'node_loss' | 'node_unreachable' | 'port_down' | 'site_down' | 'cert_expiring'
   severity: 'warn' | 'crit'
   nodeId?: string
   linkId?: string

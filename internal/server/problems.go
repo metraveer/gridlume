@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/metraveer/gridlume/internal/agentlink"
+	"github.com/metraveer/gridlume/internal/checks"
 	"github.com/metraveer/gridlume/internal/problems"
 )
 
@@ -17,10 +18,17 @@ var (
 
 func (a *api) problemRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/problems", a.authed(a.listProblems))
+	mux.HandleFunc("GET /api/checks", a.authed(a.listChecks))
+}
+
+// listChecks: the latest result of every check the core runs, by node.
+func (a *api) listChecks(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, a.checks.Results())
 }
 
 // watchProblems runs the problem engine until ctx ends.
 func (a *api) watchProblems(ctx context.Context) {
+	go a.checks.Run(ctx)
 	t := time.NewTicker(ProblemsEvery)
 	defer t.Stop()
 	lastPrune := time.Time{}
@@ -50,7 +58,13 @@ func (a *api) checkProblems(ctx context.Context, now time.Time) problems.Change 
 		a.log.Warn("problems: agents", "err", err)
 		return problems.Change{}
 	}
-	in := problems.Input{Map: m, Agents: st, Snaps: a.hub.Snapshots(), Now: now}
+	// What the core checks itself follows the map: nodes with an address and no agent.
+	withAgent := map[string]bool{}
+	for _, s := range st {
+		withAgent[s.NodeID] = true
+	}
+	a.checks.SetTargets(checks.Targets(m, withAgent))
+	in := problems.Input{Map: m, Agents: st, Snaps: a.hub.Snapshots(), Checks: a.checks.Results(), Now: now}
 	ch, err := a.problems.Step(ctx, problems.Detect(in), problems.HeldIn(in), now)
 	if err != nil {
 		a.log.Warn("problems: step", "err", err)

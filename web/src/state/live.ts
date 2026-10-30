@@ -1,13 +1,15 @@
 import { create } from 'zustand'
 import { api } from '../api/client'
-import type { Agent, Container, LiveEvent, MapNode, NodeState, Snapshot } from '../api/types'
+import type { Agent, CheckResult, Container, LiveEvent, MapNode, NodeState, Snapshot } from '../api/types'
 import { useApp } from './app'
 import { useProblems } from './problems'
 
 type Live = {
   agents: Record<string, Agent> // by node id
   snaps: Record<string, Snapshot> // by node id, only while connected
+  checks: Record<string, CheckResult> // the core's own checks of nodes without an agent, by node id
   load: () => Promise<void>
+  loadChecks: () => Promise<void>
   apply: (e: LiveEvent) => void
   unlink: (agent: Agent) => Promise<void>
 }
@@ -19,6 +21,9 @@ type Live = {
 export const useLive = create<Live>((set) => ({
   agents: {},
   snaps: {},
+  checks: {},
+
+  loadChecks: async () => set({ checks: await api.checks() }),
 
   load: async () => {
     const list = await api.agents()
@@ -74,8 +79,11 @@ export function startLive() {
   // (Re)connected: catch up on what happened while the stream was down.
   es.onopen = () => {
     void load().catch(() => undefined)
+    void useLive.getState().loadChecks().catch(() => undefined)
     void useProblems.getState().load().catch(() => undefined)
   }
+  // Checks run every 10 s to a minute in the core; asking every 15 s keeps the map current enough.
+  const timer = window.setInterval(() => void useLive.getState().loadChecks().catch(() => undefined), 15_000)
   es.onmessage = (m) => {
     try {
       apply(JSON.parse(m.data) as LiveEvent)
@@ -83,7 +91,10 @@ export function startLive() {
       // a malformed message is dropped; the next snapshot replaces it anyway
     }
   }
-  return () => es.close()
+  return () => {
+    es.close()
+    window.clearInterval(timer)
+  }
 }
 
 /** The key the core gives a container's node; the same rule as store.ContainerKey. */
@@ -107,12 +118,27 @@ export function containerState(c: Container): NodeState {
   return 'unknown'
 }
 
-/** State shown for a node: live from its agent or container if there is one, otherwise what the user set. */
-export function liveState(node: MapNode, agent: Agent | undefined, container?: Container | null): NodeState {
+/**
+ * State shown for a node: live from its agent, its container or the core's check if there is one,
+ * otherwise what the user set.
+ */
+export function liveState(node: MapNode, agent: Agent | undefined, container?: Container | null, check?: CheckResult): NodeState {
   if (container) return containerState(container)
   if (container === null) return 'unknown' // the container is gone
-  if (!agent) return node.state
-  return agent.online ? 'ok' : 'crit'
+  if (agent) return agent.online ? 'ok' : 'crit'
+  if (check && check.at && node.state !== 'planned') return checkState(check)
+  return node.state
+}
+
+/** The same thresholds as the core's problems: a few failures in a row, half the pings, 14 days of certificate. */
+export function checkState(c: CheckResult): NodeState {
+  if (c.kind === 'ping') {
+    if (c.error || !c.sent) return 'unknown'
+    return (c.loss ?? 0) >= 50 ? 'crit' : (c.loss ?? 0) > 0 ? 'warn' : 'ok'
+  }
+  if (!c.ok) return c.fails >= (c.kind === 'tcp' ? 3 : 2) ? 'crit' : 'warn'
+  if (c.certUntil && c.certUntil * 1000 - Date.now() < 14 * 86400_000) return 'warn'
+  return 'ok'
 }
 
 /** The node's agent, snapshot, container and state, re-rendering only when they change. */
@@ -120,6 +146,7 @@ export function useNodeLive(node: MapNode) {
   const agent = useLive((s) => s.agents[node.id])
   const snap = useLive((s) => s.snaps[node.id])
   const parentSnap = useLive((s) => (node.parentId ? s.snaps[node.parentId] : undefined))
+  const check = useLive((s) => s.checks[node.id])
   const container = findContainer(node, parentSnap)
-  return { agent, snap, container, state: liveState(node, agent, container) }
+  return { agent, snap, container, check, state: liveState(node, agent, container, check) }
 }

@@ -19,6 +19,7 @@ function Shape({ id, x, y, width, height, named }: Box & { named: boolean }) {
   const selected = useApp((st) => st.selection?.id === id || (place && st.selection?.id === place.id))
   const agent = useLive((st) => st.agents[id])
   const parentSnap = useLive((st) => (node?.parentId ? st.snaps[node.parentId] : undefined))
+  const check = useLive((st) => st.checks[id])
   if (place) {
     const tone = TONE[place.tone] ?? TONE.gray
     return (
@@ -29,7 +30,7 @@ function Shape({ id, x, y, width, height, named }: Box & { named: boolean }) {
     )
   }
   if (!node) return null
-  const state = liveState(node, agent, findContainer(node, parentSnap))
+  const state = liveState(node, agent, findContainer(node, parentSnap), check)
   const name = node.name.length > 16 ? node.name.slice(0, 15) + '…' : node.name
   return (
     <g>

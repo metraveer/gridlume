@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Link, MapNode, Place } from '../api/types'
+import type { CheckResult, Link, MapNode, Place } from '../api/types'
 import { Button, Dialog, Icon, IconButton, KV, Section, StateBadge, type Risk } from '../design'
 import { useApp } from '../state/app'
 import { useLive, useNodeLive } from '../state/live'
@@ -8,7 +8,7 @@ import { usePrefs } from '../state/prefs'
 import { AgentSection, HistorySection, LiveSection, unlinkAgent } from './AgentPanel'
 import { ContainerSection, DockerSummary, SuggestionsSection } from './DockerPanel'
 import { speed } from './flow'
-import { percent, rate } from './format'
+import { ago, daysUntil, percent, rate } from './format'
 import { canContain, dependents, LINK_META, NODE_META, requirements } from './model'
 import { latencyLabel, useLinkPing, useLinkTraffic } from './traffic'
 import s from './Inspector.module.css'
@@ -72,7 +72,7 @@ function NodePanel({ node }: { node: MapNode }) {
   const [confirm, setConfirm] = useState(false)
   useAskedDelete('node', node.id, () => setConfirm(true))
   const [confirmUnlink, setConfirmUnlink] = useState(false)
-  const { agent, snap, container, state } = useNodeLive(node)
+  const { agent, snap, container, check, state } = useNodeLive(node)
   const isCore = useApp((st) => !!st.system?.coreNode && st.system.coreNode === node.id)
   // Keep the draft in step when another node is selected.
   const [shownId, setShownId] = useState(node.id)
@@ -111,6 +111,7 @@ function NodePanel({ node }: { node: MapNode }) {
         )}
       </div>
 
+      {check && <CheckSection c={check} />}
       {container !== undefined && <ContainerSection c={container} />}
       {snap && <LiveSection snap={snap} />}
       {snap && <DockerSummary snap={snap} />}
@@ -270,6 +271,39 @@ function LinkPanel({ link }: { link: Link }) {
         />
       )}
     </>
+  )
+}
+
+/** The core's own check of a node without an agent: how, whether it answers, and the certificate. */
+function CheckSection({ c }: { c: CheckResult }) {
+  const { t, i18n } = useTranslation()
+  const how = c.kind === 'http' ? `${c.target.startsWith('https') ? 'HTTPS' : 'HTTP'} ${c.target}` : `${c.kind === 'ping' ? 'ping' : 'TCP'} ${c.target}`
+  const rows: [string, React.ReactNode][] = [[t('chk.how'), <span className="mono">{how}</span>]]
+  if (!c.at) {
+    rows.push([t('chk.answers'), <span className={s.muted}>{t('chk.waiting')}</span>])
+  } else if (c.kind === 'ping') {
+    if (c.error) rows.push([t('chk.answers'), t(`insp.ping.err.${c.error}`, { host: c.target })])
+    else {
+      rows.push([t('chk.answers'), (c.loss ?? 0) >= 100 ? <span className={s.warnText}>{t('chk.no')}</span> : <span className="mono">{t('chk.yes', { ms: c.rtt >= 10 ? Math.round(c.rtt) : +c.rtt.toFixed(1) })}</span>])
+      rows.push([t('insp.ping.loss'), <span className={`mono ${(c.loss ?? 0) > 0 ? s.warnText : ''}`}>{percent(c.loss ?? 0)}</span>])
+    }
+  } else {
+    rows.push([
+      t('chk.answers'),
+      c.ok ? <span className="mono">{t('chk.yes', { ms: Math.round(c.rtt) })}</span> : <span className={s.warnText}>{t('chk.noWhy', { why: c.error ?? '' })}</span>,
+    ])
+    if (c.status) rows.push([t('chk.status'), <span className="mono">{c.status}</span>])
+  }
+  if (c.certUntil) {
+    const days = daysUntil(c.certUntil)
+    const date = new Date(c.certUntil * 1000).toLocaleDateString(i18n.language, { day: 'numeric', month: 'long', year: 'numeric' })
+    rows.push([t('chk.cert'), <span className={days <= 14 ? s.warnText : ''}>{days < 0 ? t('chk.cert.expired', { date }) : t('chk.cert.until', { date, count: days })}</span>])
+  }
+  if (c.at) rows.push([t('chk.checked'), ago(t, c.at / 1000)])
+  return (
+    <Section title={t('chk.title')} help={t('chk.help')}>
+      <KV rows={rows} />
+    </Section>
   )
 }
 

@@ -31,6 +31,7 @@ export function NodesPage() {
   const map = useApp((st) => st.map)
   const agents = useLive((st) => st.agents)
   const snaps = useLive((st) => st.snaps)
+  const checks = useLive((st) => st.checks)
   const [q, setQ] = useState('')
   const name = (id: string | null) => map.nodes.find((n) => n.id === id)?.name
   const place = (id: string | null) => map.places.find((p) => p.id === id)?.name
@@ -74,7 +75,7 @@ export function NodesPage() {
                 <td>{t(`kind.${n.kind}`)}</td>
                 <td className="mono">{n.address || '—'}</td>
                 <td>{n.parentId ? name(n.parentId) : (place(n.placeId) ?? '—')}</td>
-                <td><StateBadge state={liveState(n, agents[n.id], findContainer(n, n.parentId ? snaps[n.parentId] : undefined))} /></td>
+                <td><StateBadge state={liveState(n, agents[n.id], findContainer(n, n.parentId ? snaps[n.parentId] : undefined), checks[n.id])} /></td>
                 <td className={s.num}>{linkCount(n.id)}</td>
               </tr>
             ))}

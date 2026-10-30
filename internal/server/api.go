@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/metraveer/gridlume/internal/agentlink"
+	"github.com/metraveer/gridlume/internal/checks"
 	"github.com/metraveer/gridlume/internal/problems"
 	"github.com/metraveer/gridlume/internal/release"
 	"github.com/metraveer/gridlume/internal/store"
@@ -26,6 +27,7 @@ type api struct {
 	limit          *limiter
 	log            *slog.Logger
 	problems       *problems.Engine
+	checks         *checks.Runner
 }
 
 func newAPI(opts Options, log *slog.Logger) *api {
@@ -34,7 +36,7 @@ func newAPI(opts Options, log *slog.Logger) *api {
 		hub = agentlink.New(opts.Store, log)
 	}
 	a := &api{store: opts.Store, hub: hub, agentsDir: opts.AgentsDir, gate: &setupGate{code: opts.SetupCode}, setupDone: opts.SetupDone,
-		limit: newLimiter(10, time.Minute), log: log, problems: problems.NewEngine(opts.Store),
+		limit: newLimiter(10, time.Minute), log: log, problems: problems.NewEngine(opts.Store), checks: checks.New(),
 		dataDir: opts.DataDir, updatesEnabled: opts.UpdatesEnabled, upd: &updates{client: release.Default()}}
 	hub.AutoUpdate = a.autoAgentUpdate
 	hub.Probes = a.probesFor

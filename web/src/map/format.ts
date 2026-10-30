@@ -47,6 +47,11 @@ export function ago(t: TFunction, unixSec: number, now = Date.now()) {
   return t('time.dAgo', { n: Math.floor(s / 86400) })
 }
 
+/** Whole days from now to a moment (unix seconds); negative once it has passed. */
+export function daysUntil(unixSec: number, now = Date.now()) {
+  return Math.floor((unixSec * 1000 - now) / 86400_000)
+}
+
 /** Short line for the node card: "CPU 12% · RAM 43%". */
 export function cardLine(s: Snapshot) {
   const mem = s.memTotal ? (100 * s.memUsed) / s.memTotal : 0

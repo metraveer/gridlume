@@ -1,6 +1,6 @@
-import type { Agent, Container, MapNode, Snapshot } from '../api/types'
+import type { Agent, CheckResult, Container, MapNode, Snapshot } from '../api/types'
 import { useApp } from './app'
-import { liveState, useLive } from './live'
+import { checkState, liveState, useLive } from './live'
 
 const node: MapNode = { id: 'n1', parentId: null, placeId: null, kind: 'server', name: 'calibur', subtitle: '', address: '', state: 'unknown', notes: '', x: 0, y: 0, source: '' }
 const agent: Agent = { id: 'a1', nodeId: 'n1', hostname: 'calibur', os: '', kernel: '', arch: 'amd64', version: '', mode: 'user', lastSeen: 0, online: true }
@@ -52,4 +52,28 @@ it('follows a container node to its live container', async () => {
   expect(findContainer(ct, { docker: { containers: [] } } as unknown as Snapshot)).toBeNull() // gone
   expect(findContainer(ct, undefined)).toBeUndefined() // no data now
   expect(findContainer(node, parent)).toBeUndefined() // drawn by hand: not a container
+})
+
+const base: CheckResult = { nodeId: 'n', kind: 'http', target: 'https://example.org/', ok: true, fails: 0, rtt: 120, at: 1 }
+const site: MapNode = { id: 'n', parentId: null, placeId: null, kind: 'service', name: 'site', subtitle: '', address: 'https://example.org/', state: 'unknown', notes: '', x: 0, y: 0, source: '' }
+
+describe('checkState', () => {
+  it('follows the same thresholds as the core', () => {
+    expect(checkState(base)).toBe('ok')
+    expect(checkState({ ...base, ok: false, fails: 1 })).toBe('warn') // one failure: not down yet
+    expect(checkState({ ...base, ok: false, fails: 2 })).toBe('crit')
+    expect(checkState({ ...base, kind: 'tcp', ok: false, fails: 2 })).toBe('warn')
+    expect(checkState({ ...base, kind: 'tcp', ok: false, fails: 3 })).toBe('crit')
+    expect(checkState({ ...base, certUntil: Math.floor(Date.now() / 1000) + 5 * 86400 })).toBe('warn')
+    expect(checkState({ ...base, kind: 'ping', sent: 6, loss: 0 })).toBe('ok')
+    expect(checkState({ ...base, kind: 'ping', sent: 6, loss: 17 })).toBe('warn')
+    expect(checkState({ ...base, kind: 'ping', sent: 6, loss: 100 })).toBe('crit')
+    expect(checkState({ ...base, kind: 'ping', sent: 0, error: 'no_icmp' })).toBe('unknown')
+  })
+
+  it('gives a node without an agent its live state, but not before the first check or when planned', () => {
+    expect(liveState(site, undefined, undefined, { ...base, ok: false, fails: 3 })).toBe('crit')
+    expect(liveState(site, undefined, undefined, { ...base, at: 0 })).toBe('unknown')
+    expect(liveState({ ...site, state: 'planned' }, undefined, undefined, base)).toBe('planned')
+  })
 })

@@ -1,4 +1,4 @@
-import type { Agent, AgentMode, Channel, CheckResult, Link, MapData, MapNode, MetricPoint, MetricRange, Place, Problem, SessionInfo, Snapshot, Suggestion, SystemInfo, User } from './types'
+import type { Agent, AgentMode, Channel, CheckResult, Link, MapData, MapNode, MetricPoint, MetricRange, NotifyRules, NotifyState, Place, Problem, SessionInfo, Snapshot, Suggestion, SystemInfo, User } from './types'
 
 /** An error answer from the core, e.g. { error: "validation", field: "name", code: "required" }. */
 export class ApiError extends Error {
@@ -79,6 +79,11 @@ export const api = {
   suggestions: () => request<Suggestion[]>('GET', '/api/suggestions'),
   problems: () => request<{ open: Problem[]; ended: Problem[] }>('GET', '/api/problems'),
   checks: () => request<Record<string, CheckResult>>('GET', '/api/checks'),
+  notify: () => request<NotifyState>('GET', '/api/notify'),
+  connectTelegram: (token: string) => request<NotifyState>('POST', '/api/notify/telegram', { token }),
+  disconnectTelegram: () => request<NotifyState>('DELETE', '/api/notify/telegram'),
+  testTelegram: () => request<NotifyState>('POST', '/api/notify/test', {}),
+  saveNotifyRules: (rules: NotifyRules) => request<NotifyState>('PUT', '/api/notify/rules', rules),
   acceptSuggestion: (id: string, about: string, ifBroken: string) => request<Link>('POST', `/api/suggestions/${id}/accept`, { about, ifBroken }),
   dismissSuggestion: (id: string) => request('POST', `/api/suggestions/${id}/dismiss`, {}),
   metrics: (nodeId: string, series: string[], range: MetricRange) =>

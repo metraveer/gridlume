@@ -79,6 +79,7 @@ func (a *api) checkProblems(ctx context.Context, now time.Time) problems.Change 
 	if ch.Any() {
 		a.hub.Publish(agentlink.Event{Problems: true})
 	}
+	a.notify.Changed(ctx, ch, m)
 	return ch
 }
 

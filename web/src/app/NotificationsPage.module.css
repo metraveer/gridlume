@@ -1,0 +1,15 @@
+.page { display: grid; gap: var(--s-6); align-content: start; max-width: 720px; margin: 0 auto; padding: var(--s-8) var(--s-6); }
+.title { margin: 0; font-size: var(--fs-18); font-weight: 600; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.head h2 { margin: 0; font-size: var(--fs-15); font-weight: 600; }
+.text { margin: 0; font-size: var(--fs-13); line-height: 1.5; }
+.text a { color: var(--lume); }
+.steps { display: grid; gap: var(--s-2); margin: 0; padding-left: 1.3em; color: var(--fg-muted); font-size: var(--fs-13); line-height: 1.5; }
+.connect { display: flex; gap: var(--s-2); }
+.connect input { flex: 1; min-width: 0; }
+.actions { display: flex; gap: var(--s-2); }
+.quiet { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
+.times { display: flex; align-items: center; gap: var(--s-2); color: var(--fg-faint); }
+.times input { width: 128px; }
+.lang { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); color: var(--fg-muted); font-size: var(--fs-13); }
+.lang select { width: 160px; }

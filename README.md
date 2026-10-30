@@ -108,8 +108,8 @@ Design decisions and their reasons are in [`docs/decisions.md`](docs/decisions.m
 | Signed releases, updates from the panel | ✅ done |
 | Problems: the core finds what is wrong (machine offline, container down, disk full, packet loss…), one line per cause | ✅ done |
 | Checks by the core for nodes without an agent: ping, TCP, HTTP, certificate expiry | ✅ done |
-| Notifications in Telegram | next |
-| Understanding: "what breaks if…", change journal, history | planned |
+| Notifications in Telegram: rules, quiet hours, "solved" messages | ✅ done |
+| Understanding: "what breaks if…", change journal, history | next |
 | Actions: logs, terminal, container control with confirmation and undo | planned |
 | Integrations: password vault, Keenetic, Timeweb Cloud, UPS (NUT), backups | planned |
 | 1.0: HTTPS, 2FA, Docker image, full documentation | planned |

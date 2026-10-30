@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -134,6 +135,31 @@ func TestLinkSwapAndClearSpeed(t *testing.T) {
 	}
 	if l.FromID != b.ID || l.ToID != a.ID || l.SpeedMbit != nil {
 		t.Fatalf("link = %+v", l)
+	}
+}
+
+func TestLinkInterface(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	a, _ := s.CreateNode(ctx, Node{Kind: "router", Name: "a"})
+	b, _ := s.CreateNode(ctx, Node{Kind: "server", Name: "b"})
+	l, err := s.CreateLink(ctx, Link{FromID: a.ID, ToID: b.ID, Kind: "lan", Iface: " enp4s0f1 "})
+	if err != nil || l.Iface != " enp4s0f1 " {
+		t.Fatalf("create: %+v %v", l, err)
+	}
+	m, _ := s.GetMap(ctx)
+	if m.Links[0].Iface != "enp4s0f1" {
+		t.Fatalf("stored trimmed: %q", m.Links[0].Iface)
+	}
+	// Other fields change, the interface stays; "" goes back to the default route.
+	if l, _ = s.UpdateLink(ctx, l.ID, LinkPatch{About: ptr("Кабель")}); l.Iface != "enp4s0f1" {
+		t.Fatalf("kept: %q", l.Iface)
+	}
+	if l, _ = s.UpdateLink(ctx, l.ID, LinkPatch{Iface: ptr("")}); l.Iface != "" {
+		t.Fatalf("cleared: %q", l.Iface)
+	}
+	if _, err := s.UpdateLink(ctx, l.ID, LinkPatch{Iface: ptr(strings.Repeat("x", 41))}); err == nil {
+		t.Fatal("an interface name longer than 40 characters must be refused")
 	}
 }
 

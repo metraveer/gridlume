@@ -4,8 +4,9 @@ import { ApiError } from '../api/client'
 import { LINK_KINDS, NODE_KINDS, PLACE_TONES, type Link, type MapNode, type Place } from '../api/types'
 import { Button, Dialog } from '../design'
 import { useApp } from '../state/app'
+import { useLive } from '../state/live'
 import { AgentDialog } from './AgentDialog'
-import { canContain } from './model'
+import { canContain, LINK_META } from './model'
 import s from './EditDialogs.module.css'
 
 type Setter<T> = <K extends keyof T>(k: K, v: T[K]) => void
@@ -162,6 +163,7 @@ function LinkDialog({ initial, close }: { initial: Partial<Link>; close: () => v
             <input className={`${s.input} mono`} type="number" min={0} value={l.speedMbit ?? ''} onChange={(e) => setL('speedMbit', e.target.value ? Number(e.target.value) : null)} placeholder="700" />
           </Row>
         </div>
+        {l.kind && LINK_META[l.kind].traffic && <IfaceRow fromId={l.fromId} toId={l.toId} value={l.iface ?? ''} onChange={(v) => setL('iface', v)} />}
         <Row label={t('f.about')} hint={t('f.about.hint')}>
           <textarea className={s.input} rows={3} value={l.about ?? ''} onFocus={suggest} onChange={(e) => setL('about', e.target.value)} />
         </Row>
@@ -175,6 +177,26 @@ function LinkDialog({ initial, close }: { initial: Partial<Link>; close: () => v
         {error && <p className={s.error} role="alert">{error}</p>}
       </div>
     </Dialog>
+  )
+}
+
+/** Which interface's counters are the link's traffic: shown only when a machine at either end has an agent. */
+function IfaceRow({ fromId, toId, value, onChange }: { fromId?: string; toId?: string; value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation()
+  const from = useLive((st) => (fromId ? st.snaps[fromId] : undefined))
+  const to = useLive((st) => (toId ? st.snaps[toId] : undefined))
+  const nets = [...(from?.net ?? []), ...(to?.net ?? [])]
+  if (!nets.length && !value) return null
+  const names = [...new Set(nets.map((i) => i.name))]
+  if (value && !names.includes(value)) names.push(value)
+  const auto = (from?.net ?? []).find((i) => i.default) ?? (to?.net ?? []).find((i) => i.default)
+  return (
+    <Row label={t('f.iface')} hint={t('f.iface.hint')}>
+      <select className={`${s.input} mono`} value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{auto ? t('f.iface.auto', { iface: auto.name }) : t('f.iface.autoNone')}</option>
+        {names.map((n) => <option key={n} value={n}>{n}</option>)}
+      </select>
+    </Row>
   )
 }
 

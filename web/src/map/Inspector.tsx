@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next'
 import type { Link, MapNode, Place } from '../api/types'
 import { Button, Dialog, Icon, IconButton, KV, Section, StateBadge, type Risk } from '../design'
 import { useApp } from '../state/app'
-import { useNodeLive } from '../state/live'
+import { useLive, useNodeLive } from '../state/live'
 import { usePrefs } from '../state/prefs'
 import { AgentSection, HistorySection, LiveSection, unlinkAgent } from './AgentPanel'
 import { ContainerSection, DockerSummary, SuggestionsSection } from './DockerPanel'
 import { speed } from './flow'
-import { canContain, dependents, NODE_META, requirements } from './model'
+import { percent, rate } from './format'
+import { canContain, dependents, LINK_META, NODE_META, requirements } from './model'
+import { useLinkTraffic } from './traffic'
 import s from './Inspector.module.css'
 
 /** Delete with a confirmation. Danger (something else breaks) asks to type the name. */
@@ -245,6 +247,7 @@ function LinkPanel({ link }: { link: Link }) {
           ]}
         />
       </Section>
+      {LINK_META[link.kind].traffic && !link.planned && <TrafficSection link={link} name={name} />}
 
       {!viewer && (
         <div className={s.actions}>
@@ -267,6 +270,41 @@ function LinkPanel({ link }: { link: Link }) {
         />
       )}
     </>
+  )
+}
+
+/** Live traffic of a network link: both directions, what it should carry, and whose counters these are. */
+function TrafficSection({ link, name }: { link: Link; name: (id: string) => string }) {
+  const { t } = useTranslation()
+  const tr = useLinkTraffic(link)
+  const hasAgent = useLive((st) => !!st.snaps[link.fromId] || !!st.snaps[link.toId])
+  if (!tr) {
+    return (
+      <Section title={t('insp.traffic')} help={t('insp.traffic.help')}>
+        <p className={s.muted}>{link.iface && hasAgent ? t('insp.traffic.noIface', { iface: link.iface }) : t('insp.traffic.none')}</p>
+      </Section>
+    )
+  }
+  const should = [link.speedMbit ? t('insp.traffic.contract', { speed: speed(link.speedMbit, t) }) : '', tr.portMbit ? t('insp.traffic.port', { speed: speed(tr.portMbit, t) }) : '']
+    .filter(Boolean)
+    .join(' · ')
+  return (
+    <Section title={t('insp.traffic')} help={t('insp.traffic.help')}>
+      <KV
+        rows={[
+          [t('insp.traffic.dir', { from: name(link.fromId), to: name(link.toId) }), <span className="mono">{rate(t, tr.fwd)}</span>],
+          [t('insp.traffic.dir', { from: name(link.toId), to: name(link.fromId) }), <span className="mono">{rate(t, tr.back)}</span>],
+          [t('insp.traffic.should'), should || '—'],
+          ...(tr.capacityMbit ? [[t('insp.traffic.load'), <span className={`mono ${tr.load >= 80 ? s.warnText : ''}`}>{percent(tr.load)}</span>] as [string, React.ReactNode]] : []),
+          [
+            t('insp.traffic.source'),
+            <span data-tip={tr.auto ? t('insp.traffic.auto') : undefined}>
+              {t('insp.traffic.on', { iface: tr.iface, node: name(tr.side === 'from' ? link.fromId : link.toId) })}
+            </span>,
+          ],
+        ]}
+      />
+    </Section>
   )
 }
 

@@ -126,9 +126,11 @@ type Disk struct {
 }
 
 type Iface struct {
-	Name string  `json:"name"`
-	Rx   float64 `json:"rx"` // bytes per second since the previous snapshot
-	Tx   float64 `json:"tx"`
+	Name    string  `json:"name"`
+	Rx      float64 `json:"rx"` // bytes per second since the previous snapshot
+	Tx      float64 `json:"tx"`
+	Default bool    `json:"default,omitempty"` // carries the default route: the way out of the machine
+	Speed   int     `json:"speed,omitempty"`   // link speed the cards agreed on, Mbit/s; 0 = unknown (Wi-Fi, virtual)
 }
 
 type Temp struct {

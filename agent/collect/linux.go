@@ -102,8 +102,13 @@ func (c *Collector) Snapshot() agentproto.Snapshot {
 		}
 	}
 	sort.Strings(names)
+	def := defaultIface(read("/proc/net/route"))
 	for _, n := range names {
-		i := agentproto.Iface{Name: n}
+		i := agentproto.Iface{Name: n, Default: n == def}
+		// -1 or nothing for Wi-Fi, a cable that is out, or a virtual interface.
+		if sp, err := strconv.Atoi(strings.TrimSpace(read("/sys/class/net/" + n + "/speed"))); err == nil && sp > 0 {
+			i.Speed = sp
+		}
 		if p, ok := c.prevNet[n]; ok && secs > 0 && net[n][0] >= p[0] && net[n][1] >= p[1] {
 			i.Rx = float64(net[n][0]-p[0]) / secs
 			i.Tx = float64(net[n][1]-p[1]) / secs

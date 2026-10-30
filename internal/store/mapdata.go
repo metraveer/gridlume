@@ -67,6 +67,7 @@ type Link struct {
 	IfBroken  string   `json:"ifBroken"`
 	SpeedMbit *float64 `json:"speedMbit"`
 	Planned   bool     `json:"planned"`
+	Iface     string   `json:"iface"` // network interface whose counters are the live traffic; "" = default route
 }
 
 // Map is everything needed to draw the map.
@@ -107,14 +108,14 @@ func (s *Store) GetMap(ctx context.Context) (Map, error) {
 	}
 	rows.Close()
 
-	rows, err = s.db.QueryContext(ctx, `SELECT id, from_id, to_id, kind, proto, about, if_broken, speed_mbit, planned FROM links ORDER BY created_at`)
+	rows, err = s.db.QueryContext(ctx, `SELECT id, from_id, to_id, kind, proto, about, if_broken, speed_mbit, planned, iface FROM links ORDER BY created_at`)
 	if err != nil {
 		return m, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var l Link
-		if err := rows.Scan(&l.ID, &l.FromID, &l.ToID, &l.Kind, &l.Proto, &l.About, &l.IfBroken, &l.SpeedMbit, &l.Planned); err != nil {
+		if err := rows.Scan(&l.ID, &l.FromID, &l.ToID, &l.Kind, &l.Proto, &l.About, &l.IfBroken, &l.SpeedMbit, &l.Planned, &l.Iface); err != nil {
 			return m, err
 		}
 		m.Links = append(m.Links, l)
@@ -370,6 +371,9 @@ func (s *Store) validateLink(ctx context.Context, l *Link) error {
 	if err := checkText("ifBroken", l.IfBroken, 1000, false); err != nil {
 		return err
 	}
+	if err := checkText("iface", l.Iface, 40, false); err != nil {
+		return err
+	}
 	if l.SpeedMbit != nil && (*l.SpeedMbit <= 0 || *l.SpeedMbit > 1_000_000) {
 		return invalid("speedMbit", "invalid")
 	}
@@ -382,8 +386,8 @@ func (s *Store) CreateLink(ctx context.Context, l Link) (Link, error) {
 		return l, err
 	}
 	l.ID = NewID()
-	_, err := s.db.ExecContext(ctx, `INSERT INTO links (id, from_id, to_id, kind, proto, about, if_broken, speed_mbit, planned, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		l.ID, l.FromID, l.ToID, l.Kind, strings.TrimSpace(l.Proto), strings.TrimSpace(l.About), strings.TrimSpace(l.IfBroken), l.SpeedMbit, l.Planned, s.now().UnixMilli())
+	_, err := s.db.ExecContext(ctx, `INSERT INTO links (id, from_id, to_id, kind, proto, about, if_broken, speed_mbit, planned, iface, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		l.ID, l.FromID, l.ToID, l.Kind, strings.TrimSpace(l.Proto), strings.TrimSpace(l.About), strings.TrimSpace(l.IfBroken), l.SpeedMbit, l.Planned, strings.TrimSpace(l.Iface), s.now().UnixMilli())
 	return l, err
 }
 
@@ -395,6 +399,7 @@ type LinkPatch struct {
 	IfBroken  *string  `json:"ifBroken"`
 	SpeedMbit *float64 `json:"speedMbit"`
 	Planned   *bool    `json:"planned"`
+	Iface     *string  `json:"iface"`
 	// Swap reverses the direction.
 	Swap bool `json:"swap"`
 }
@@ -402,8 +407,8 @@ type LinkPatch struct {
 // UpdateLink applies a patch and returns the result.
 func (s *Store) UpdateLink(ctx context.Context, id string, patch LinkPatch) (Link, error) {
 	var l Link
-	err := s.db.QueryRowContext(ctx, `SELECT id, from_id, to_id, kind, proto, about, if_broken, speed_mbit, planned FROM links WHERE id = ?`, id).
-		Scan(&l.ID, &l.FromID, &l.ToID, &l.Kind, &l.Proto, &l.About, &l.IfBroken, &l.SpeedMbit, &l.Planned)
+	err := s.db.QueryRowContext(ctx, `SELECT id, from_id, to_id, kind, proto, about, if_broken, speed_mbit, planned, iface FROM links WHERE id = ?`, id).
+		Scan(&l.ID, &l.FromID, &l.ToID, &l.Kind, &l.Proto, &l.About, &l.IfBroken, &l.SpeedMbit, &l.Planned, &l.Iface)
 	if errors.Is(err, sql.ErrNoRows) {
 		return l, ErrNotFound
 	} else if err != nil {
@@ -414,6 +419,7 @@ func (s *Store) UpdateLink(ctx context.Context, id string, patch LinkPatch) (Lin
 	set(&l.About, patch.About)
 	set(&l.IfBroken, patch.IfBroken)
 	set(&l.Planned, patch.Planned)
+	set(&l.Iface, patch.Iface)
 	if patch.SpeedMbit != nil {
 		if *patch.SpeedMbit == 0 {
 			l.SpeedMbit = nil // 0 clears the speed
@@ -427,8 +433,8 @@ func (s *Store) UpdateLink(ctx context.Context, id string, patch LinkPatch) (Lin
 	if err := s.validateLink(ctx, &l); err != nil {
 		return l, err
 	}
-	_, err = s.db.ExecContext(ctx, `UPDATE links SET from_id = ?, to_id = ?, kind = ?, proto = ?, about = ?, if_broken = ?, speed_mbit = ?, planned = ? WHERE id = ?`,
-		l.FromID, l.ToID, l.Kind, strings.TrimSpace(l.Proto), strings.TrimSpace(l.About), strings.TrimSpace(l.IfBroken), l.SpeedMbit, l.Planned, id)
+	_, err = s.db.ExecContext(ctx, `UPDATE links SET from_id = ?, to_id = ?, kind = ?, proto = ?, about = ?, if_broken = ?, speed_mbit = ?, planned = ?, iface = ? WHERE id = ?`,
+		l.FromID, l.ToID, l.Kind, strings.TrimSpace(l.Proto), strings.TrimSpace(l.About), strings.TrimSpace(l.IfBroken), l.SpeedMbit, l.Planned, strings.TrimSpace(l.Iface), id)
 	return l, err
 }
 

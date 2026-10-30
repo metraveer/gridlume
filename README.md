@@ -31,7 +31,7 @@ interface in English and Russian.
 ## What works today
 
 - **The map.** Areas (home, office, cloud), nodes of 15 kinds (router, server, VPS, container, domain, UPS…),
-  typed links with speeds and a note on what breaks if a link is down. Open any machine to see what is
+  typed links with speeds and a note on what breaks if a link is down. Network links show live traffic: `312 / 700 Mbit`, dots running in the direction of the data, amber above 80%. Open any machine to see what is
   inside it; breadcrumbs, search, a minimap, right-click menus.
 - **Agents.** A small program on each Linux machine (amd64 and arm64) reports CPU, memory, disks, network
   and temperature, with history. It connects out to the core, so no ports need to be opened on the machine.
@@ -104,7 +104,7 @@ Design decisions and their reasons are in [`docs/decisions.md`](docs/decisions.m
 | Stage | Status |
 |---|---|
 | Map: areas, nodes, links, levels | ✅ done |
-| Agent, live data, Docker | ✅ done; live traffic on links in progress |
+| Agent, live data, Docker | ✅ done; latency and packet loss on links in progress |
 | Signed releases, updates from the panel | ✅ done |
 | Problems and notifications: checks, one message per cause, Telegram | next |
 | Understanding: "what breaks if…", change journal, history | planned |

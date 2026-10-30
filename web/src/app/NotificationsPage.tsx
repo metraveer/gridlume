@@ -7,6 +7,7 @@ import { ago } from '../map/format'
 import { useApp } from '../state/app'
 import s from './SettingsPage.module.css'
 import n from './NotificationsPage.module.css'
+import { WatchSection } from './WatchSection'
 
 /** Where problems are sent and which ones: Telegram first, rules in plain words, quiet hours. */
 export function NotificationsPage() {
@@ -42,6 +43,7 @@ export function NotificationsPage() {
       <h1 className={n.title}>{t('notify.title')}</h1>
       <TelegramCard state={state} owner={owner} act={act} />
       <RulesCard rules={state.rules} owner={owner} act={act} />
+      <WatchSection telegram={state.telegram.connected} />
       {error && <p className={s.warn} role="alert">{error}</p>}
     </div>
   )

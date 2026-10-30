@@ -19,7 +19,7 @@ export function useProblemText() {
   return (p: Problem) => {
     const link = p.linkId ? map.links.find((l) => l.id === p.linkId) : undefined
     const vars = { ...p.params, node: name(p.nodeId), from: name(link?.fromId), to: name(link?.toId) } as Record<string, unknown>
-    if (p.kind === 'agent_offline' && typeof p.params.lastSeen === 'number') vars.ago = ago(t, p.params.lastSeen)
+    if (typeof p.params.lastSeen === 'number') vars.ago = ago(t, p.params.lastSeen)
     return { title: t(`prob.${p.kind}`, vars), what: t(`prob.${p.kind}.what`, vars) }
   }
 }
@@ -120,7 +120,7 @@ function ProblemsPanel({ at, onClose, anchor }: { at: { right: number; top: numb
                   </div>
                 )}
               </div>
-              <Button size="sm" onClick={() => show(p)}>{t('pr.show')}</Button>
+              {(p.nodeId || p.linkId) && <Button size="sm" onClick={() => show(p)}>{t('pr.show')}</Button>}
             </div>
           )
         })}

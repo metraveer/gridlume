@@ -13,3 +13,12 @@
 .times input { width: 128px; }
 .lang { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); color: var(--fg-muted); font-size: var(--fs-13); }
 .lang select { width: 160px; }
+
+/* Watch: two parts, each with its own title. */
+.part { display: grid; gap: var(--s-3); padding-top: var(--s-4); border-top: 1px solid var(--line-soft); }
+.partTitle { margin: 0; font-size: var(--fs-13); font-weight: 600; }
+.subTitle { margin: var(--s-2) 0 0; color: var(--fg-muted); font-size: var(--fs-12); font-weight: 600; }
+.code { display: grid; gap: var(--s-2); }
+.code code { padding: var(--s-2) var(--s-3); border-radius: var(--r); background: var(--bg-raised); font-size: var(--fs-12); overflow-wrap: anywhere; user-select: all; }
+.duty { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--s-2); }
+@media (max-width: 640px) { .duty { grid-template-columns: 1fr; } }

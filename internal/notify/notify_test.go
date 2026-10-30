@@ -15,6 +15,7 @@ import (
 
 	"github.com/metraveer/gridlume/internal/problems"
 	"github.com/metraveer/gridlume/internal/store"
+	"github.com/metraveer/gridlume/internal/tg"
 )
 
 const token = "123456:SECRET-token"
@@ -93,7 +94,7 @@ func waitUntil(t *testing.T, what string, ok func() bool) {
 func TestConnectWaitsForStartAndSaysHello(t *testing.T) {
 	n, f := setup(t)
 	ctx := context.Background()
-	if err := n.Connect(ctx, "999:wrong"); err != ErrToken {
+	if err := n.Connect(ctx, "999:wrong"); err != tg.ErrToken {
 		t.Fatalf("a wrong token must be refused: %v", err)
 	}
 	if err := n.Connect(ctx, " "+token+" "); err != nil {

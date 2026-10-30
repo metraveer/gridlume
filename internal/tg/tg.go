@@ -1,5 +1,6 @@
-// Package notify sends problems where people will see them, starting with Telegram.
-package notify
+// Package tg is a small Telegram Bot API client: no other dependencies, so the agent can carry it too
+// (agents send the "core is not answering" alert themselves).
+package tg
 
 import (
 	"bytes"
@@ -19,7 +20,7 @@ type Telegram struct {
 	HTTP *http.Client
 }
 
-func NewTelegram() *Telegram {
+func New() *Telegram {
 	return &Telegram{Base: "https://api.telegram.org", HTTP: &http.Client{Timeout: 40 * time.Second}}
 }
 

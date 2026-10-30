@@ -74,13 +74,14 @@ func (c *Client) get(ctx context.Context, path string, v any) error {
 
 // listed is one entry of GET /containers/json.
 type listed struct {
-	ID     string            `json:"Id"`
-	Names  []string          `json:"Names"`
-	Image  string            `json:"Image"`
-	State  string            `json:"State"`  // running, exited, restarting, paused, created, dead
-	Status string            `json:"Status"` // "Up 3 hours (healthy)"
-	Labels map[string]string `json:"Labels"`
-	Ports  []struct {
+	ID      string            `json:"Id"`
+	Names   []string          `json:"Names"`
+	Image   string            `json:"Image"`
+	ImageID string            `json:"ImageID"` // sha256:…, changes when a tag is pulled again
+	State   string            `json:"State"`   // running, exited, restarting, paused, created, dead
+	Status  string            `json:"Status"`  // "Up 3 hours (healthy)"
+	Labels  map[string]string `json:"Labels"`
+	Ports   []struct {
 		PrivatePort int    `json:"PrivatePort"`
 		PublicPort  int    `json:"PublicPort"`
 		Type        string `json:"Type"`
@@ -131,6 +132,7 @@ func (c *Client) State(ctx context.Context) (*agentproto.Docker, error) {
 			ID:      l.ID[:min(12, len(l.ID))],
 			Name:    strings.TrimPrefix(first(l.Names), "/"),
 			Image:   l.Image,
+			ImageID: shortImageID(l.ImageID),
 			State:   l.State,
 			Status:  l.Status,
 			Project: l.Labels["com.docker.compose.project"],
@@ -300,4 +302,10 @@ func Read(ctx context.Context, c *Client, socket string) (*agentproto.Docker, st
 		return nil, "no_access" // the agent's user is not allowed to read the socket
 	}
 	return nil, "unavailable"
+}
+
+// shortImageID turns "sha256:4f9c…" into its first 12 hex digits, as `docker images` shows it.
+func shortImageID(id string) string {
+	id = strings.TrimPrefix(id, "sha256:")
+	return id[:min(12, len(id))]
 }

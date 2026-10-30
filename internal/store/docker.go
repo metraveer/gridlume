@@ -59,6 +59,13 @@ func queueImage(image string) bool {
 // out in a grid under what is there; existing nodes keep their name, place and notes (the user may have
 // changed them). Nodes of containers that are gone stay: the interface shows them as gone, and the
 // user decides. It returns whether anything changed.
+// ContainerNode returns the node a container of a machine became ("" if it is not on the map).
+func (s *Store) ContainerNode(ctx context.Context, machineID, key string) string {
+	var id string
+	_ = s.db.QueryRowContext(ctx, `SELECT id FROM nodes WHERE parent_id = ? AND ext_key = ?`, machineID, key).Scan(&id)
+	return id
+}
+
 func (s *Store) SyncContainers(ctx context.Context, machineID string, cs []agentproto.Container) (bool, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

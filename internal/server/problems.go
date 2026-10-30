@@ -8,12 +8,14 @@ import (
 	"github.com/metraveer/gridlume/internal/agentlink"
 	"github.com/metraveer/gridlume/internal/checks"
 	"github.com/metraveer/gridlume/internal/problems"
+	"github.com/metraveer/gridlume/internal/store"
 )
 
 // ProblemsEvery is how often the core looks for problems; ProblemsKeep how long ended ones are kept.
 var (
 	ProblemsEvery = 10 * time.Second
 	ProblemsKeep  = 30 * 24 * time.Hour
+	ChangesKeep   = 90 * 24 * time.Hour
 )
 
 func (a *api) problemRoutes(mux *http.ServeMux) {
@@ -41,6 +43,7 @@ func (a *api) watchProblems(ctx context.Context) {
 		a.checkProblems(ctx, time.Now())
 		if time.Since(lastPrune) > 24*time.Hour {
 			_ = a.store.PruneProblems(ctx, ProblemsKeep)
+			_ = a.store.PruneChanges(ctx, ChangesKeep)
 			lastPrune = time.Now()
 		}
 	}
@@ -79,7 +82,7 @@ func (a *api) checkProblems(ctx context.Context, now time.Time) problems.Change 
 	if ch.Any() {
 		a.hub.Publish(agentlink.Event{Problems: true})
 	}
-	a.notify.Changed(ctx, ch, m)
+	a.notify.Changed(ctx, ch, m, func(p store.Problem) []store.Change { return a.changesBefore(ctx, p, m) })
 	return ch
 }
 
@@ -91,13 +94,25 @@ func (a *api) listProblems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Problems inside a machine that is not connected show under it: one cause, one line.
+	type withChanges struct {
+		store.Problem
+		Changes []store.Change `json:"changes,omitempty"` // what changed just before it began: possibly related
+	}
+	list := []withChanges{}
 	if m, err := a.store.GetMap(r.Context()); err == nil {
 		open = problems.Fold(open, problems.Input{Map: m})
+		for _, p := range open {
+			list = append(list, withChanges{Problem: p, Changes: a.changesBefore(r.Context(), p, m)})
+		}
+	} else {
+		for _, p := range open {
+			list = append(list, withChanges{Problem: p})
+		}
 	}
 	ended, err := a.store.EndedProblems(r.Context(), time.Now().Add(-24*time.Hour).UnixMilli())
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"open": open, "ended": ended})
+	writeJSON(w, http.StatusOK, map[string]any{"open": list, "ended": ended})
 }

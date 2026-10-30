@@ -8,6 +8,7 @@ type Live = {
   agents: Record<string, Agent> // by node id
   snaps: Record<string, Snapshot> // by node id, only while connected
   checks: Record<string, CheckResult> // the core's own checks of nodes without an agent, by node id
+  changed: Record<string, number> // by machine node id: bumped when the core noticed a change there
   load: () => Promise<void>
   loadChecks: () => Promise<void>
   apply: (e: LiveEvent) => void
@@ -22,6 +23,7 @@ export const useLive = create<Live>((set) => ({
   agents: {},
   snaps: {},
   checks: {},
+  changed: {},
 
   loadChecks: async () => set({ checks: await api.checks() }),
 
@@ -39,6 +41,10 @@ export const useLive = create<Live>((set) => ({
   apply: (e) => {
     // New containers became nodes, or the core found links to suggest.
     if (e.mapChanged) void useApp.getState().loadMap()
+    if (e.changes) {
+      set((s) => ({ changed: { ...s.changed, [e.nodeId]: (s.changed[e.nodeId] ?? 0) + 1 } }))
+      return
+    }
     if (e.problems) {
       void useProblems.getState().load().catch(() => undefined)
       return

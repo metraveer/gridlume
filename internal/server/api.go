@@ -102,6 +102,7 @@ func (a *api) routes(mux *http.ServeMux) {
 	a.notifyRoutes(mux)
 	a.watchRoutes(mux)
 	a.dutyRoutes(mux)
+	a.changeRoutes(mux)
 }
 
 // fail turns store errors into answers the interface can translate.

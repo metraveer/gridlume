@@ -6,6 +6,7 @@ import { useApp } from '../state/app'
 import { useLive, useNodeLive } from '../state/live'
 import { usePrefs } from '../state/prefs'
 import { AgentSection, HistorySection, LiveSection, unlinkAgent } from './AgentPanel'
+import { ChangesSection } from './ChangesSection'
 import { ContainerSection, DockerSummary, SuggestionsSection } from './DockerPanel'
 import { speed } from './flow'
 import { ago, daysUntil, percent, rate } from './format'
@@ -129,6 +130,7 @@ function NodePanel({ node }: { node: MapNode }) {
       </Section>
 
       {agent && <HistorySection nodeId={node.id} />}
+      {(agent || node.source === 'docker') && <ChangesSection node={node} />}
       {agent && <AgentSection agent={agent} canEdit={!viewer} onUnlink={() => setConfirmUnlink(true)} />}
 
       <Section title={t('insp.notes')} help={t('insp.notes.help')}>

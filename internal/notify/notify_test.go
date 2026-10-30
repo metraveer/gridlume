@@ -152,7 +152,7 @@ func TestMessagesFollowTheRules(t *testing.T) {
 	off := store.Problem{Kind: "agent_offline", Severity: "crit", NodeID: "srv", Params: map[string]any{"lastSeen": float64(noon.Add(-10 * time.Minute).Unix())}, Merged: []string{"container_down"}}
 	r := Rules{Warn: true, Resolved: true, Quiet: true, QuietFrom: "23:00", QuietTo: "08:00", Lang: "ru"}
 
-	msgs := Messages(r, problems.Change{Opened: []store.Problem{disk, off}}, m, noon)
+	msgs := Messages(r, problems.Change{Opened: []store.Problem{disk, off}}, m, noon, nil)
 	if len(msgs) != 2 || !strings.HasPrefix(msgs[0], "🟡 На calibur заканчивается место: / занят на 93%") {
 		t.Fatalf("by day: %q", msgs)
 	}
@@ -160,24 +160,24 @@ func TestMessagesFollowTheRules(t *testing.T) {
 		t.Fatalf("offline: %q", msgs[1])
 	}
 	// At night only red goes.
-	if msgs := Messages(r, problems.Change{Opened: []store.Problem{disk, off}}, m, night); len(msgs) != 1 || !strings.HasPrefix(msgs[0], "🔴") {
+	if msgs := Messages(r, problems.Change{Opened: []store.Problem{disk, off}}, m, night, nil); len(msgs) != 1 || !strings.HasPrefix(msgs[0], "🔴") {
 		t.Fatalf("at night: %q", msgs)
 	}
 	// Amber off: only red, by day too.
 	r2 := r
 	r2.Warn = false
-	if msgs := Messages(r2, problems.Change{Opened: []store.Problem{disk}}, m, noon); len(msgs) != 0 {
+	if msgs := Messages(r2, problems.Change{Opened: []store.Problem{disk}}, m, noon, nil); len(msgs) != 0 {
 		t.Fatalf("amber off: %q", msgs)
 	}
 	// Solved, with how long it lasted.
 	ended := off
 	ended.Since, ended.Ended = noon.Add(-75*time.Minute).UnixMilli(), noon.UnixMilli()
-	if msgs := Messages(r, problems.Change{Ended: []store.Problem{ended}}, m, noon); len(msgs) != 1 || msgs[0] != "✅ Решено: calibur не на связи. Длилось 1 ч 15 мин." {
+	if msgs := Messages(r, problems.Change{Ended: []store.Problem{ended}}, m, noon, nil); len(msgs) != 1 || msgs[0] != "✅ Решено: calibur не на связи. Длилось 1 ч 15 мин." {
 		t.Fatalf("resolved: %q", msgs)
 	}
 	// Many at once: one message.
 	many := []store.Problem{off, off, off, off}
-	if msgs := Messages(r, problems.Change{Opened: many}, m, noon); len(msgs) != 1 || !strings.HasPrefix(msgs[0], "Сразу 4 проблемы:") {
+	if msgs := Messages(r, problems.Change{Opened: many}, m, noon, nil); len(msgs) != 1 || !strings.HasPrefix(msgs[0], "Сразу 4 проблемы:") {
 		t.Fatalf("many: %q", msgs)
 	}
 }
@@ -194,5 +194,19 @@ func TestQuietHoursAndRules(t *testing.T) {
 	day := Rules{Quiet: true, QuietFrom: "09:00", QuietTo: "18:00"}
 	if !day.quietNow(time.Date(2026, 1, 1, 12, 0, 0, 0, time.Local)) || day.quietNow(time.Date(2026, 1, 1, 19, 0, 0, 0, time.Local)) {
 		t.Fatal("quiet hours within a day")
+	}
+}
+
+func TestMessageSaysWhatChangedJustBefore(t *testing.T) {
+	m := store.Map{Nodes: []store.Node{{ID: "app", Name: "app"}}}
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.Local)
+	p := store.Problem{Kind: "container_restarting", Severity: "crit", NodeID: "app", Params: map[string]any{"name": "nc-app-1", "restarts": 4}}
+	c := store.Change{At: now.Add(-12 * time.Minute).UnixMilli(), Kind: "image_changed", Count: 1, Params: map[string]any{"name": "nc-app-1", "from": "nextcloud:31", "to": "nextcloud:32"}}
+	got := Message("ru", p, m, now, c)
+	if !strings.Contains(got, "Незадолго до этого — возможно, связано:\n• Образ nc-app-1: nextcloud:31 → nextcloud:32 (12 мин назад)") {
+		t.Fatalf("message: %q", got)
+	}
+	if got := ChangeText("ru", store.Change{Kind: "container_restarted", Count: 5, Params: map[string]any{"name": "db"}}); got != "Контейнер db перезапустился 5 раз" {
+		t.Fatalf("folded restarts: %q", got)
 	}
 }

@@ -2,12 +2,13 @@ import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { MapNode } from '../api/types'
 import { Button, Icon, IconButton } from '../design'
-import { useApp } from '../state/app'
+import { useApp, useReadOnly } from '../state/app'
 import { EditDialogs } from './EditDialogs'
 import { Inspector } from './Inspector'
 import { MapView } from './MapView'
 import { NODE_META } from './model'
 import { useImpact } from './impact'
+import { Timeline } from './Timeline'
 import s from './MapPage.module.css'
 
 /**
@@ -64,8 +65,9 @@ function Toolbar() {
   const { t } = useTranslation()
   const level = useApp((st) => st.level)
   const empty = useApp((st) => st.map.nodes.length === 0 && st.map.places.length === 0)
-  const viewer = useApp((st) => st.user?.role === 'viewer')
-  const { edit, setFocus } = useApp.getState()
+  const viewer = useReadOnly()
+  const timeline = useApp((st) => st.timeline)
+  const { edit, setFocus, setTimeline } = useApp.getState()
   if (empty) return null // the empty state has its own buttons
   return (
     <div className={s.toolbar}>
@@ -78,6 +80,7 @@ function Toolbar() {
           <span className={s.divider} />
         </>
       )}
+      <IconButton icon="history" label={t('hist.toggle')} aria-pressed={timeline} onClick={() => setTimeline(!timeline)} />
       <IconButton icon="fit" label={t('map.fit')} onClick={() => setFocus('*')} />
     </div>
   )
@@ -117,12 +120,37 @@ function ImpactBar() {
   )
 }
 
+/** While looking at the past: when, and the way back to now. */
+function PastBar() {
+  const { t, i18n } = useTranslation()
+  const past = useApp((st) => st.past)
+  const setPast = useApp((st) => st.setPast)
+  if (past === null) return null
+  const when = new Date(past).toLocaleString(i18n.language, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+  return (
+    <div className={s.pastBar} role="status">
+      <span>
+        <b>{t('hist.looking', { when })}</b>
+        <span className={s.impactElsewhere}>{t('hist.readonly')}</span>
+      </span>
+      <Button size="sm" variant="primary" onClick={() => setPast(null)}>{t('hist.back')}</Button>
+    </div>
+  )
+}
+
+function TimelineSlot() {
+  const on = useApp((st) => st.timeline)
+  return on ? <Timeline /> : null
+}
+
 export function MapPage() {
   return (
     <>
       <MapView />
       <Breadcrumbs />
       <ImpactBar />
+      <PastBar />
+      <TimelineSlot />
       <Toolbar />
       <Inspector />
       <EditDialogs />

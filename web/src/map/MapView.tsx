@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next'
 import type { Place } from '../api/types'
 import { Button, Menu, useMenu, type MenuItem } from '../design'
 import { is, plain, typingIn } from '../hotkeys'
-import { useApp } from '../state/app'
+import { useApp, useReadOnly } from '../state/app'
 import { usePrefs } from '../state/prefs'
 import { GhostNodeView, ItemNodeView, LinkEdgeView, PendingEdgeView, PlaceNodeView, type ItemData, type LinkData, type PlaceData } from './flow'
 import { INSPECTOR_MAX, INSPECTOR_MIN } from './Inspector'
@@ -45,7 +45,7 @@ function Map() {
   const patchNode = useApp((st) => st.patchNode)
   const focus = useApp((st) => st.focus)
   const setFocus = useApp((st) => st.setFocus)
-  const viewer = useApp((st) => st.user?.role === 'viewer')
+  const viewer = useReadOnly()
   const inspectorOpen = useApp((st) => st.selection !== null)
   const inspectorWidth = usePrefs((p) => Math.min(INSPECTOR_MAX, Math.max(INSPECTOR_MIN, p.inspectorWidth)))
   const prefs = usePrefs()
@@ -129,12 +129,13 @@ function Map() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (typingIn(e.target) || (e.target as HTMLElement).closest?.('[role="dialog"], [role="menu"]')) return
-      const { selection, askDelete, select, editing, impact, showImpact } = useApp.getState()
+      const { selection, askDelete, select, editing, impact, showImpact, past, setPast } = useApp.getState()
       if (editing) return
       if (is(e, 'remove') && selection && !viewer) {
         e.preventDefault()
         askDelete(selection)
-      } else if (is(e, 'cancel') && impact) showImpact(null) // the impact view first, then the selection
+      } else if (is(e, 'cancel') && past !== null) setPast(null) // back to now first
+      else if (is(e, 'cancel') && impact) showImpact(null) // then the impact view, then the selection
       else if (is(e, 'cancel') && selection) select(null)
       else if (is(e, 'fit') && plain(e)) setFocus('*')
     }
@@ -195,6 +196,8 @@ function Map() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
+        nodesDraggable={!viewer}
+        nodesConnectable={!viewer}
         onNodeClick={(_, n) => select(n.type === 'place' ? { kind: 'place', id: (n.data as PlaceData).place.id } : { kind: 'node', id: n.id })}
         onNodeDoubleClick={(_, n) => {
           if (n.type !== 'item') return

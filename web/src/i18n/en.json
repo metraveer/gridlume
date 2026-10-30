@@ -712,5 +712,20 @@
   "prog.syncthing.link": "{from} syncs files through {to}.",
   "prog.torrent.what": "a BitTorrent client.",
   "prog.torrent.broken": "Downloads stop.",
-  "prog.torrent.link": "{from} downloads through {to}."
+  "prog.torrent.link": "{from} downloads through {to}.",
+  "hist.toggle": "The last day",
+  "hist.title": "The last day",
+  "hist.crit": "serious",
+  "hist.warn": "warnings",
+  "hist.change": "changes",
+  "hist.tip": "Click to see the map as it was at that moment.",
+  "hist.now": "now",
+  "hist.looking": "Looking at the past: {when}",
+  "hist.readonly": "Colours as they were then; no live numbers, the map cannot be changed. Esc to go back.",
+  "hist.back": "Back to now",
+  "hist.atThatTime": "At that time",
+  "hist.atThatTime.help": "The node's problems at the chosen moment, and changes on it within half an hour either side.",
+  "hist.noProblems": "No problems.",
+  "hist.range": "Over what time",
+  "hist.hours": "{count, plural, one {# hour} other {# hours}}"
 }

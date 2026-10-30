@@ -201,6 +201,9 @@ export type Change = {
   count: number // repeats folded in
 }
 
+/** GET /api/history: problems open at some point in a period, and the changes made in it. */
+export type HistoryData = { from: number; to: number; problems: Problem[]; changes: Change[] }
+
 /** Something wrong the core noticed (GET /api/problems). Times are unix milliseconds. */
 export type Problem = {
   id: string

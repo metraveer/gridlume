@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { Container, MapNode, Snapshot, Suggestion } from '../api/types'
 import { Badge, Button, IconButton, KV, Section, StateBadge } from '../design'
-import { useApp } from '../state/app'
+import { useApp, useReadOnly } from '../state/app'
 import { containerState } from '../state/live'
 import { bytes, percent } from './format'
 import { dependents } from './model'
@@ -105,7 +105,7 @@ export function SuggestionsSection({ machine }: { machine: MapNode }) {
   const { t } = useTranslation()
   const nodes = useApp((st) => st.map.nodes)
   const suggestions = useApp((st) => st.suggestions)
-  const viewer = useApp((st) => st.user?.role === 'viewer')
+  const viewer = useReadOnly()
   const level = useApp((st) => st.level)
   const { acceptSuggestion, dismissSuggestion, enter } = useApp.getState()
   const inside = new Set(nodes.filter((n) => n.parentId === machine.id).map((n) => n.id))

@@ -30,6 +30,8 @@ type State = {
   // to the point where it was dropped, then to the new node.
   pending: { fromId: string; at: { x: number; y: number }; toId?: string } | null
   impact: string | null // "what breaks if" this node stops, shown on the map
+  past: number | null // looking at the map as it was then (unix ms); null = now
+  timeline: boolean // the last day under the map
   editing: Editing
   error: string | string[] | null // dictionary key(s) of the last error to show
 
@@ -45,6 +47,8 @@ type State = {
   select: (s: Selection) => void
   setFocus: (id: string | null) => void
   showImpact: (id: string | null) => void
+  setPast: (at: number | null) => void
+  setTimeline: (on: boolean) => void
   askDelete: (s: Selection) => void
   setPending: (p: State['pending']) => void
   enter: (level: Level) => void
@@ -81,6 +85,8 @@ export const useApp = create<State>((set, get) => ({
   deleting: null,
   pending: null,
   impact: null,
+  past: null,
+  timeline: false,
   editing: null,
   error: null,
 
@@ -144,6 +150,9 @@ export const useApp = create<State>((set, get) => ({
   // Picking another node leaves the impact view of the previous one (entering levels keeps it).
   select: (selection) => set((s) => ({ selection, impact: s.impact && selection?.kind === 'node' && selection.id !== s.impact ? null : s.impact })),
   showImpact: (impact) => set({ impact }),
+  setPast: (past) => set({ past }),
+  // Closing the timeline returns to now.
+  setTimeline: (timeline) => set((s) => ({ timeline, past: timeline ? s.past : null })),
   setFocus: (focus) => set({ focus }),
   // Selecting it opens its inspector, which shows the confirmation (with risk and consequences).
   askDelete: (deleting) => set({ deleting, selection: deleting }),
@@ -236,4 +245,9 @@ export const useApp = create<State>((set, get) => ({
 
 function upsert<T extends { id: string }>(list: T[], item: T) {
   return list.some((x) => x.id === item.id) ? list.map((x) => (x.id === item.id ? item : x)) : [...list, item]
+}
+
+/** Nothing on the map can be changed: a viewer, or anyone looking at the past. */
+export function useReadOnly() {
+  return useApp((st) => st.user?.role === 'viewer' || st.past !== null)
 }

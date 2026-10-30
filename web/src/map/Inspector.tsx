@@ -125,7 +125,7 @@ function NodePanel({ node }: { node: MapNode }) {
       </div>
 
       {check && <CheckSection c={check} />}
-      {container !== undefined && <ContainerSection c={container} />}
+      {container !== undefined && <ContainerSection c={container} node={node} />}
       {snap && <LiveSection snap={snap} />}
       {snap && <DockerSummary snap={snap} />}
       {canContain(node) && <SuggestionsSection machine={node} />}

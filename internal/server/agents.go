@@ -123,16 +123,18 @@ func (a *api) suggestions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// acceptSuggestion makes the link; the interface sends the explanation in the user's language.
+// acceptSuggestion makes the link; the interface sends the explanation in the user's language, and the
+// protocol when it knows the program at the other end ("PostgreSQL · 5432").
 func (a *api) acceptSuggestion(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		About    string `json:"about"`
 		IfBroken string `json:"ifBroken"`
+		Proto    string `json:"proto"`
 	}
 	if !decode(w, r, &body) {
 		return
 	}
-	l, err := a.store.AcceptSuggestion(r.Context(), r.PathValue("id"), body.About, body.IfBroken)
+	l, err := a.store.AcceptSuggestion(r.Context(), r.PathValue("id"), body.About, body.IfBroken, body.Proto)
 	if err != nil {
 		a.fail(w, err)
 		return

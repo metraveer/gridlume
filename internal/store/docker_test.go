@@ -80,14 +80,14 @@ func TestSyncContainersAndSuggestions(t *testing.T) {
 		t.Fatalf("suggestions: %+v", list)
 	}
 
-	l, err := s.AcceptSuggestion(ctx, list[0].ID, "api keeps its data in db", "")
+	l, err := s.AcceptSuggestion(ctx, list[0].ID, "api keeps its data in db", "", "PostgreSQL · 5432")
 	if err != nil || l.About != "api keeps its data in db" || l.FromID != list[0].FromID {
 		t.Fatalf("accept: %v %+v", err, l)
 	}
 	if err := s.DismissSuggestion(ctx, list[1].ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.AcceptSuggestion(ctx, list[1].ID, "", ""); !errors.Is(err, ErrNotFound) {
+	if _, err := s.AcceptSuggestion(ctx, list[1].ID, "", "", ""); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("a dismissed suggestion cannot be accepted: %v", err)
 	}
 	if left, _ := s.Suggestions(ctx); len(left) != 2 {

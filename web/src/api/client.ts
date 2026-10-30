@@ -91,7 +91,7 @@ export const api = {
   dropDutyCode: () => request<WatchState>('DELETE', '/api/watch/duty'),
   setWatchTarget: (url: string, code: string) => request<WatchState>('PUT', '/api/watch/target', { url, code }),
   dropWatchTarget: () => request<WatchState>('DELETE', '/api/watch/target'),
-  acceptSuggestion: (id: string, about: string, ifBroken: string) => request<Link>('POST', `/api/suggestions/${id}/accept`, { about, ifBroken }),
+  acceptSuggestion: (id: string, about: string, ifBroken: string, proto = '') => request<Link>('POST', `/api/suggestions/${id}/accept`, { about, ifBroken, proto }),
   dismissSuggestion: (id: string) => request('POST', `/api/suggestions/${id}/dismiss`, {}),
   metrics: (nodeId: string, series: string[], range: MetricRange) =>
     request<{ step: number; series: Record<string, MetricPoint[]> }>('GET', `/api/nodes/${nodeId}/metrics?series=${series.join(',')}&range=${range}`),

@@ -39,7 +39,7 @@ type State = {
   logout: () => Promise<void>
   loadMap: () => Promise<void>
   setSystem: (s: SystemInfo) => void
-  acceptSuggestion: (s: Suggestion, about: string, ifBroken: string) => Promise<void>
+  acceptSuggestion: (s: Suggestion, about: string, ifBroken: string, proto?: string) => Promise<void>
   dismissSuggestion: (s: Suggestion) => Promise<void>
 
   select: (s: Selection) => void
@@ -123,9 +123,9 @@ export const useApp = create<State>((set, get) => ({
 
   setSystem: (system) => set({ system }),
 
-  acceptSuggestion: async (sg, about, ifBroken) => {
+  acceptSuggestion: async (sg, about, ifBroken, proto) => {
     try {
-      const link = await api.acceptSuggestion(sg.id, about, ifBroken)
+      const link = await api.acceptSuggestion(sg.id, about, ifBroken, proto)
       set((s) => ({ map: { ...s.map, links: [...s.map.links, link] }, suggestions: s.suggestions.filter((x) => x.id !== sg.id) }))
     } catch (e) {
       set({ error: keyOf(e) })

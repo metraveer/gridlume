@@ -51,6 +51,14 @@ export function nodeMenu({ t, viewer }: Ctx, node: MapNode, portal: boolean): Me
   else if (canContain(node)) items.push({ label: t('insp.open'), icon: 'chevron', hint: '2×', onSelect: () => enter(node.id) })
   items.push({ label: t('menu.details'), icon: 'eye', onSelect: () => select({ kind: 'node', id: node.id }) })
   items.push({
+    label: t('path.menu'),
+    icon: 'path',
+    onSelect: () => {
+      select({ kind: 'node', id: node.id })
+      useApp.getState().showPath(node.id)
+    },
+  })
+  items.push({
     label: t('impact.menu'),
     icon: 'impact',
     onSelect: () => {

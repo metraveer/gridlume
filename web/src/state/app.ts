@@ -30,6 +30,7 @@ type State = {
   // to the point where it was dropped, then to the new node.
   pending: { fromId: string; at: { x: number; y: number }; toId?: string } | null
   impact: string | null // "what breaks if" this node stops, shown on the map
+  path: string | null // the request path to this node, shown on the map
   past: number | null // looking at the map as it was then (unix ms); null = now
   timeline: boolean // the last day under the map
   editing: Editing
@@ -47,6 +48,7 @@ type State = {
   select: (s: Selection) => void
   setFocus: (id: string | null) => void
   showImpact: (id: string | null) => void
+  showPath: (id: string | null) => void
   setPast: (at: number | null) => void
   setTimeline: (on: boolean) => void
   askDelete: (s: Selection) => void
@@ -85,6 +87,7 @@ export const useApp = create<State>((set, get) => ({
   deleting: null,
   pending: null,
   impact: null,
+  path: null,
   past: null,
   timeline: false,
   editing: null,
@@ -149,7 +152,9 @@ export const useApp = create<State>((set, get) => ({
 
   // Picking another node leaves the impact view of the previous one (entering levels keeps it).
   select: (selection) => set((s) => ({ selection, impact: s.impact && selection?.kind === 'node' && selection.id !== s.impact ? null : s.impact })),
-  showImpact: (impact) => set({ impact }),
+  // The two highlights take turns: one view of the map at a time.
+  showImpact: (impact) => set({ impact, path: null }),
+  showPath: (path) => set({ path, impact: null }),
   setPast: (past) => set({ past }),
   // Closing the timeline returns to now.
   setTimeline: (timeline) => set((s) => ({ timeline, past: timeline ? s.past : null })),

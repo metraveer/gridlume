@@ -9,6 +9,7 @@ import { bytes, percent } from './format'
 import { canContain, LINK_META, NODE_META } from './model'
 import { linkStateAt, openAt, useHistory } from '../state/history'
 import { impactRole, useImpact } from './impact'
+import { useRequestPath } from './path'
 import { dots, latencyLabel, linkHealth, trafficLabel, useLinkPing, useLinkTraffic } from './traffic'
 import s from './flow.module.css'
 
@@ -31,6 +32,8 @@ export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData })
   const { agent, snap, container, check, state } = useNodeLive(node)
   const imp = useImpact()
   const role = impactRole(imp, node.id)
+  const path = useRequestPath()
+  const onPath = path ? (path.nodes.has(node.id) ? 'on' : 'off') : null
   const meta = NODE_META[node.kind]
   // The card shows everything it says in full: it grows up to 300 px and wraps a long line instead of
   // cutting it with "…" (there is no way to widen a card to read the rest).
@@ -59,6 +62,7 @@ export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData })
   const cls = [
     s.node, meta.small && s.small, chips.length > 0 && s.withLive, selected && s.selected, state === 'planned' && s.planned, portal && s.portal,
     role === 'src' && s.impactSrc, role === 'hit' && s.impactHit, role === 'faded' && s.faded,
+    onPath === 'on' && s.onPath, onPath === 'off' && s.faded,
   ].filter(Boolean).join(' ')
   const tip = [node.name, t(`state.${state}`), kids ? t('map.enter.tip') : '', portal ? t('map.portal.tip') : ''].filter(Boolean).join(' · ')
   return (
@@ -145,6 +149,7 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
   const traffic = useLinkTraffic(data.link)
   const ping = useLinkPing(data.link)
   const imp = useImpact()
+  const reqPath = useRequestPath()
   const past = useApp((st) => st.past)
   const pastProblems = useHistory((st) => st.problems)
   if (!a || !b) return null
@@ -172,7 +177,8 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
   const health = link.planned ? 'ok' : past !== null ? linkStateAt(link, openAt(pastProblems, past)) : linkHealth(traffic, ping)
   // In the impact view a link stays only between nodes that are in it.
   const inImpact = (id: string) => impactRole(imp, id) !== 'faded'
-  const faded = !!imp && !(inImpact(link.fromId) && inImpact(link.toId))
+  const onPath = !!reqPath && reqPath.links.has(link.id)
+  const faded = (!!imp && !(inImpact(link.fromId) && inImpact(link.toId))) || (!!reqPath && !onPath)
 
   return (
     <>
@@ -180,7 +186,7 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
         id={id}
         path={path}
         markerEnd={LINK_META[link.kind].arrow ? markerEnd : undefined}
-        className={[s.edge, s[`edge_${link.kind}`], link.planned && s.edgePlanned, health === 'warn' && s.edgeBusy, health === 'crit' && s.edgeDown, faded && s.edgeFaded, selected && s.edgeSelected].filter(Boolean).join(' ')}
+        className={[s.edge, s[`edge_${link.kind}`], link.planned && s.edgePlanned, health === 'warn' && s.edgeBusy, health === 'crit' && s.edgeDown, faded && s.edgeFaded, onPath && s.edgeOnPath, selected && s.edgeSelected].filter(Boolean).join(' ')}
         interactionWidth={16}
       />
       {traffic && !faded && <Flow path={path} rate={traffic.fwd} />}

@@ -8,6 +8,7 @@ import { Inspector } from './Inspector'
 import { MapView } from './MapView'
 import { NODE_META } from './model'
 import { useImpact } from './impact'
+import { PathCard } from './PathCard'
 import { Timeline } from './Timeline'
 import s from './MapPage.module.css'
 
@@ -149,6 +150,7 @@ export function MapPage() {
       <MapView />
       <Breadcrumbs />
       <ImpactBar />
+      <PathCard />
       <PastBar />
       <TimelineSlot />
       <Toolbar />

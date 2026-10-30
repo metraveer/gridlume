@@ -128,4 +128,5 @@
 .changes li { display: flex; justify-content: space-between; gap: var(--s-3); line-height: 1.4; }
 .changes time { flex: none; white-space: nowrap; }
 
-.impactBtn { margin-top: var(--s-3); }
+.impactBtn { margin: 0; }
+.viewButtons { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }

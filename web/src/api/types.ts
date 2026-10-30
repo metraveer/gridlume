@@ -114,7 +114,7 @@ export type Agent = {
 export type AgentUpdate = { state: 'done' | 'up_to_date' | 'failed' | 'rolled_back'; from: string; to?: string; message?: string; at: number }
 
 /** One message of /api/events. */
-export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean; mapChanged?: boolean; problems?: boolean }
+export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean; mapChanged?: boolean; problems?: boolean; changes?: boolean }
 
 export type Channel = 'stable' | 'edge'
 
@@ -190,6 +190,17 @@ export type CheckResult = {
   at: number // unix ms; 0 = not checked yet
 }
 
+/** Something that changed on a machine (GET /api/changes): a new image, a restart, a reboot... */
+export type Change = {
+  id: string
+  at: number // unix ms
+  nodeId: string
+  machineId: string
+  kind: string // image_changed, container_restarted, machine_rebooted, ... (texts: chg.<kind>)
+  params: Record<string, string | number>
+  count: number // repeats folded in
+}
+
 /** Something wrong the core noticed (GET /api/problems). Times are unix milliseconds. */
 export type Problem = {
   id: string
@@ -203,6 +214,7 @@ export type Problem = {
   linkId?: string
   params: Record<string, string | number>
   merged?: string[] // kinds of other signals with the same cause, folded in
+  changes?: Change[] // what changed just before it began: possibly related
   since: number
   ended?: number
 }

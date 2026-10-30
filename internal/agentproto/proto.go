@@ -116,8 +116,9 @@ type Container struct {
 	ID        string   `json:"id"` // short id
 	Name      string   `json:"name"`
 	Image     string   `json:"image"`
-	State     string   `json:"state"`  // running, exited, restarting, paused, created, dead
-	Status    string   `json:"status"` // as `docker ps` says it, e.g. "Up 3 hours (healthy)"
+	ImageID   string   `json:"imageId,omitempty"` // short sha256: a new image under the same tag shows here
+	State     string   `json:"state"`             // running, exited, restarting, paused, created, dead
+	Status    string   `json:"status"`            // as `docker ps` says it, e.g. "Up 3 hours (healthy)"
 	Health    string   `json:"health,omitempty"`
 	Project   string   `json:"project,omitempty"` // docker compose project
 	Service   string   `json:"service,omitempty"` // docker compose service

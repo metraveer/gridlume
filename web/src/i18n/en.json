@@ -603,5 +603,20 @@
   "err.after.invalid": "From 1 to 60 minutes.",
   "err.url.invalid": "An address like http://192.168.1.63:7420 or https://….",
   "err.watch.bad_code": "The main core did not accept the code: get a new one there.",
-  "err.watch.unreachable": "Could not reach the main core at this address."
+  "err.watch.unreachable": "Could not reach the main core at this address.",
+  "chg.image_changed": "Image of {name}: {from} → {to}",
+  "chg.container_recreated": "Container {name} was recreated",
+  "chg.container_restarted": "{count, plural, one {Container {name} restarted} other {Container {name} restarted # times}}",
+  "chg.container_stopped": "{count, plural, one {Container {name} stopped} other {Container {name} stopped # times}}",
+  "chg.container_started": "{count, plural, one {Container {name} started} other {Container {name} started # times}}",
+  "chg.container_added": "New container {name} ({image})",
+  "chg.container_removed": "Container {name} removed ({image})",
+  "chg.machine_rebooted": "The machine rebooted",
+  "chg.agent_updated": "Agent updated: {from} → {to}",
+  "chg.kernel_changed": "Linux kernel: {from} → {to}",
+  "pr.before": "Shortly before — possibly related:",
+  "chg.title": "Changes",
+  "chg.help": "What changed on the machine and its containers: a new image, a restart, a reboot. Gridlume notices it by comparing what the agent reports. Kept 90 days.",
+  "chg.none": "Nothing has changed yet.",
+  "chg.more": "Show more"
 }

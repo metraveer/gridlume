@@ -5,6 +5,7 @@ import type { Problem } from '../api/types'
 import { Button, Dot, Icon, Segmented } from '../design'
 import { is } from '../hotkeys'
 import { ago } from '../map/format'
+import { changeText } from '../map/ChangesSection'
 import { reveal } from '../map/NodesPage'
 import { useApp } from '../state/app'
 import { useProblems } from '../state/problems'
@@ -113,6 +114,14 @@ function ProblemsPanel({ at, onClose, anchor }: { at: { right: number; top: numb
                 <div className={s.title}>{title}</div>
                 <div className={s.meta}>{when}</div>
                 {tab === 'now' && <p className={s.what}>{what}</p>}
+                {tab === 'now' && p.changes && p.changes.length > 0 && (
+                  <div className={s.before}>
+                    <span>{t('pr.before')}</span>
+                    {p.changes.map((c) => (
+                      <span key={c.id}>• {changeText(t, c)} · {ago(t, c.at / 1000)}</span>
+                    ))}
+                  </div>
+                )}
                 {p.merged && p.merged.length > 0 && (
                   <div className={s.merged} data-tip={t('pr.merged.tip')}>
                     <Icon name="layers" />

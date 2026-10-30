@@ -13,22 +13,23 @@ import (
 // ManyAtOnce: when more problems than this open at the same moment, they go as one message.
 const ManyAtOnce = 3
 
-// Changed turns what the problem engine just did into messages, following the rules.
-func (n *Notifier) Changed(ctx context.Context, ch problems.Change, m store.Map) {
+// Changed turns what the problem engine just did into messages, following the rules. before gives the
+// changes just before a problem began (nil: none).
+func (n *Notifier) Changed(ctx context.Context, ch problems.Change, m store.Map, before func(store.Problem) []store.Change) {
 	if len(ch.Opened) == 0 && len(ch.Ended) == 0 {
 		return
 	}
 	if _, _, ok := n.target(ctx); !ok {
 		return
 	}
-	for _, text := range Messages(n.GetRules(ctx), ch, m, n.Now()) {
+	for _, text := range Messages(n.GetRules(ctx), ch, m, n.Now(), before) {
 		n.Enqueue(text)
 	}
 }
 
 // Messages are the texts for one change. Amber problems are left out when the rules say so, and in
 // quiet hours; red ones always go. "Resolved" follows the same choice as the opening it ends.
-func Messages(r Rules, ch problems.Change, m store.Map, now time.Time) []string {
+func Messages(r Rules, ch problems.Change, m store.Map, now time.Time, before func(store.Problem) []store.Change) []string {
 	quiet := r.quietNow(now)
 	tell := func(p store.Problem) bool { return p.Severity == "crit" || (r.Warn && !quiet) }
 	var opened []store.Problem
@@ -46,7 +47,11 @@ func Messages(r Rules, ch problems.Change, m store.Map, now time.Time) []string 
 		out = append(out, strings.Join(lines, "\n"))
 	} else {
 		for _, p := range opened {
-			out = append(out, Message(r.Lang, p, m, now))
+			var bs []store.Change
+			if before != nil {
+				bs = before(p)
+			}
+			out = append(out, Message(r.Lang, p, m, now, bs...))
 		}
 	}
 	if r.Resolved {
@@ -61,12 +66,20 @@ func Messages(r Rules, ch problems.Change, m store.Map, now time.Time) []string 
 	return out
 }
 
-// Message is one problem: what, what it means and what to do, and how many signals it covers.
-func Message(lang string, p store.Problem, m store.Map, now time.Time) string {
+// Message is one problem: what, what it means and what to do, how many signals it covers, and what
+// changed just before.
+func Message(lang string, p store.Problem, m store.Map, now time.Time, before ...store.Change) string {
 	vars := textVars(lang, p, m, now)
 	parts := []string{icon(p) + " " + i18n.T(lang, "prob."+p.Kind, vars), i18n.T(lang, "prob."+p.Kind+".what", vars)}
 	if len(p.Merged) > 0 {
 		parts = append(parts, i18n.T(lang, "pr.merged", map[string]any{"count": len(p.Merged)}))
+	}
+	if len(before) > 0 {
+		lines := []string{i18n.T(lang, "pr.before", nil)}
+		for _, c := range before {
+			lines = append(lines, "• "+ChangeText(lang, c)+" ("+ago(lang, now.Sub(time.UnixMilli(c.At)))+")")
+		}
+		parts = append(parts, strings.Join(lines, "\n"))
 	}
 	return strings.Join(parts, "\n\n")
 }
@@ -132,4 +145,13 @@ func number(v any) (float64, bool) {
 		return x, true
 	}
 	return 0, false
+}
+
+// ChangeText is one change in words, as the interface says it.
+func ChangeText(lang string, c store.Change) string {
+	vars := map[string]any{"count": c.Count}
+	for k, v := range c.Params {
+		vars[k] = v
+	}
+	return i18n.T(lang, "chg."+c.Kind, vars)
 }

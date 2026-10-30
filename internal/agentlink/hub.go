@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/coder/websocket/wsjson"
 
 	"github.com/metraveer/gridlume/internal/agentproto"
+	"github.com/metraveer/gridlume/internal/changes"
 	"github.com/metraveer/gridlume/internal/store"
 )
 
@@ -34,6 +36,8 @@ type Event struct {
 	MapChanged bool `json:"mapChanged,omitempty"`
 	// Problems: a problem opened, ended or changed; the interface refetches /api/problems.
 	Problems bool `json:"problems,omitempty"`
+	// Changes: something changed on this machine (a new image, a restart...); its changes are refetched.
+	Changes bool `json:"changes,omitempty"`
 }
 
 // Status is an agent as the interface sees it: what is stored plus whether it is connected now.
@@ -77,8 +81,9 @@ type conn struct {
 	ws      *websocket.Conn
 	cancel  context.CancelFunc
 	minute  *minute
-	removed bool   // unlinked: say "removed" instead of "offline" when the connection ends
-	docker  string // signature of the containers last synced, so unchanged lists cost nothing
+	removed bool          // unlinked: say "removed" instead of "offline" when the connection ends
+	docker  string        // signature of the containers last synced, so unchanged lists cost nothing
+	state   changes.State // the machine as last seen, to notice what changed
 }
 
 // New returns a hub. Call Run to flush metrics in the background.
@@ -250,6 +255,10 @@ func (h *Hub) Connect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := &conn{agent: a, info: info, ws: ws, cancel: cancel, minute: newMinute()}
+	// As it was last time, even before this core restarted: what changed meanwhile is noticed too.
+	if raw, err := h.store.MachineState(ctx, a.NodeID); err == nil && raw != "" {
+		_ = json.Unmarshal([]byte(raw), &c.state)
+	}
 	h.mu.Lock()
 	if old := h.online[a.ID]; old != nil {
 		old.cancel() // the same agent reconnected before the old connection timed out
@@ -344,8 +353,40 @@ func (h *Hub) serve(ctx context.Context, ws *websocket.Conn, c *conn) error {
 		if snap.Docker != nil {
 			h.syncDocker(ctx, c, snap.Docker.Containers)
 		}
+		h.noticeChanges(ctx, c, snap)
 		h.publish(Event{NodeID: c.agent.NodeID, Snapshot: &snap})
 	}
+}
+
+// noticeChanges compares the machine with how it was last seen and records what changed.
+func (h *Hub) noticeChanges(ctx context.Context, c *conn, snap agentproto.Snapshot) {
+	now := h.now()
+	cur := changes.FromSnapshot(c.info, snap, now)
+	if cur.Containers == nil {
+		cur.Containers = c.state.Containers // Docker not readable this time: keep what was known
+	}
+	found := changes.Diff(c.state, cur)
+	for _, ch := range found {
+		node := c.agent.NodeID
+		if ch.Key != "" {
+			if id := h.store.ContainerNode(ctx, c.agent.NodeID, ch.Key); id != "" {
+				node = id
+			}
+		}
+		if _, err := h.store.AddChange(ctx, store.Change{At: now.UnixMilli(), NodeID: node, MachineID: c.agent.NodeID, Kind: ch.Kind, Params: ch.Params}); err != nil {
+			h.log.Error("record change", "node", node, "err", err)
+		}
+	}
+	if len(found) > 0 {
+		h.log.Info("changes", "node", c.agent.NodeID, "host", c.agent.Hostname, "count", len(found))
+		h.publish(Event{NodeID: c.agent.NodeID, Changes: true})
+	}
+	if !changes.Same(c.state, cur) {
+		if b, err := json.Marshal(cur); err == nil {
+			_ = h.store.SetMachineState(ctx, c.agent.NodeID, string(b))
+		}
+	}
+	c.state = cur
 }
 
 // syncDocker turns new containers into nodes and looks for links between them, when the list changed.

@@ -603,5 +603,20 @@
   "err.after.invalid": "От 1 до 60 минут.",
   "err.url.invalid": "Адрес — вида http://192.168.1.63:7420 или https://….",
   "err.watch.bad_code": "Основное ядро не приняло код: возьмите новый на нём.",
-  "err.watch.unreachable": "Не получилось достучаться до основного ядра по этому адресу."
+  "err.watch.unreachable": "Не получилось достучаться до основного ядра по этому адресу.",
+  "chg.image_changed": "Образ {name}: {from} → {to}",
+  "chg.container_recreated": "Контейнер {name} пересоздан",
+  "chg.container_restarted": "{count, plural, one {Контейнер {name} перезапустился} few {Контейнер {name} перезапустился # раза} many {Контейнер {name} перезапустился # раз} other {Контейнер {name} перезапустился # раза}}",
+  "chg.container_stopped": "{count, plural, one {Контейнер {name} остановился} other {Контейнер {name} останавливался # раз}}",
+  "chg.container_started": "{count, plural, one {Контейнер {name} запустился} other {Контейнер {name} запускался # раз}}",
+  "chg.container_added": "Появился контейнер {name} ({image})",
+  "chg.container_removed": "Удалён контейнер {name} ({image})",
+  "chg.machine_rebooted": "Машина перезагрузилась",
+  "chg.agent_updated": "Агент обновлён: {from} → {to}",
+  "chg.kernel_changed": "Ядро Linux: {from} → {to}",
+  "pr.before": "Незадолго до этого — возможно, связано:",
+  "chg.title": "Изменения",
+  "chg.help": "Что менялось на машине и в её контейнерах: новый образ, перезапуск, перезагрузка. Gridlume замечает это сам, сравнивая данные агента. Хранится 90 дней.",
+  "chg.none": "Пока ничего не менялось.",
+  "chg.more": "Показать ещё"
 }

@@ -122,3 +122,8 @@
 
 /* Delete stands apart at the end of the row. */
 .actions > :last-child { margin-left: auto; }
+
+/* Changes: what, and when, one per line. */
+.changes { display: grid; gap: var(--s-2); margin: 0; padding: 0; list-style: none; font-size: var(--fs-13); }
+.changes li { display: flex; justify-content: space-between; gap: var(--s-3); line-height: 1.4; }
+.changes time { flex: none; white-space: nowrap; }

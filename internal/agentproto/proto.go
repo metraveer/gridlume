@@ -20,7 +20,7 @@ func ValidMode(m string) bool { return m == ModeUser || m == ModeReadOnly || m =
 
 // Message is the envelope of every message; only the fields of its type are set.
 type Message struct {
-	Type     string    `json:"type"` // challenge, hello, welcome, error, snapshot, update
+	Type     string    `json:"type"` // challenge, hello, welcome, error, snapshot, update, probes
 	Nonce    []byte    `json:"nonce,omitempty"`
 	AgentID  string    `json:"agentId,omitempty"`
 	Sig      []byte    `json:"sig,omitempty"`
@@ -28,6 +28,23 @@ type Message struct {
 	Snapshot *Snapshot `json:"snapshot,omitempty"`
 	Error    string    `json:"error,omitempty"`   // a stable code, e.g. "unknown_agent"
 	Version  string    `json:"version,omitempty"` // update: the version the core hands out
+	Probes   []Probe   `json:"probes,omitempty"`  // probes: what to ping (the whole list; it replaces the previous one)
+}
+
+// Probe asks the agent to ping a host: the far end of a network link (ID is the link's id).
+type Probe struct {
+	ID   string `json:"id"`
+	Host string `json:"host"` // IPv4 address or name
+}
+
+// ProbeResult is how a probe went over the last minute (a ping every 10 seconds).
+type ProbeResult struct {
+	ID    string  `json:"id"`
+	Host  string  `json:"host"`
+	Sent  int     `json:"sent"`
+	RTT   float64 `json:"rtt"`             // milliseconds, average of the answered pings; 0 if none
+	Loss  float64 `json:"loss"`            // percent of pings without an answer
+	Error string  `json:"error,omitempty"` // why it cannot ping at all: "resolve", "no_icmp"
 }
 
 // SignedBytes is what the agent signs: a fixed prefix keeps the signature useless anywhere else.
@@ -73,8 +90,9 @@ type Snapshot struct {
 	Net       []Iface `json:"net"`
 	Temps     []Temp  `json:"temps"`
 	// Docker is nil when Docker is not installed; DockerError says why it could not be read.
-	Docker      *Docker `json:"docker,omitempty"`
-	DockerError string  `json:"dockerError,omitempty"` // "no_access" or "unavailable"
+	Docker      *Docker       `json:"docker,omitempty"`
+	DockerError string        `json:"dockerError,omitempty"` // "no_access" or "unavailable"
+	Probes      []ProbeResult `json:"probes,omitempty"`
 }
 
 // Docker is the containers on the machine.

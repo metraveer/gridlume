@@ -58,6 +58,8 @@ type Hub struct {
 
 	// AutoUpdate, when set, is asked on every connection which version to send the agent ("" = none).
 	AutoUpdate func(ctx context.Context, info agentproto.Info) string
+	// Probes, when set, lists what the agent of a node should ping: the far ends of its network links.
+	Probes func(ctx context.Context, nodeID string) []agentproto.Probe
 
 	mu     sync.Mutex
 	online map[string]*conn // by agent id
@@ -155,6 +157,30 @@ func (h *Hub) RequestUpdate(ctx context.Context, agentID, v string) error {
 	return wsjson.Write(wctx, c.ws, agentproto.Message{Type: "update", Version: v})
 }
 
+// RefreshProbes sends every connected agent its current list of hosts to ping (after the map changed).
+func (h *Hub) RefreshProbes(ctx context.Context) {
+	h.mu.Lock()
+	conns := make([]*conn, 0, len(h.online))
+	for _, c := range h.online {
+		conns = append(conns, c)
+	}
+	h.mu.Unlock()
+	for _, c := range conns {
+		h.sendProbes(ctx, c)
+	}
+}
+
+func (h *Hub) sendProbes(ctx context.Context, c *conn) {
+	if h.Probes == nil {
+		return
+	}
+	ps := h.Probes(ctx, c.agent.NodeID)
+	wctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	// Sent even when empty: that is how an agent learns a link it pinged is gone.
+	_ = wsjson.Write(wctx, c.ws, agentproto.Message{Type: "probes", Probes: ps})
+}
+
 // Unlinked drops the connection of an agent removed in the interface and tells the interface.
 func (h *Hub) Unlinked(agentID, nodeID string) {
 	h.mu.Lock()
@@ -202,6 +228,7 @@ func (h *Hub) Connect(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("agent connected", "node", a.NodeID, "host", a.Hostname, "version", a.Version)
 	st := c.status()
 	h.publish(Event{NodeID: a.NodeID, Agent: &st})
+	h.sendProbes(ctx, c)
 	if h.AutoUpdate != nil {
 		if v := h.AutoUpdate(ctx, info); v != "" {
 			if err := h.RequestUpdate(ctx, a.ID, v); err != nil {

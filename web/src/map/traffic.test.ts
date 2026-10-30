@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Link, Snapshot } from '../api/types'
 import i18n from '../i18n'
-import { dots, linkTraffic, trafficLabel } from './traffic'
+import { dots, latencyLabel, linkHealth, linkTraffic, trafficLabel } from './traffic'
 
 const link = (over: Partial<Link> = {}): Link => ({ id: 'l', fromId: 'router', toId: 'srv', kind: 'lan', proto: '', about: '', ifBroken: '', speedMbit: null, planned: false, iface: '', ...over })
 const snap = (net: Snapshot['net']) => ({ net }) as Snapshot
@@ -56,5 +56,24 @@ describe('dots', () => {
     const fast = dots(100 * MBIT)!
     expect(fast.count).toBeGreaterThan(slow.count)
     expect(fast.dur).toBeLessThan(slow.dur)
+  })
+})
+
+describe('linkHealth', () => {
+  const ping = (loss: number, sent = 6, error?: string) => ({ host: '192.168.1.1', side: 'to' as const, sent, rtt: 1, loss, error })
+  const tr = (load: number) => ({ fwd: 0, back: 0, iface: 'eth0', auto: true, side: 'to' as const, portMbit: 0, capacityMbit: 100, load })
+  it('is amber on any loss or a busy link, red when most pings are lost', () => {
+    expect(linkHealth(null, ping(0))).toBe('ok')
+    expect(linkHealth(null, ping(16.7))).toBe('warn')
+    expect(linkHealth(tr(85), ping(0))).toBe('warn')
+    expect(linkHealth(null, ping(66.7))).toBe('crit')
+    expect(linkHealth(null, ping(100, 1))).toBe('warn') // one ping is too few to call the link down
+    expect(linkHealth(null, ping(100, 6, 'resolve'))).toBe('ok') // a setup problem is not a broken link
+  })
+  it('writes the latency or that nothing answers', () => {
+    const t = i18n.getFixedT('ru')
+    expect(latencyLabel(t, { ...ping(0), rtt: 0.43 })).toBe('0.4 мс')
+    expect(latencyLabel(t, { ...ping(0), rtt: 23.6 })).toBe('24 мс')
+    expect(latencyLabel(t, ping(100))).toBe('нет ответа')
   })
 })

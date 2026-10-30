@@ -443,8 +443,8 @@
   "update.agentAuto": "Update agents automatically",
   "update.agentAuto.hint": "When the core has a newer agent build, agents install it themselves, with a signature check and rollback. A version that once failed to connect is only retried with the button.",
   "link.traffic.pair": "{cur} / {cap}",
-  "insp.traffic": "Traffic now",
-  "insp.traffic.help": "From the counters of a network card on the machine with the agent at one end of the link, every 5 seconds. If other traffic goes through that card too, it is counted here as well.",
+  "insp.traffic": "Now",
+  "insp.traffic.help": "Traffic: from the counters of a network card on the machine with the agent at one end, every 5 seconds (other traffic through that card counts too). Latency and loss: the agent pings the address of the other end every 10 seconds; figures for the last minute.",
   "insp.traffic.dir": "{from} → {to}",
   "insp.traffic.should": "Should carry",
   "insp.traffic.contract": "{speed} by contract",
@@ -464,5 +464,15 @@
   "update.step.download": "Downloading file {part} of {parts}",
   "update.step.of": "{done} of {total}",
   "update.step.backup": "Backing up the database and installing the new files…",
-  "update.step.restart": "Restarting the core and checking that the new version works…"
+  "update.step.restart": "Restarting the core and checking that the new version works…",
+  "link.ping.ms": "{n} ms",
+  "link.ping.none": "no answer",
+  "insp.ping.rtt": "Latency",
+  "insp.ping.loss": "Loss, last minute",
+  "insp.ping.how": "Checked by",
+  "insp.ping.on": "ping {host} from {node}",
+  "insp.ping.noAddress": "Add an address to \"{node}\" and the agent will measure latency and loss.",
+  "insp.ping.starting": "The first latency reading comes in a few seconds.",
+  "insp.ping.err.resolve": "The address {host} does not resolve: check it is written correctly.",
+  "insp.ping.err.no_icmp": "The system with the agent does not allow ping without root (net.ipv4.ping_group_range)."
 }

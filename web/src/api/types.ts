@@ -66,6 +66,8 @@ export type Snapshot = {
   disks: { mount: string; fs: string; total: number; used: number }[] | null
   // Bytes per second; default: carries the default route; speed: Mbit/s the cards agreed on.
   net: { name: string; rx: number; tx: number; default?: boolean; speed?: number }[] | null
+  // Pings of the far ends of network links over the last minute (id = the link's); rtt in ms, loss in %.
+  probes?: { id: string; host: string; sent: number; rtt: number; loss: number; error?: 'resolve' | 'no_icmp' }[]
   temps: { name: string; c: number }[] | null
   docker?: { containers: Container[] }
   dockerError?: 'no_access' | 'unavailable'

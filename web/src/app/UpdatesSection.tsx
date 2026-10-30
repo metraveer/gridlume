@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../api/client'
 import type { Channel, ChannelInfo, SystemInfo } from '../api/types'
 import { Button, KV, StateBadge } from '../design'
-import { ago } from '../map/format'
+import { ago, bytes, rate } from '../map/format'
 import { useApp } from '../state/app'
 import s from './SettingsPage.module.css'
 
@@ -17,6 +17,30 @@ function ChannelState({ info, current }: { info: ChannelInfo | undefined; curren
   const v = info.latest.version
   if (v === current) return <span className={s.muted}>{t('update.state.installed', { v })}</span>
   return info.newer ? <b className={s.newer}>{t('update.state.newer', { v })}</b> : <span className={s.muted}>{t('update.state.older', { v })}</span>
+}
+
+/** What the update service is doing now; while downloading, a bar with bytes and speed. */
+function UpdateProgress({ last }: { last: SystemInfo['last'] }) {
+  const { t } = useTranslation()
+  if (!last || last.state !== 'running') return <small className={s.muted}>{t('update.step.waiting')}</small>
+  const p = last.progress
+  if (last.step !== 'download' || !p) return last.step ? <small className={s.muted}>{t(`update.step.${last.step}`)}</small> : null
+  const share = p.total > 0 ? Math.min(100, (100 * p.done) / p.total) : 0
+  return (
+    <div className={s.progress}>
+      <small className={s.muted}>
+        {t('update.step.download', { part: p.part, parts: p.parts })} ·{' '}
+        <span className="mono">
+          {p.total > 0 ? t('update.step.of', { done: bytes(t, p.done), total: bytes(t, p.total) }) : bytes(t, p.done)} · {rate(t, p.speed)}
+        </span>
+      </small>
+      {p.total > 0 && (
+        <div className={s.bar} role="progressbar" aria-valuenow={Math.round(share)} aria-valuemin={0} aria-valuemax={100}>
+          <span style={{ width: `${share}%` }} />
+        </div>
+      )}
+    </div>
+  )
 }
 
 /**
@@ -85,7 +109,10 @@ export function UpdatesSection({ sys }: { sys: SystemInfo }) {
       {running ? (
         <div className={s.banner}>
           <span className={s.spinner} aria-hidden="true" />
-          <span>{t('update.running', { to: sys.last?.to || sys.latest?.version || '' })}</span>
+          <div className={s.runningText}>
+            <span>{t('update.running', { to: sys.last?.to || sys.latest?.version || '' })}</span>
+            <UpdateProgress last={sys.pending || sys.last?.state === 'running' ? sys.last : undefined} />
+          </div>
         </div>
       ) : sys.newer && sys.latest ? (
         <div className={s.banner} data-tone="new">

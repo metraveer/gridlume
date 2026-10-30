@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fakeRelease serves a channel's files; tamper changes the binary after it was signed.
@@ -120,4 +121,31 @@ type rewrite struct{ to string }
 func (r rewrite) RoundTrip(req *http.Request) (*http.Response, error) {
 	u, _ := http.NewRequest(req.Method, r.to+req.URL.Path, nil)
 	return http.DefaultTransport.RoundTrip(u)
+}
+
+func TestSlowDownloadIsFineStalledIsNot(t *testing.T) {
+	old := Stall
+	Stall = 300 * time.Millisecond
+	t.Cleanup(func() { Stall = old })
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f := w.(http.Flusher)
+		// Slow but steady: 8 chunks over ~1.2 s, longer than Stall in total.
+		for range 8 {
+			_, _ = w.Write([]byte("chunk"))
+			f.Flush()
+			time.Sleep(150 * time.Millisecond)
+		}
+		if r.URL.Path == "/stalls" {
+			time.Sleep(2 * time.Second) // then nothing more comes
+		}
+	}))
+	defer srv.Close()
+	c := Default()
+	b, err := c.get(context.Background(), srv.URL+"/slow", 1<<20)
+	if err != nil || len(b) != 40 {
+		t.Fatalf("a slow download that keeps going must finish: %d bytes, %v", len(b), err)
+	}
+	if _, err := c.get(context.Background(), srv.URL+"/stalls", 1<<20); err == nil || !strings.Contains(err.Error(), "nothing received") {
+		t.Fatalf("a stalled download must be given up: %v", err)
+	}
 }

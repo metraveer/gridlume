@@ -139,7 +139,16 @@ export type SystemInfo = {
   checkError: string
   pending: boolean // an update was requested and has not started yet
   pendingStuck?: boolean // ...for longer than the update service should take to pick it up
-  last?: { state: 'running' | 'done' | 'rolled_back' | 'failed' | 'installed' | 'interrupted'; from: string; to: string; message?: string; at: string }
+  last?: {
+    state: 'running' | 'done' | 'rolled_back' | 'failed' | 'installed' | 'interrupted'
+    from: string
+    to: string
+    message?: string
+    at: string
+    step?: 'download' | 'backup' | 'restart'
+    // While downloading: file part of parts, bytes so far of total (-1 = unknown), bytes per second.
+    progress?: { file: string; part: number; parts: number; done: number; total: number; speed: number }
+  }
 }
 
 export type MetricRange = '1h' | '24h' | '14d'

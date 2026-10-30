@@ -73,12 +73,21 @@ type Client struct {
 	// e.g. https://github.com/metraveer/gridlume/releases/download/v0.3.0-dev.12.
 	Resolve func(ctx context.Context, c *Client, channel string) (string, error)
 	Key     ed25519.PublicKey
+	// Progress, when set, hears how a Download goes: bytes so far and the size (-1 if not known).
+	Progress func(name string, done, total int64)
 }
 
 // Default is the client for GitHub.
+// No overall time limit: on a slow line a 13 MB build may take many minutes, and that is fine as long as
+// data keeps coming. A download that stops moving for Stall is given up (see get).
 func Default() *Client {
-	return &Client{HTTP: &http.Client{Timeout: 5 * time.Minute}, Resolve: GitHub, Key: PublicKey}
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.ResponseHeaderTimeout = time.Minute
+	return &Client{HTTP: &http.Client{Transport: t}, Resolve: GitHub, Key: PublicKey}
 }
+
+// Stall is how long a download may receive nothing before it is given up (a variable for tests).
+var Stall = time.Minute
 
 // GitHub finds the newest release of a channel with the GitHub API (no token: 60 requests an hour,
 // and the core asks every 6 hours).
@@ -138,6 +147,13 @@ var (
 )
 
 func (c *Client) get(ctx context.Context, url string, limit int64) ([]byte, error) {
+	return c.fetch(ctx, url, limit, nil)
+}
+
+// fetch is get that also reports the bytes received so far.
+func (c *Client) fetch(ctx context.Context, url string, limit int64, report func(done, total int64)) ([]byte, error) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -154,7 +170,35 @@ func (c *Client) get(ctx context.Context, url string, limit int64) ([]byte, erro
 	if res.StatusCode != http.StatusOK {
 		return nil, &HTTPError{URL: url, Status: res.StatusCode}
 	}
-	return io.ReadAll(io.LimitReader(res.Body, limit))
+	// Every chunk that arrives pushes the deadline back.
+	stall := time.AfterFunc(Stall, func() { cancel(fmt.Errorf("%s: nothing received for %s", url, Stall)) })
+	defer stall.Stop()
+	var done int64
+	b, err := io.ReadAll(io.LimitReader(progress{res.Body, func(n int) {
+		stall.Reset(Stall)
+		done += int64(n)
+		if report != nil {
+			report(done, res.ContentLength)
+		}
+	}}, limit))
+	if err != nil && context.Cause(ctx) != nil && ctx.Err() != nil {
+		return nil, context.Cause(ctx)
+	}
+	return b, err
+}
+
+// progress calls tick with the size of every chunk that arrives.
+type progress struct {
+	r    io.Reader
+	tick func(n int)
+}
+
+func (p progress) Read(b []byte) (int, error) {
+	n, err := p.r.Read(b)
+	if n > 0 {
+		p.tick(n)
+	}
+	return n, err
 }
 
 // HTTPError is an answer other than 200 from GitHub.
@@ -278,7 +322,11 @@ func (r *Checked) verify(name string, data []byte) error {
 // Download saves a file of the release to dir/name after checking it against the signed checksums.
 // The file appears only when it is complete and correct.
 func (c *Client) Download(ctx context.Context, r *Checked, name, dir string) (string, error) {
-	data, err := c.get(ctx, r.base+"/"+name, 256<<20)
+	var report func(done, total int64)
+	if c.Progress != nil {
+		report = func(done, total int64) { c.Progress(name, done, total) }
+	}
+	data, err := c.fetch(ctx, r.base+"/"+name, 256<<20, report)
 	if err != nil {
 		return "", err
 	}

@@ -57,6 +57,19 @@ type Status struct {
 	To      string    `json:"to"`
 	Message string    `json:"message,omitempty"`
 	At      time.Time `json:"at"`
+	// While running: what it is doing (download, backup, restart) and, while downloading, how far it got.
+	Step     string    `json:"step,omitempty"`
+	Progress *Progress `json:"progress,omitempty"`
+}
+
+// Progress of the download, so the panel can show that something is happening on a slow line.
+type Progress struct {
+	File  string  `json:"file"`
+	Part  int     `json:"part"` // 1-based, of Parts files
+	Parts int     `json:"parts"`
+	Done  int64   `json:"done"`  // bytes
+	Total int64   `json:"total"` // bytes; -1 if the server did not say
+	Speed float64 `json:"speed"` // bytes per second since this file started
 }
 
 // WriteRequest is called by the core (as its own user) when the owner presses "Update".
@@ -173,11 +186,24 @@ func (u *Updater) Apply(ctx context.Context, channel string) (Status, error) {
 	defer os.RemoveAll(stage)
 	arch := runtime.GOARCH
 	names := []string{"gridlume-linux-" + arch, "gridlume-agent-linux-amd64", "gridlume-agent-linux-arm64"}
-	for _, n := range names {
-		if _, err := u.Client.Download(ctx, r, n, stage); err != nil {
+	for i, n := range names {
+		// Written at most once a second: the panel asks every few seconds.
+		started, last := time.Now(), time.Time{}
+		u.Client.Progress = func(name string, done, total int64) {
+			if now := time.Now(); now.Sub(last) >= time.Second || done == total {
+				last = now
+				speed := float64(done) / max(now.Sub(started).Seconds(), 0.001)
+				u.status(Status{State: "running", From: from, To: r.Version, Step: "download",
+					Progress: &Progress{File: name, Part: i + 1, Parts: len(names), Done: done, Total: total, Speed: speed}})
+			}
+		}
+		_, err := u.Client.Download(ctx, r, n, stage)
+		u.Client.Progress = nil
+		if err != nil {
 			return u.fail(from, r.Version, err)
 		}
 	}
+	u.status(Status{State: "running", From: from, To: r.Version, Step: "backup"})
 
 	backup := filepath.Join(u.Paths.Data, "backups", fmt.Sprintf("gridlume-%s-%s.db", safe(from), time.Now().UTC().Format("20060102-150405")))
 	// The backup is made by the core's own user, so no file in its data folder ends up owned by root.
@@ -195,6 +221,7 @@ func (u *Updater) Apply(ctx context.Context, channel string) (Status, error) {
 			u.Log.Warn("agent build not stored", "file", n, "err", err)
 		}
 	}
+	u.status(Status{State: "running", From: from, To: r.Version, Step: "restart"})
 	err = u.Run(ctx, "systemctl", "restart", u.Paths.CoreUnit)
 	if err == nil {
 		err = u.Ready(ctx, u.Paths.Health, r.Version)

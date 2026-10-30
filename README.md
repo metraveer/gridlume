@@ -106,7 +106,8 @@ Design decisions and their reasons are in [`docs/decisions.md`](docs/decisions.m
 | Map: areas, nodes, links, levels | ✅ done |
 | Agent, live data, Docker | ✅ done; latency and packet loss on links in progress |
 | Signed releases, updates from the panel | ✅ done |
-| Problems and notifications: checks, one message per cause, Telegram | next |
+| Problems: the core finds what is wrong (machine offline, container down, disk full, packet loss…), one line per cause | ✅ done |
+| Checks (ping, TCP, HTTP, certificates), notifications in Telegram | next |
 | Understanding: "what breaks if…", change journal, history | planned |
 | Actions: logs, terminal, container control with confirmation and undo | planned |
 | Integrations: password vault, Keenetic, Timeweb Cloud, UPS (NUT), backups | planned |

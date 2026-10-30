@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { api } from '../api/client'
 import type { Agent, Container, LiveEvent, MapNode, NodeState, Snapshot } from '../api/types'
 import { useApp } from './app'
+import { useProblems } from './problems'
 
 type Live = {
   agents: Record<string, Agent> // by node id
@@ -33,6 +34,10 @@ export const useLive = create<Live>((set) => ({
   apply: (e) => {
     // New containers became nodes, or the core found links to suggest.
     if (e.mapChanged) void useApp.getState().loadMap()
+    if (e.problems) {
+      void useProblems.getState().load().catch(() => undefined)
+      return
+    }
     if (e.removed) {
       set((s) => ({ agents: without(s.agents, e.nodeId), snaps: without(s.snaps, e.nodeId) }))
       return
@@ -67,7 +72,10 @@ export function startLive() {
   const { load, apply } = useLive.getState()
   const es = new EventSource('/api/events')
   // (Re)connected: catch up on what happened while the stream was down.
-  es.onopen = () => void load().catch(() => undefined)
+  es.onopen = () => {
+    void load().catch(() => undefined)
+    void useProblems.getState().load().catch(() => undefined)
+  }
   es.onmessage = (m) => {
     try {
       apply(JSON.parse(m.data) as LiveEvent)

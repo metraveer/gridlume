@@ -7,6 +7,7 @@ import { is, plain, typingIn } from '../hotkeys'
 import { useApp } from '../state/app'
 import { usePrefs } from '../state/prefs'
 import { CoreStatus } from './CoreStatus'
+import { ProblemsPill } from './Problems'
 import { go, type Route } from './route'
 import s from './Shell.module.css'
 
@@ -167,6 +168,7 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
         </div>
         <Search />
         <div className={s.right}>
+          <ProblemsPill />
           <UpdateBadge />
           <CoreStatus />
           <UserMenu />

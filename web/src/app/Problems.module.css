@@ -1,0 +1,53 @@
+/* Top bar: "All good" / "Problems: N". */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 26px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pill:hover, .pill[aria-expanded='true'] { background: var(--bg-raised); color: var(--fg); }
+.pill[data-tone='warn'] { border-color: var(--warn); color: var(--fg); }
+.pill[data-tone='crit'] { border-color: var(--crit); color: var(--fg); }
+.pillCount { display: none; }
+
+/* Narrow windows keep the dot and the number. */
+@media (max-width: 1100px) {
+  .pillText { display: none; }
+  .pillCount { display: inline; font-variant-numeric: tabular-nums; }
+  .pill[data-tone='ok'] { padding: 0 8px; }
+}
+
+.panel {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: min(440px, calc(100vw - 16px));
+  max-height: min(560px, calc(100vh - 80px));
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line-soft); }
+.list { overflow-y: auto; }
+.empty { margin: 0; padding: var(--s-4); color: var(--fg-faint); font-size: var(--fs-13); line-height: 1.5; }
+
+.item { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line-soft); }
+.item:last-child { border-bottom: 0; }
+.item > span:first-child { margin-top: 6px; }
+.body { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.title { font-size: var(--fs-13); line-height: 1.4; }
+.meta { color: var(--fg-faint); font-size: var(--fs-12); }
+.what { margin: var(--s-1) 0 0; color: var(--fg-muted); font-size: var(--fs-12); line-height: 1.5; }
+.merged { display: inline-flex; align-items: center; gap: var(--s-1); margin-top: var(--s-1); color: var(--fg-faint); font-size: var(--fs-12); }

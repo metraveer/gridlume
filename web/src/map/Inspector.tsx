@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { CheckResult, Link, MapNode, Place } from '../api/types'
 import { Button, Dialog, Icon, IconButton, KV, Section, StateBadge, type Risk } from '../design'
-import { useApp } from '../state/app'
+import { useApp, useReadOnly } from '../state/app'
 import { useLive, useNodeLive } from '../state/live'
 import { usePrefs } from '../state/prefs'
 import { AgentSection, HistorySection, LiveSection, unlinkAgent } from './AgentPanel'
-import { ChangesSection } from './ChangesSection'
+import { useProblemText } from '../app/Problems'
+import { openAt, useHistory } from '../state/history'
+import { ChangesSection, changeText } from './ChangesSection'
 import { ContainerSection, DockerSummary, SuggestionsSection } from './DockerPanel'
 import { speed } from './flow'
 import { ago, daysUntil, percent, rate } from './format'
@@ -79,7 +81,7 @@ function NodeList({ ids, empty }: { ids: string[]; empty: string }) {
 function NodePanel({ node }: { node: MapNode }) {
   const { t } = useTranslation()
   const map = useApp((st) => st.map)
-  const viewer = useApp((st) => st.user?.role === 'viewer')
+  const viewer = useReadOnly()
   const { edit, enter, select, patchNode, remove } = useApp.getState()
   const [notes, setNotes] = useState(node.notes)
   const [confirm, setConfirm] = useState(false)
@@ -124,6 +126,7 @@ function NodePanel({ node }: { node: MapNode }) {
         )}
       </div>
 
+      <AtThatTime node={node} />
       {check && <CheckSection c={check} />}
       {container !== undefined && <ContainerSection c={container} node={node} />}
       {snap && <LiveSection snap={snap} />}
@@ -230,7 +233,7 @@ function NodePanel({ node }: { node: MapNode }) {
 function LinkPanel({ link }: { link: Link }) {
   const { t } = useTranslation()
   const nodes = useApp((st) => st.map.nodes)
-  const viewer = useApp((st) => st.user?.role === 'viewer')
+  const viewer = useReadOnly()
   const { edit, select, swapLink, remove } = useApp.getState()
   const [confirm, setConfirm] = useState(false)
   useAskedDelete('link', link.id, () => setConfirm(true))
@@ -286,6 +289,39 @@ function LinkPanel({ link }: { link: Link }) {
         />
       )}
     </>
+  )
+}
+
+/** Looking at the past: this node's problems at that moment, and what changed on it around then. */
+function AtThatTime({ node }: { node: MapNode }) {
+  const { t, i18n } = useTranslation()
+  const past = useApp((st) => st.past)
+  const problems = useHistory((st) => st.problems)
+  const changes = useHistory((st) => st.changes)
+  const text = useProblemText()
+  if (past === null) return null
+  const machine = node.parentId ?? node.id
+  const open = openAt(problems, past).filter((p) => p.nodeId === node.id || p.nodeId === machine)
+  const near = changes.filter((c) => (c.nodeId === node.id || c.machineId === node.id) && Math.abs(c.at - past) <= 30 * 60_000)
+  return (
+    <Section title={t('hist.atThatTime')} help={t('hist.atThatTime.help')}>
+      {open.length === 0 && <p className={s.muted}>{t('hist.noProblems')}</p>}
+      {open.map((p) => (
+        <p key={p.id} className={s.text}>
+          <StateBadge state={p.severity}>{text(p).title}</StateBadge>
+        </p>
+      ))}
+      {near.length > 0 && (
+        <ul className={s.changes}>
+          {near.map((c) => (
+            <li key={c.id}>
+              <span>{changeText(t, c)}</span>
+              <time className={s.muted}>{new Date(c.at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</time>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
   )
 }
 
@@ -375,7 +411,7 @@ function TrafficSection({ link, name }: { link: Link; name: (id: string) => stri
 function PlacePanel({ place }: { place: Place }) {
   const { t } = useTranslation()
   const nodes = useApp((st) => st.map.nodes)
-  const viewer = useApp((st) => st.user?.role === 'viewer')
+  const viewer = useReadOnly()
   const { edit, select, remove } = useApp.getState()
   const [confirm, setConfirm] = useState(false)
   useAskedDelete('place', place.id, () => setConfirm(true))

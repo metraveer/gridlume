@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next'
 import type { Link, Snapshot } from '../api/types'
+import { useApp } from '../state/app'
 import { useLive } from '../state/live'
 import { LINK_META } from './model'
 
@@ -37,7 +38,8 @@ export function linkTraffic(link: Link, from: Snapshot | undefined, to: Snapshot
 export function useLinkTraffic(link: Link) {
   const from = useLive((s) => s.snaps[link.fromId])
   const to = useLive((s) => s.snaps[link.toId])
-  return linkTraffic(link, from, to)
+  const past = useApp((s) => s.past)
+  return past === null ? linkTraffic(link, from, to) : null // today's numbers do not belong to the past
 }
 
 /** Latency and loss of a link: an agent at one end pings the address of the other end every 10 s. */
@@ -54,7 +56,8 @@ export function linkPing(link: Link, from: Snapshot | undefined, to: Snapshot | 
 export function useLinkPing(link: Link) {
   const from = useLive((s) => s.snaps[link.fromId])
   const to = useLive((s) => s.snaps[link.toId])
-  return linkPing(link, from, to)
+  const past = useApp((s) => s.past)
+  return past === null ? linkPing(link, from, to) : null
 }
 
 /**

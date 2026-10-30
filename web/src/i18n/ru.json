@@ -712,5 +712,20 @@
   "prog.syncthing.link": "{from} синхронизирует файлы через {to}.",
   "prog.torrent.what": "торрент-клиент.",
   "prog.torrent.broken": "Загрузки остановятся.",
-  "prog.torrent.link": "{from} скачивает через {to}."
+  "prog.torrent.link": "{from} скачивает через {to}.",
+  "hist.toggle": "История за сутки",
+  "hist.title": "Последние сутки",
+  "hist.crit": "серьёзные",
+  "hist.warn": "предупреждения",
+  "hist.change": "изменения",
+  "hist.tip": "Щёлкните, чтобы посмотреть схему такой, какой она была в этот момент.",
+  "hist.now": "сейчас",
+  "hist.looking": "Смотрю прошлое: {when}",
+  "hist.readonly": "Цвета — как было тогда; живых цифр нет, менять схему нельзя. Esc — вернуться.",
+  "hist.back": "Вернуться к сейчас",
+  "hist.atThatTime": "В это время",
+  "hist.atThatTime.help": "Проблемы узла в выбранный момент и изменения на нём в пределах получаса до и после.",
+  "hist.noProblems": "Проблем не было.",
+  "hist.range": "За какое время",
+  "hist.hours": "{count, plural, one {# час} few {# часа} many {# часов} other {# часа}}"
 }

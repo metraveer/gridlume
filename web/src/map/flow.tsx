@@ -2,10 +2,12 @@ import { BaseEdge, EdgeLabelRenderer, Handle, NodeResizer, Position, useInternal
 import { useTranslation } from 'react-i18next'
 import type { CheckResult, Link, MapNode, Place } from '../api/types'
 import { Dot, Icon } from '../design'
+import { useApp } from '../state/app'
 import { useNodeLive } from '../state/live'
 import { usePrefs } from '../state/prefs'
 import { bytes, percent } from './format'
 import { canContain, LINK_META, NODE_META } from './model'
+import { linkStateAt, openAt, useHistory } from '../state/history'
 import { impactRole, useImpact } from './impact'
 import { dots, latencyLabel, linkHealth, trafficLabel, useLinkPing, useLinkTraffic } from './traffic'
 import s from './flow.module.css'
@@ -143,6 +145,8 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
   const traffic = useLinkTraffic(data.link)
   const ping = useLinkPing(data.link)
   const imp = useImpact()
+  const past = useApp((st) => st.past)
+  const pastProblems = useHistory((st) => st.problems)
   if (!a || !b) return null
   const ra = { ...a.internals.positionAbsolute, w: a.measured.width ?? 0, h: a.measured.height ?? 0 }
   const rb = { ...b.internals.positionAbsolute, w: b.measured.width ?? 0, h: b.measured.height ?? 0 }
@@ -165,7 +169,7 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
         .filter(Boolean)
         .join(' · ')
   const tip = [t(`link.${link.kind}`), link.about].filter(Boolean).join(' — ')
-  const health = link.planned ? 'ok' : linkHealth(traffic, ping)
+  const health = link.planned ? 'ok' : past !== null ? linkStateAt(link, openAt(pastProblems, past)) : linkHealth(traffic, ping)
   // In the impact view a link stays only between nodes that are in it.
   const inImpact = (id: string) => impactRole(imp, id) !== 'faded'
   const faded = !!imp && !(inImpact(link.fromId) && inImpact(link.toId))

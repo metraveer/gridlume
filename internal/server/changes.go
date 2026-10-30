@@ -12,6 +12,39 @@ import (
 
 func (a *api) changeRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/changes", a.authed(a.listChanges))
+	mux.HandleFunc("GET /api/history", a.authed(a.history))
+}
+
+// HistoryMax is the longest period the history answers for at once.
+const HistoryMax = 14 * 24 * time.Hour
+
+// history: what was going on over a period (the last day by default): the problems open at some point
+// in it and the changes made in it, for the timeline and "looking at the past".
+func (a *api) history(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	now := time.Now().UnixMilli()
+	to, _ := strconv.ParseInt(r.URL.Query().Get("to"), 10, 64)
+	from, _ := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)
+	if to <= 0 || to > now {
+		to = now
+	}
+	if from <= 0 || from >= to {
+		from = to - (24 * time.Hour).Milliseconds()
+	}
+	if to-from > HistoryMax.Milliseconds() {
+		from = to - HistoryMax.Milliseconds()
+	}
+	ps, err := a.store.ProblemsBetween(ctx, from, to)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	cs, err := a.store.Changes(ctx, nil, nil, from, to, 1000)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"from": from, "to": to, "problems": ps, "changes": cs})
 }
 
 // listChanges: the newest changes of a node (a machine includes what is inside it), or of everything.

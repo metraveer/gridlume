@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { api } from '../api/client'
 import type { Agent, CheckResult, Container, LiveEvent, MapNode, NodeState, Snapshot } from '../api/types'
 import { useApp } from './app'
+import { openAt, stateAt, useHistory } from './history'
 import { useProblems } from './problems'
 
 type Live = {
@@ -153,6 +154,12 @@ export function useNodeLive(node: MapNode) {
   const snap = useLive((s) => s.snaps[node.id])
   const parentSnap = useLive((s) => (node.parentId ? s.snaps[node.parentId] : undefined))
   const check = useLive((s) => s.checks[node.id])
+  const past = useApp((s) => s.past)
+  const problems = useHistory((s) => s.problems)
   const container = findContainer(node, parentSnap)
+  // Looking at the past: the state then, and none of today's live numbers.
+  if (past !== null) {
+    return { agent: undefined, snap: undefined, container: undefined, check: undefined, state: stateAt(node, openAt(problems, past), !!agent || !!check) }
+  }
   return { agent, snap, container, check, state: liveState(node, agent, container, check) }
 }

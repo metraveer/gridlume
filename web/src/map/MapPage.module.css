@@ -96,3 +96,22 @@
 }
 .impactBar > span { display: grid; gap: 2px; }
 .impactElsewhere { color: var(--fg-faint); font-size: var(--fs-12); }
+
+/* Looking at the past: top centre, so it is hard to miss that this is not now. */
+.pastBar {
+  position: absolute;
+  top: var(--s-3);
+  left: 50%;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  border: 1px solid var(--lume-dim);
+  border-radius: var(--r);
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: var(--fs-13);
+  transform: translateX(-50%);
+}
+.pastBar > span { display: grid; gap: 2px; }

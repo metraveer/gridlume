@@ -1,0 +1,32 @@
+/* The last day, under the map: above the toolbar, across the canvas. */
+.timeline {
+  position: absolute;
+  right: var(--s-3);
+  bottom: 76px;
+  left: var(--s-3);
+  z-index: 9;
+  padding: var(--s-2) var(--s-3) var(--s-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.head { display: flex; align-items: center; gap: var(--s-3); font-size: var(--fs-12); }
+.legend { display: flex; flex: 1; align-items: center; gap: var(--s-1); color: var(--fg-faint); }
+.legend i { display: inline-block; width: 10px; height: 6px; margin-left: var(--s-2); border-radius: 2px; }
+.legend i.change { width: 7px; height: 7px; transform: rotate(45deg); border-radius: 1px; }
+
+.track { position: relative; height: 42px; margin-top: var(--s-1); border-radius: var(--r); background: var(--bg-canvas); cursor: crosshair; }
+.lane { position: absolute; right: 0; left: 0; height: 8px; }
+.span { position: absolute; top: 0; height: 8px; min-width: 3px; border-radius: 2px; opacity: 0.85; }
+.crit { background: var(--crit); }
+.warn { background: var(--warn); }
+.change { background: var(--lume); }
+.mark { position: absolute; top: 0; width: 8px; height: 8px; margin-left: -4px; border-radius: 1px; background: var(--lume); transform: rotate(45deg); }
+.cursor { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--fg); pointer-events: none; }
+
+.hours { position: relative; height: 16px; color: var(--fg-faint); font-size: var(--fs-11); }
+.hours span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.hours span:first-child { transform: none; }
+.hours span:last-child { transform: translateX(-100%); }

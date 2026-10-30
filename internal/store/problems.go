@@ -52,6 +52,12 @@ func (s *Store) EndedProblems(ctx context.Context, since int64) ([]Problem, erro
 	return s.problems(ctx, `ended_at IS NOT NULL AND ended_at >= ?`, since)
 }
 
+// ProblemsBetween are the problems that were open at some moment between from and to (unix
+// milliseconds): started before to, and not ended before from.
+func (s *Store) ProblemsBetween(ctx context.Context, from, to int64) ([]Problem, error) {
+	return s.problems(ctx, `started_at <= ? AND (ended_at IS NULL OR ended_at >= ?)`, to, from)
+}
+
 // OpenProblem records a new problem and returns it with its id.
 func (s *Store) OpenProblem(ctx context.Context, p Problem) (Problem, error) {
 	p.ID = NewID()

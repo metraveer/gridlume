@@ -4,10 +4,33 @@ import { Badge, Button, IconButton, KV, Section, StateBadge } from '../design'
 import { useApp } from '../state/app'
 import { containerState } from '../state/live'
 import { bytes, percent } from './format'
+import { dependents } from './model'
+import { programOf, programProto } from './programs'
 import s from './DockerPanel.module.css'
 
+/** What a known program is and what stops without it ("PostgreSQL — a database: …"). */
+function ProgramAbout({ node, image }: { node: MapNode; image: string }) {
+  const { t } = useTranslation()
+  const map = useApp((st) => st.map)
+  const p = programOf(image)
+  if (!p) return null
+  const users = dependents(map, node.id)
+    .map((id) => map.nodes.find((n) => n.id === id)?.name)
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(', ')
+  return (
+    <div className={s.program}>
+      <p><b>{p.name}</b> — {t(`prog.${p.key}.what`)}</p>
+      <p className={s.muted}>
+        {t('prog.ifStops')}: {users ? t(`prog.${p.key}.broken`, { from: users, to: node.name }) : t('prog.ifStops.generic')}
+      </p>
+    </div>
+  )
+}
+
 /** One container, for its node's inspector. null: the machine no longer has it. */
-export function ContainerSection({ c }: { c: Container | null }) {
+export function ContainerSection({ c, node }: { c: Container | null; node: MapNode }) {
   const { t } = useTranslation()
   if (c === null) {
     return (
@@ -19,6 +42,7 @@ export function ContainerSection({ c }: { c: Container | null }) {
   const ports = (c.ports ?? []).map((p) => (p.public ? `${p.public} → ${p.private}/${p.proto}` : `${p.private}/${p.proto}`))
   return (
     <Section title={t('docker.container')} help={t('docker.container.help')}>
+      <ProgramAbout node={node} image={c.image} />
       <div className={s.state}>
         <StateBadge state={containerState(c)}>{t(`docker.state.${c.state}`)}{c.health ? ` · ${t(`docker.health.${c.health}`)}` : ''}</StateBadge>
         <span className={s.status}>{c.status}</span>
@@ -98,6 +122,10 @@ export function SuggestionsSection({ machine }: { machine: MapNode }) {
         {list.map((sg) => {
           const from = name(sg.fromId)
           const to = name(sg.toId)
+          // A known program at the other end explains the link better than its kind does.
+          const prog = programOf(nodes.find((n) => n.id === sg.toId)?.subtitle)
+          const about = prog ? t(`prog.${prog.key}.link`, { from, to }) : t(`about.${sg.kind}`, { from, to })
+          const broken = prog ? t(`prog.${prog.key}.broken`, { from, to }) : t(`broken.${sg.kind}`, { from, to })
           return (
             <li key={sg.id} className={s.item}>
               <div className={s.what}>
@@ -106,7 +134,7 @@ export function SuggestionsSection({ machine }: { machine: MapNode }) {
                 <small className={s.muted}>{reasonText(t, sg, from, to)}</small>
               </div>
               <div className={s.actions}>
-                <Button size="sm" variant="primary" onClick={() => void acceptSuggestion(sg, t(`about.${sg.kind}`, { from, to }), t(`broken.${sg.kind}`, { from, to }))}>
+                <Button size="sm" variant="primary" data-tip={about} onClick={() => void acceptSuggestion(sg, about, broken, prog ? programProto(prog) : '')}>
                   {t('suggest.accept')}
                 </Button>
                 <IconButton icon="x" label={t('suggest.dismiss')} onClick={() => void dismissSuggestion(sg)} />

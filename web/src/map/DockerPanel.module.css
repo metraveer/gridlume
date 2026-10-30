@@ -11,3 +11,7 @@
 .pair { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .kind { color: var(--fg-muted); font-size: var(--fs-12); }
 .actions { display: flex; align-items: center; gap: 4px; }
+
+/* A known program: what it is and what stops without it. */
+.program { display: grid; gap: var(--s-1); margin-bottom: var(--s-3); padding: var(--s-2) var(--s-3); border-radius: var(--r); background: var(--bg-raised); font-size: var(--fs-13); line-height: 1.45; }
+.program p { margin: 0; }

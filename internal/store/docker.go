@@ -251,7 +251,7 @@ func (s *Store) Suggestions(ctx context.Context) ([]Suggestion, error) {
 }
 
 // AcceptSuggestion turns a suggestion into a link with the explanation the user saw (or edited).
-func (s *Store) AcceptSuggestion(ctx context.Context, id, about, ifBroken string) (Link, error) {
+func (s *Store) AcceptSuggestion(ctx context.Context, id, about, ifBroken, proto string) (Link, error) {
 	var g Suggestion
 	err := s.db.QueryRowContext(ctx, `SELECT id, from_id, to_id, kind FROM link_suggestions WHERE id = ? AND dismissed = 0`, id).Scan(&g.ID, &g.FromID, &g.ToID, &g.Kind)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -260,7 +260,7 @@ func (s *Store) AcceptSuggestion(ctx context.Context, id, about, ifBroken string
 	if err != nil {
 		return Link{}, err
 	}
-	l, err := s.CreateLink(ctx, Link{FromID: g.FromID, ToID: g.ToID, Kind: g.Kind, About: about, IfBroken: ifBroken})
+	l, err := s.CreateLink(ctx, Link{FromID: g.FromID, ToID: g.ToID, Kind: g.Kind, About: about, IfBroken: ifBroken, Proto: proto})
 	if err != nil {
 		return l, err
 	}

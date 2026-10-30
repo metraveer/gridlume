@@ -7,6 +7,7 @@ import { useApp } from '../state/app'
 import { useLive } from '../state/live'
 import { AgentDialog } from './AgentDialog'
 import { canContain, LINK_META } from './model'
+import { programOf, programProto } from './programs'
 import s from './EditDialogs.module.css'
 
 type Setter<T> = <K extends keyof T>(k: K, v: T[K]) => void
@@ -124,11 +125,15 @@ function LinkDialog({ initial, close }: { initial: Partial<Link>; close: () => v
   const [l, setL] = useForm<Partial<Link>>({ kind: 'lan', planned: false, ...initial })
   const name = (id?: string) => map.nodes.find((n) => n.id === id)?.name ?? ''
   const { busy, error, save } = useSave(() => saveLink(l), close)
-  // A starting explanation for the chosen kind, so a link is never "just an arrow". Editable.
+  // A starting explanation, so a link is never "just an arrow": from the program at the other end when it
+  // is a known one (PostgreSQL, nginx…), otherwise from the link's kind. Editable.
   const suggest = () => {
     if (!l.kind || l.about) return
-    setL('about', t(`about.${l.kind}`, { from: name(l.fromId), to: name(l.toId) }))
-    if (!l.ifBroken) setL('ifBroken', t(`broken.${l.kind}`, { from: name(l.fromId), to: name(l.toId) }))
+    const vars = { from: name(l.fromId), to: name(l.toId) }
+    const prog = LINK_META[l.kind].traffic ? null : programOf(map.nodes.find((n) => n.id === l.toId)?.subtitle)
+    setL('about', prog ? t(`prog.${prog.key}.link`, vars) : t(`about.${l.kind}`, vars))
+    if (!l.ifBroken) setL('ifBroken', prog ? t(`prog.${prog.key}.broken`, vars) : t(`broken.${l.kind}`, vars))
+    if (prog && !l.proto) setL('proto', programProto(prog))
   }
 
   return (

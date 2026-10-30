@@ -50,6 +50,14 @@ export function nodeMenu({ t, viewer }: Ctx, node: MapNode, portal: boolean): Me
   if (portal) items.push({ label: t('menu.backOut'), icon: 'chevron', onSelect: () => enter(node.parentId) })
   else if (canContain(node)) items.push({ label: t('insp.open'), icon: 'chevron', hint: '2×', onSelect: () => enter(node.id) })
   items.push({ label: t('menu.details'), icon: 'eye', onSelect: () => select({ kind: 'node', id: node.id }) })
+  items.push({
+    label: t('impact.menu'),
+    icon: 'impact',
+    onSelect: () => {
+      select({ kind: 'node', id: node.id })
+      useApp.getState().showImpact(node.id)
+    },
+  })
   if (!viewer) {
     items.push({ label: t('common.edit'), icon: 'gear', onSelect: () => edit({ kind: 'node', node }) })
     items.push({ label: t('menu.linkFrom'), icon: 'link', onSelect: () => edit({ kind: 'link', link: { fromId: node.id, kind: 'lan' } }) })

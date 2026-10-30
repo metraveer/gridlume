@@ -6,6 +6,7 @@ import { useNodeLive } from '../state/live'
 import { usePrefs } from '../state/prefs'
 import { bytes, percent } from './format'
 import { canContain, LINK_META, NODE_META } from './model'
+import { impactRole, useImpact } from './impact'
 import { dots, latencyLabel, linkHealth, trafficLabel, useLinkPing, useLinkTraffic } from './traffic'
 import s from './flow.module.css'
 
@@ -26,6 +27,8 @@ export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData })
   const { t } = useTranslation()
   const { node, kids, portal } = data
   const { agent, snap, container, check, state } = useNodeLive(node)
+  const imp = useImpact()
+  const role = impactRole(imp, node.id)
   const meta = NODE_META[node.kind]
   // The card shows everything it says in full: it grows up to 300 px and wraps a long line instead of
   // cutting it with "…" (there is no way to widen a card to read the rest).
@@ -51,7 +54,10 @@ export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData })
     chips.push({ label: 'CPU', value: percent(container.cpu), level: container.cpu })
     chips.push({ label: 'RAM', value: bytes(t, container.memUsed), level: container.memLimit ? (100 * container.memUsed) / container.memLimit : 0 })
   }
-  const cls = [s.node, meta.small && s.small, chips.length > 0 && s.withLive, selected && s.selected, state === 'planned' && s.planned, portal && s.portal].filter(Boolean).join(' ')
+  const cls = [
+    s.node, meta.small && s.small, chips.length > 0 && s.withLive, selected && s.selected, state === 'planned' && s.planned, portal && s.portal,
+    role === 'src' && s.impactSrc, role === 'hit' && s.impactHit, role === 'faded' && s.faded,
+  ].filter(Boolean).join(' ')
   const tip = [node.name, t(`state.${state}`), kids ? t('map.enter.tip') : '', portal ? t('map.portal.tip') : ''].filter(Boolean).join(' · ')
   return (
     <div className={cls} data-tip={tip}>
@@ -90,6 +96,9 @@ export function ItemNodeView({ data, selected }: NodeProps & { data: ItemData })
       <span className={s.state}>
         <Dot state={state} />
       </span>
+      {imp && imp.inside.has(node.id) && (
+        <span className={s.impactInside} data-tip={t('impact.inside.tip')}>{t('impact.inside', { count: imp.inside.get(node.id) })}</span>
+      )}
     </div>
   )
 }
@@ -133,6 +142,7 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
   const b = useInternalNode(target)
   const traffic = useLinkTraffic(data.link)
   const ping = useLinkPing(data.link)
+  const imp = useImpact()
   if (!a || !b) return null
   const ra = { ...a.internals.positionAbsolute, w: a.measured.width ?? 0, h: a.measured.height ?? 0 }
   const rb = { ...b.internals.positionAbsolute, w: b.measured.width ?? 0, h: b.measured.height ?? 0 }
@@ -156,6 +166,9 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
         .join(' · ')
   const tip = [t(`link.${link.kind}`), link.about].filter(Boolean).join(' — ')
   const health = link.planned ? 'ok' : linkHealth(traffic, ping)
+  // In the impact view a link stays only between nodes that are in it.
+  const inImpact = (id: string) => impactRole(imp, id) !== 'faded'
+  const faded = !!imp && !(inImpact(link.fromId) && inImpact(link.toId))
 
   return (
     <>
@@ -163,15 +176,15 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
         id={id}
         path={path}
         markerEnd={LINK_META[link.kind].arrow ? markerEnd : undefined}
-        className={[s.edge, s[`edge_${link.kind}`], link.planned && s.edgePlanned, health === 'warn' && s.edgeBusy, health === 'crit' && s.edgeDown, selected && s.edgeSelected].filter(Boolean).join(' ')}
+        className={[s.edge, s[`edge_${link.kind}`], link.planned && s.edgePlanned, health === 'warn' && s.edgeBusy, health === 'crit' && s.edgeDown, faded && s.edgeFaded, selected && s.edgeSelected].filter(Boolean).join(' ')}
         interactionWidth={16}
       />
-      {traffic && <Flow path={path} rate={traffic.fwd} />}
-      {traffic && <Flow path={path} rate={traffic.back} reverse />}
+      {traffic && !faded && <Flow path={path} rate={traffic.fwd} />}
+      {traffic && !faded && <Flow path={path} rate={traffic.back} reverse />}
       {(labels || selected) && (
         <EdgeLabelRenderer>
           <div
-            className={`${s.pill} ${selected ? s.pillSelected : ''} ${health !== 'ok' ? s[`pill_${health}`] : ''} nodrag nopan`}
+            className={`${s.pill} ${selected ? s.pillSelected : ''} ${health !== 'ok' ? s[`pill_${health}`] : ''} ${faded ? s.edgeFaded : ''} nodrag nopan`}
             style={{ transform: `translate(-50%, -50%) translate(${mx}px, ${my}px)` }}
             data-tip={tip}
             data-edge={id}

@@ -177,3 +177,22 @@
 @media (prefers-reduced-motion: reduce) {
   .pendingEdge { animation: none; }
 }
+
+/* "What breaks if": the node that stops in red, what stops with it in amber, the rest dimmed. */
+.impactSrc { border-color: var(--crit) !important; box-shadow: 0 0 0 5px var(--crit-bg); }
+.impactHit { border-color: var(--warn) !important; box-shadow: 0 0 0 4px var(--warn-bg); }
+.faded { opacity: 0.28; }
+.edgeFaded { opacity: 0.12; }
+.impactInside {
+  position: absolute;
+  right: 10px;
+  bottom: -9px;
+  padding: 0 6px;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  background: var(--bg-panel);
+  color: var(--warn);
+  font-size: var(--fs-11);
+  line-height: 16px;
+  white-space: nowrap;
+}

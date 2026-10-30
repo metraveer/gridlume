@@ -7,6 +7,7 @@ import { EditDialogs } from './EditDialogs'
 import { Inspector } from './Inspector'
 import { MapView } from './MapView'
 import { NODE_META } from './model'
+import { useImpact } from './impact'
 import s from './MapPage.module.css'
 
 /**
@@ -95,11 +96,33 @@ export function ErrorBanner() {
   )
 }
 
+/** While the impact view is on: what stops, how many with it, how many on other levels; Esc or Hide ends it. */
+function ImpactBar() {
+  const { t } = useTranslation()
+  const imp = useImpact()
+  const map = useApp((st) => st.map)
+  const level = useApp((st) => st.level)
+  const showImpact = useApp((st) => st.showImpact)
+  if (!imp) return null
+  const byId = new Map(map.nodes.map((n) => [n.id, n]))
+  const elsewhere = [...imp.affected].filter((id) => byId.get(id)?.parentId !== level).length
+  return (
+    <div className={s.impactBar} role="status">
+      <span>
+        <b>{t('impact.bar', { name: byId.get(imp.src)?.name ?? '', count: imp.affected.size })}</b>
+        {elsewhere > 0 && <span className={s.impactElsewhere}>{t('impact.elsewhere', { count: elsewhere })}</span>}
+      </span>
+      <Button size="sm" variant="ghost" onClick={() => showImpact(null)}>{t('impact.hide')}</Button>
+    </div>
+  )
+}
+
 export function MapPage() {
   return (
     <>
       <MapView />
       <Breadcrumbs />
+      <ImpactBar />
       <Toolbar />
       <Inspector />
       <EditDialogs />

@@ -458,5 +458,11 @@
   "f.iface": "Network interface",
   "f.iface.hint": "Whose counters show as this link's traffic. Automatic: the interface with the default route.",
   "f.iface.auto": "Automatic ({iface})",
-  "f.iface.autoNone": "Automatic"
+  "f.iface.autoNone": "Automatic",
+  "update.badge.short": "Update",
+  "update.step.waiting": "Waiting for the update service…",
+  "update.step.download": "Downloading file {part} of {parts}",
+  "update.step.of": "{done} of {total}",
+  "update.step.backup": "Backing up the database and installing the new files…",
+  "update.step.restart": "Restarting the core and checking that the new version works…"
 }

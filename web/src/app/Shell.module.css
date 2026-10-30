@@ -6,11 +6,12 @@
   height: 100vh;
 }
 
-/* Three columns: brand on the left, search in the very middle, status and user on the right. */
+/* Three columns: brand on the left, search in the middle, status and user on the right. The sides never get
+   narrower than what they hold; the search gives way instead, and narrow screens drop secondary text. */
 .topbar {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 1fr minmax(240px, 480px) 1fr;
+  grid-template-columns: minmax(max-content, 1fr) minmax(140px, 480px) minmax(max-content, 1fr);
   align-items: center;
   gap: var(--s-4);
   padding-right: var(--s-3);
@@ -179,3 +180,15 @@
 }
 
 .update:hover { background: var(--bg-raised); }
+.updateShort { display: none; }
+
+@media (max-width: 1100px) {
+  .page, .userName { display: none; }
+  .updateLong { display: none; }
+  .updateShort { display: inline; }
+}
+
+@media (max-width: 760px) {
+  .name, .key { display: none; }
+  .topbar { gap: var(--s-2); }
+}

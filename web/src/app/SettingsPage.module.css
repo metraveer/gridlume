@@ -128,3 +128,9 @@
 .channelName { font-weight: 600; }
 .newer { color: var(--lume); font-size: var(--fs-12); font-weight: 600; }
 .hintLine { margin: 0; color: var(--fg-muted); font-size: var(--fs-12); }
+
+/* A running update: what it does, and while downloading a bar with bytes and speed. */
+.runningText { display: flex; flex: 1; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.progress { display: flex; flex-direction: column; gap: var(--s-1); }
+.bar { height: 4px; overflow: hidden; border-radius: 2px; background: var(--bg-raised); }
+.bar > span { display: block; height: 100%; background: var(--lume); transition: width 0.6s var(--ease); }

@@ -16,7 +16,7 @@ const RAIL: { icon: IconName; label: string; route?: Route; stage?: number }[] =
   { icon: 'list', label: 'rail.nodes', route: 'nodes' },
   { icon: 'clock', label: 'rail.journal', stage: 5 },
   { icon: 'key', label: 'rail.vault', stage: 6 },
-  { icon: 'bell', label: 'rail.alerts', stage: 3 },
+  { icon: 'bell', label: 'rail.alerts', route: 'alerts' },
 ]
 
 function Brand() {
@@ -164,7 +164,7 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
         <div className={s.left}>
           <span className={s.mark}><Brand /></span>
           <span className={s.name}>Gridlume</span>
-          {route !== 'map' && <span className={s.page}>{t(route === 'nodes' ? 'rail.nodes' : 'rail.settings')}</span>}
+          {route !== 'map' && <span className={s.page}>{t(route === 'nodes' ? 'rail.nodes' : route === 'alerts' ? 'rail.alerts' : 'rail.settings')}</span>}
         </div>
         <Search />
         <div className={s.right}>

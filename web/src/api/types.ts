@@ -155,6 +155,13 @@ export type SystemInfo = {
   }
 }
 
+/** Where problems are sent (GET /api/notify). The bot token is never sent back. */
+export type NotifyRules = { warn: boolean; resolved: boolean; quiet: boolean; quietFrom: string; quietTo: string; lang: 'ru' | 'en' }
+export type NotifyState = {
+  telegram: { connected: boolean; bot?: string; chatName?: string; waiting: boolean; lastSent?: number; lastError?: string }
+  rules: NotifyRules
+}
+
 /** The core's own check of a node without an agent (GET /api/checks): ping, TCP or HTTP. */
 export type CheckResult = {
   nodeId: string

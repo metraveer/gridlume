@@ -9,6 +9,7 @@ import (
 
 	"github.com/metraveer/gridlume/internal/agentlink"
 	"github.com/metraveer/gridlume/internal/checks"
+	"github.com/metraveer/gridlume/internal/notify"
 	"github.com/metraveer/gridlume/internal/problems"
 	"github.com/metraveer/gridlume/internal/release"
 	"github.com/metraveer/gridlume/internal/store"
@@ -28,6 +29,7 @@ type api struct {
 	log            *slog.Logger
 	problems       *problems.Engine
 	checks         *checks.Runner
+	notify         *notify.Notifier
 }
 
 func newAPI(opts Options, log *slog.Logger) *api {
@@ -36,13 +38,14 @@ func newAPI(opts Options, log *slog.Logger) *api {
 		hub = agentlink.New(opts.Store, log)
 	}
 	a := &api{store: opts.Store, hub: hub, agentsDir: opts.AgentsDir, gate: &setupGate{code: opts.SetupCode}, setupDone: opts.SetupDone,
-		limit: newLimiter(10, time.Minute), log: log, problems: problems.NewEngine(opts.Store), checks: checks.New(),
+		limit: newLimiter(10, time.Minute), log: log, problems: problems.NewEngine(opts.Store), checks: checks.New(), notify: notify.New(opts.Store, log),
 		dataDir: opts.DataDir, updatesEnabled: opts.UpdatesEnabled, upd: &updates{client: release.Default()}}
 	hub.AutoUpdate = a.autoAgentUpdate
 	hub.Probes = a.probesFor
 	if opts.Context != nil {
 		go a.checkForUpdates(opts.Context)
 		go a.watchProblems(opts.Context)
+		go a.notify.Run(opts.Context)
 	}
 	return a
 }
@@ -91,6 +94,7 @@ func (a *api) routes(mux *http.ServeMux) {
 	a.agentRoutes(mux)
 	a.systemRoutes(mux)
 	a.problemRoutes(mux)
+	a.notifyRoutes(mux)
 }
 
 // fail turns store errors into answers the interface can translate.

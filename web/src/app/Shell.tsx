@@ -96,8 +96,10 @@ function UpdateBadge() {
   const sys = useApp((st) => st.system)
   if (!sys?.newer || !sys.latest) return null
   return (
-    <button type="button" className={s.update} onClick={() => go('settings')} data-tip={t('update.badge.tip')}>
-      {t('update.badge', { version: sys.latest.version })}
+    <button type="button" className={s.update} onClick={() => go('settings')} data-tip={t('update.badge.tip')} aria-label={t('update.badge', { version: sys.latest.version })}>
+      {/* Narrow screens keep the word and drop the version. */}
+      <span className={s.updateLong}>{t('update.badge', { version: sys.latest.version })}</span>
+      <span className={s.updateShort}>{t('update.badge.short')}</span>
     </button>
   )
 }

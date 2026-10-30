@@ -441,5 +441,6 @@
   "agent.update.failed": "Update to {to} failed",
   "agent.update.rolled_back": "Version {to} did not connect; {from} is back",
   "update.agentAuto": "Update agents automatically",
-  "update.agentAuto.hint": "When the core has a newer agent build, agents install it themselves, with a signature check and rollback. A version that once failed to connect is only retried with the button."
+  "update.agentAuto.hint": "When the core has a newer agent build, agents install it themselves, with a signature check and rollback. A version that once failed to connect is only retried with the button.",
+  "update.badge.short": "Update"
 }

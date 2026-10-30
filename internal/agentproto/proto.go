@@ -20,7 +20,7 @@ func ValidMode(m string) bool { return m == ModeUser || m == ModeReadOnly || m =
 
 // Message is the envelope of every message; only the fields of its type are set.
 type Message struct {
-	Type     string    `json:"type"` // challenge, hello, welcome, error, snapshot, update, probes
+	Type     string    `json:"type"` // challenge, hello, welcome, error, snapshot, update, probes, watch
 	Nonce    []byte    `json:"nonce,omitempty"`
 	AgentID  string    `json:"agentId,omitempty"`
 	Sig      []byte    `json:"sig,omitempty"`
@@ -29,6 +29,17 @@ type Message struct {
 	Error    string    `json:"error,omitempty"`   // a stable code, e.g. "unknown_agent"
 	Version  string    `json:"version,omitempty"` // update: the version the core hands out
 	Probes   []Probe   `json:"probes,omitempty"`  // probes: what to ping (the whole list; it replaces the previous one)
+	Watch    *Watch    `json:"watch,omitempty"`   // watch: keep an eye on the core; nil turns it off
+}
+
+// Watch makes an agent tell Telegram itself when the core stops answering: the one alarm the core
+// cannot send. Texts come ready in the owner's language with {min} and {host} left for the agent.
+type Watch struct {
+	Token string `json:"token"` // the owner's bot; kept in the agent's state folder, readable only by the agent
+	Chat  int64  `json:"chat"`
+	After int    `json:"after"` // seconds without the core before the alarm
+	Down  string `json:"down"`
+	Up    string `json:"up"`
 }
 
 // Probe asks the agent to ping a host: the far end of a network link (ID is the link's id).

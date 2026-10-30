@@ -50,6 +50,13 @@ const (
 	ConnectedFile = "connected"          // the version that last got a welcome from the core
 )
 
+// Listener, when set, hears about the connection to the core (the watcher of agent/watch).
+var Listener interface {
+	Connected()
+	Disconnected()
+	Set(*agentproto.Watch)
+}
+
 // UpdaterUnit exists when the root updater is installed (deploy/install.sh); a variable for tests.
 var UpdaterUnit = "/etc/systemd/system/gridlume-agent-update.path"
 
@@ -119,6 +126,10 @@ func Run(ctx context.Context, c Config, version string, log *slog.Logger) error 
 		wait := backoff
 		if errors.Is(err, ErrUnlinked) {
 			wait = 10 * time.Minute // nothing to gain by knocking often; a new install replaces this one
+			// Unlinked machines are nobody's watchers: the bot token leaves this machine too.
+			if Listener != nil {
+				Listener.Set(nil)
+			}
 		}
 		log.Warn("disconnected from the core", "err", err, "retry_in", wait.Round(time.Second))
 		if time.Since(start) > time.Minute {
@@ -196,6 +207,10 @@ func Once(ctx context.Context, c Config, version string, log *slog.Logger) error
 		return fmt.Errorf("core refused: %s", m.Error)
 	}
 	log.Info("connected to the core", "core", c.Core)
+	if Listener != nil {
+		Listener.Connected()
+		defer Listener.Disconnected()
+	}
 	// The updater waits for this to know the new version works.
 	writeState(c.State, ConnectedFile, []byte(version))
 
@@ -215,6 +230,9 @@ func Once(ctx context.Context, c Config, version string, log *slog.Logger) error
 			}
 			if m.Type == "probes" {
 				prober.SetTargets(m.Probes)
+			}
+			if m.Type == "watch" && Listener != nil {
+				Listener.Set(m.Watch)
 			}
 			if m.Type == "update" && info.Updater {
 				// The agent cannot replace its own file; the root updater picks this up (a systemd path unit).

@@ -11,6 +11,7 @@ import (
 
 	"github.com/metraveer/gridlume/internal/i18n"
 	"github.com/metraveer/gridlume/internal/store"
+	"github.com/metraveer/gridlume/internal/tg"
 )
 
 // Setting keys. The token is a secret: it is never sent back to the interface.
@@ -50,11 +51,14 @@ type Status struct {
 // Notifier sends problems to Telegram, retrying a while when it cannot.
 type Notifier struct {
 	Store *store.Store
-	TG    *Telegram
+	TG    *tg.Telegram
 	Log   *slog.Logger
 	Now   func() time.Time
 	// Retry is how long to wait before each new attempt at a message that could not be sent.
 	Retry []time.Duration
+	// OnChange, when set, hears that the bot, the chat or the language changed (agents that watch
+	// the core carry them).
+	OnChange func()
 
 	mu      sync.Mutex
 	waiting context.CancelFunc
@@ -63,7 +67,7 @@ type Notifier struct {
 }
 
 func New(s *store.Store, log *slog.Logger) *Notifier {
-	return &Notifier{Store: s, TG: NewTelegram(), Log: log, Now: time.Now,
+	return &Notifier{Store: s, TG: tg.New(), Log: log, Now: time.Now,
 		Retry: []time.Duration{10 * time.Second, 30 * time.Second, time.Minute, 2 * time.Minute, 5 * time.Minute},
 		queue: make(chan string, 100)}
 }
@@ -99,6 +103,7 @@ func (n *Notifier) SaveRules(ctx context.Context, r Rules) error {
 			return err
 		}
 	}
+	n.changed() // the language of the watchers' texts
 	return nil
 }
 
@@ -158,6 +163,7 @@ func (n *Notifier) wait(ctx context.Context, cancel context.CancelFunc, token st
 	bg := context.Background()
 	_ = n.Store.SetSetting(bg, keyChat, strconv.FormatInt(chat.ID, 10))
 	_ = n.Store.SetSetting(bg, keyChatName, chat.Name)
+	n.changed()
 	n.Log.Info("telegram connected", "chat", chat.Name)
 	lang := n.GetRules(bg).Lang
 	if err := n.TG.Send(bg, token, chat.ID, i18n.T(lang, "notify.hello", nil)); err != nil {
@@ -180,7 +186,14 @@ func (n *Notifier) Disconnect(ctx context.Context) error {
 			return err
 		}
 	}
+	n.changed()
 	return nil
+}
+
+func (n *Notifier) changed() {
+	if n.OnChange != nil {
+		n.OnChange()
+	}
 }
 
 // ErrNotConnected: there is no bot or no chat yet.
@@ -199,6 +212,9 @@ func (n *Notifier) Test(ctx context.Context) error {
 	n.sent()
 	return nil
 }
+
+// Target is the bot token and chat messages go to, if Telegram is connected.
+func (n *Notifier) Target(ctx context.Context) (string, int64, bool) { return n.target(ctx) }
 
 func (n *Notifier) target(ctx context.Context) (string, int64, bool) {
 	token := n.get(ctx, keyToken, "")
@@ -247,7 +263,7 @@ func (n *Notifier) Run(ctx context.Context) {
 					break
 				}
 				n.fail(err)
-				if errors.Is(err, ErrToken) || attempt >= len(n.Retry) {
+				if errors.Is(err, tg.ErrToken) || attempt >= len(n.Retry) {
 					break
 				}
 				select {

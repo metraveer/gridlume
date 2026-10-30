@@ -1,4 +1,4 @@
-import type { Agent, AgentMode, Channel, CheckResult, Link, MapData, MapNode, MetricPoint, MetricRange, NotifyRules, NotifyState, Place, Problem, SessionInfo, Snapshot, Suggestion, SystemInfo, User } from './types'
+import type { Agent, AgentMode, Channel, CheckResult, Link, MapData, MapNode, MetricPoint, MetricRange, NotifyRules, NotifyState, Place, Problem, SessionInfo, Snapshot, Suggestion, SystemInfo, User, WatchState } from './types'
 
 /** An error answer from the core, e.g. { error: "validation", field: "name", code: "required" }. */
 export class ApiError extends Error {
@@ -84,6 +84,12 @@ export const api = {
   disconnectTelegram: () => request<NotifyState>('DELETE', '/api/notify/telegram'),
   testTelegram: () => request<NotifyState>('POST', '/api/notify/test', {}),
   saveNotifyRules: (rules: NotifyRules) => request<NotifyState>('PUT', '/api/notify/rules', rules),
+  watch: () => request<WatchState>('GET', '/api/watch'),
+  saveWatchAgents: (agents: string[], after: number) => request<WatchState>('PUT', '/api/watch/agents', { agents, after }),
+  makeDutyCode: () => request<WatchState>('POST', '/api/watch/duty', {}),
+  dropDutyCode: () => request<WatchState>('DELETE', '/api/watch/duty'),
+  setWatchTarget: (url: string, code: string) => request<WatchState>('PUT', '/api/watch/target', { url, code }),
+  dropWatchTarget: () => request<WatchState>('DELETE', '/api/watch/target'),
   acceptSuggestion: (id: string, about: string, ifBroken: string) => request<Link>('POST', `/api/suggestions/${id}/accept`, { about, ifBroken }),
   dismissSuggestion: (id: string) => request('POST', `/api/suggestions/${id}/dismiss`, {}),
   metrics: (nodeId: string, series: string[], range: MetricRange) =>

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/metraveer/gridlume/internal/notify"
+	"github.com/metraveer/gridlume/internal/tg"
 )
 
 func (a *api) notifyRoutes(mux *http.ServeMux) {
@@ -28,7 +29,7 @@ func (a *api) connectTelegram(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.notify.Connect(r.Context(), body.Token); err != nil {
-		if errors.Is(err, notify.ErrToken) {
+		if errors.Is(err, tg.ErrToken) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "validation", "field": "token", "code": "invalid"})
 			return
 		}

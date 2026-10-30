@@ -62,6 +62,8 @@ type Hub struct {
 	AutoUpdate func(ctx context.Context, info agentproto.Info) string
 	// Probes, when set, lists what the agent of a node should ping: the far ends of its network links.
 	Probes func(ctx context.Context, nodeID string) []agentproto.Probe
+	// Watch, when set, gives an agent its part in watching the core (nil: none).
+	Watch func(ctx context.Context, agentID string) *agentproto.Watch
 
 	mu     sync.Mutex
 	online map[string]*conn // by agent id
@@ -172,7 +174,31 @@ func (h *Hub) RefreshProbes(ctx context.Context) {
 	h.mu.Unlock()
 	for _, c := range conns {
 		h.sendProbes(ctx, c)
+		h.sendWatch(ctx, c)
 	}
+}
+
+// RefreshWatch sends every connected agent its part in watching the core (after the settings changed).
+func (h *Hub) RefreshWatch(ctx context.Context) {
+	h.mu.Lock()
+	conns := make([]*conn, 0, len(h.online))
+	for _, c := range h.online {
+		conns = append(conns, c)
+	}
+	h.mu.Unlock()
+	for _, c := range conns {
+		h.sendWatch(ctx, c)
+	}
+}
+
+func (h *Hub) sendWatch(ctx context.Context, c *conn) {
+	if h.Watch == nil {
+		return
+	}
+	wctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	// Sent to everyone, nil included: a machine that is no longer a watcher drops the token.
+	_ = wsjson.Write(wctx, c.ws, agentproto.Message{Type: "watch", Watch: h.Watch(ctx, c.agent.ID)})
 }
 
 func (h *Hub) sendProbes(ctx context.Context, c *conn) {

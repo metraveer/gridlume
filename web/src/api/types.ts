@@ -162,6 +162,18 @@ export type NotifyState = {
   rules: NotifyRules
 }
 
+/** Watch (GET /api/watch): agents that watch the core, and the duty core both ways. code: only right after it is made. */
+export type WatchState = {
+  agents: { agents: string[]; after: number }
+  duty: {
+    paired: boolean
+    dutyName: string
+    dutySeen: number // unix seconds, 0 = never
+    watching?: { url: string; name: string; ok: boolean; fails: number; lastOk?: number; error?: string; at?: number }
+  }
+  code?: string
+}
+
 /** The core's own check of a node without an agent (GET /api/checks): ping, TCP or HTTP. */
 export type CheckResult = {
   nodeId: string
@@ -185,6 +197,7 @@ export type Problem = {
   kind:
     | 'agent_offline' | 'container_down' | 'container_restarting' | 'container_unhealthy' | 'disk_full' | 'mem_high' | 'temp_high'
     | 'link_loss' | 'link_down' | 'node_loss' | 'node_unreachable' | 'port_down' | 'site_down' | 'cert_expiring'
+    | 'core_down' | 'duty_silent'
   severity: 'warn' | 'crit'
   nodeId?: string
   linkId?: string

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"log/slog"
@@ -30,6 +31,7 @@ type api struct {
 	problems       *problems.Engine
 	checks         *checks.Runner
 	notify         *notify.Notifier
+	watched        watched
 }
 
 func newAPI(opts Options, log *slog.Logger) *api {
@@ -42,10 +44,13 @@ func newAPI(opts Options, log *slog.Logger) *api {
 		dataDir: opts.DataDir, updatesEnabled: opts.UpdatesEnabled, upd: &updates{client: release.Default()}}
 	hub.AutoUpdate = a.autoAgentUpdate
 	hub.Probes = a.probesFor
+	hub.Watch = a.watchFor
+	a.notify.OnChange = func() { go a.hub.RefreshWatch(context.Background()) }
 	if opts.Context != nil {
 		go a.checkForUpdates(opts.Context)
 		go a.watchProblems(opts.Context)
 		go a.notify.Run(opts.Context)
+		go a.watchTheCore(opts.Context)
 	}
 	return a
 }
@@ -95,6 +100,8 @@ func (a *api) routes(mux *http.ServeMux) {
 	a.systemRoutes(mux)
 	a.problemRoutes(mux)
 	a.notifyRoutes(mux)
+	a.watchRoutes(mux)
+	a.dutyRoutes(mux)
 }
 
 // fail turns store errors into answers the interface can translate.

@@ -114,7 +114,7 @@ export type Agent = {
 export type AgentUpdate = { state: 'done' | 'up_to_date' | 'failed' | 'rolled_back'; from: string; to?: string; message?: string; at: number }
 
 /** One message of /api/events. */
-export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean; mapChanged?: boolean }
+export type LiveEvent = { nodeId: string; agent?: Agent; snapshot?: Snapshot; removed?: boolean; mapChanged?: boolean; problems?: boolean }
 
 export type Channel = 'stable' | 'edge'
 
@@ -153,6 +153,20 @@ export type SystemInfo = {
     // While downloading: file part of parts, bytes so far of total (-1 = unknown), bytes per second.
     progress?: { file: string; part: number; parts: number; done: number; total: number; speed: number }
   }
+}
+
+/** Something wrong the core noticed (GET /api/problems). Times are unix milliseconds. */
+export type Problem = {
+  id: string
+  key: string
+  kind: 'agent_offline' | 'container_down' | 'container_restarting' | 'container_unhealthy' | 'disk_full' | 'mem_high' | 'temp_high' | 'link_loss' | 'link_down'
+  severity: 'warn' | 'crit'
+  nodeId?: string
+  linkId?: string
+  params: Record<string, string | number>
+  merged?: string[] // kinds of other signals with the same cause, folded in
+  since: number
+  ended?: number
 }
 
 export type MetricRange = '1h' | '24h' | '14d'

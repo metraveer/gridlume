@@ -32,6 +32,8 @@ type Event struct {
 	Removed  bool                 `json:"removed,omitempty"` // the agent was unlinked from the node
 	// MapChanged: containers added nodes or the core found new link suggestions; the interface refetches.
 	MapChanged bool `json:"mapChanged,omitempty"`
+	// Problems: a problem opened, ended or changed; the interface refetches /api/problems.
+	Problems bool `json:"problems,omitempty"`
 }
 
 // Status is an agent as the interface sees it: what is stored plus whether it is connected now.
@@ -124,6 +126,9 @@ func (h *Hub) Subscribe() (<-chan Event, func()) {
 		h.mu.Unlock()
 	}
 }
+
+// Publish tells the interface about something that is not an agent's (problems).
+func (h *Hub) Publish(e Event) { h.publish(e) }
 
 func (h *Hub) publish(e Event) {
 	h.mu.Lock()

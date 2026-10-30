@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/metraveer/gridlume/internal/agentlink"
@@ -32,6 +33,7 @@ type api struct {
 	checks         *checks.Runner
 	notify         *notify.Notifier
 	watched        watched
+	outsideBusy    atomic.Bool // a duty core checks from outside one check at a time
 }
 
 func newAPI(opts Options, log *slog.Logger) *api {
@@ -102,6 +104,7 @@ func (a *api) routes(mux *http.ServeMux) {
 	a.notifyRoutes(mux)
 	a.watchRoutes(mux)
 	a.dutyRoutes(mux)
+	a.outsideRoutes(mux)
 	a.changeRoutes(mux)
 }
 

@@ -16,8 +16,8 @@ English · [Русский](README.ru.md)
 </div>
 
 > [!NOTE]
-> Gridlume is in early development (0.x). The map, live data from machines and self-updates work today;
-> problems and notifications, actions and integrations are next. See the [roadmap](#roadmap).
+> Gridlume is in early development (0.x). The map, live data from machines, problems, notifications,
+> history and self-updates work today; actions and integrations are next. See the [roadmap](#roadmap).
 
 ## Why
 
@@ -111,7 +111,7 @@ Design decisions and their reasons are in [`docs/decisions.md`](docs/decisions.m
 | Notifications in Telegram: rules, quiet hours, "solved" messages | ✅ done |
 | Understanding: change journal, "what breaks if…" on the map, explanations for known programs, "looking at the past" | ✅ done |
 | Request path: how a visitor reaches a node, delay at each step | ✅ done |
-| What is visible from the internet | next |
+| What is visible from the internet: a duty core checks your public addresses from outside, risky open ports become problems | ✅ done |
 | Actions: logs, terminal, container control with confirmation and undo | planned |
 | Integrations: password vault, Keenetic, Timeweb Cloud, UPS (NUT), backups | planned |
 | 1.0: HTTPS, 2FA, Docker image, full documentation | planned |

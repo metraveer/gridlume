@@ -24,6 +24,7 @@ import (
 
 	"github.com/metraveer/gridlume/internal/agentlink"
 	"github.com/metraveer/gridlume/internal/devmode"
+	"github.com/metraveer/gridlume/internal/outside"
 	"github.com/metraveer/gridlume/internal/server"
 	"github.com/metraveer/gridlume/internal/store"
 	"github.com/metraveer/gridlume/internal/version"
@@ -76,6 +77,8 @@ func run(log *slog.Logger, args []string, dev bool) error {
 	dataDir := fs.String("data", defaultDataDir(), "folder for the database")
 	agentsDir := fs.String("agents", setting("GRIDLUME_AGENTS", ""), "folder with agent builds for the install script (default: <data>/agents)")
 	_ = fs.Parse(args)
+	// A test stand on one computer checks "from outside" on local addresses; a real duty core never does.
+	outside.AllowPrivate.Store(setting("GRIDLUME_OUTSIDE_PRIVATE", "") == "1")
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

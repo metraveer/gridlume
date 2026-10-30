@@ -28,6 +28,18 @@ function ImpactButton({ id }: { id: string }) {
   )
 }
 
+/** Shows (or hides) the request path to this node on the map. */
+function PathButton({ id }: { id: string }) {
+  const { t } = useTranslation()
+  const on = useApp((st) => st.path === id)
+  const showPath = useApp((st) => st.showPath)
+  return (
+    <Button size="sm" icon="path" tip={t('path.tip')} onClick={() => showPath(on ? null : id)}>
+      {on ? t('path.hide') : t('path.show')}
+    </Button>
+  )
+}
+
 /** Delete with a confirmation. Danger (something else breaks) asks to type the name. */
 function ConfirmDelete({ name, risk, consequence, onConfirm, onClose, title, action }: { name: string; risk: Risk; consequence: string; onConfirm: () => void; onClose: () => void; title?: string; action?: string }) {
   const { t } = useTranslation()
@@ -180,7 +192,10 @@ function NodePanel({ node }: { node: MapNode }) {
 
       <Section title={t('insp.breaks')} help={t('insp.breaks.help')}>
         <NodeList ids={breaks} empty={t('insp.breaks.none')} />
-        {breaks.length > 0 && <ImpactButton id={node.id} />}
+        <div className={s.viewButtons}>
+          {breaks.length > 0 && <ImpactButton id={node.id} />}
+          <PathButton id={node.id} />
+        </div>
       </Section>
       <Section title={t('insp.needs')} help={t('insp.needs.help')}>
         <NodeList ids={needs} empty={t('insp.needs.none')} />

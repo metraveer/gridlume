@@ -196,3 +196,7 @@
   line-height: 16px;
   white-space: nowrap;
 }
+
+/* The request path: its nodes and links in the accent colour. */
+.onPath { border-color: var(--lume) !important; box-shadow: 0 0 0 4px var(--lume-glow); }
+.edgeOnPath { stroke: var(--lume) !important; stroke-width: 3 !important; }

@@ -115,3 +115,31 @@
   transform: translateX(-50%);
 }
 .pastBar > span { display: grid; gap: 2px; }
+
+/* The request path card: under the breadcrumbs, a numbered list of steps. */
+.pathCard {
+  position: absolute;
+  top: 56px;
+  left: var(--s-3);
+  z-index: 10;
+  width: min(380px, calc(100% - 480px));
+  min-width: 260px;
+  border: 1px solid var(--lume-dim);
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: var(--fs-13);
+}
+.pathHead { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3); border-bottom: 1px solid var(--line-soft); }
+.pathHead b { flex: 1; }
+.pathHead .mono { color: var(--fg-muted); font-size: var(--fs-12); }
+.pathSteps { margin: 0; padding: var(--s-1) 0; list-style: none; }
+.pathSteps button { display: flex; align-items: center; gap: var(--s-3); width: 100%; padding: var(--s-1) var(--s-3); border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.pathSteps button:hover { background: var(--bg-raised); }
+.pathN { display: grid; flex: none; place-items: center; width: 20px; height: 20px; border: 1px solid var(--line); border-radius: 50%; color: var(--fg-muted); font-size: var(--fs-11); }
+.pathWhat { display: grid; flex: 1; min-width: 0; }
+.pathWhat small { color: var(--fg-faint); font-size: var(--fs-11); }
+.pathSlow .pathN { border-color: var(--warn); color: var(--warn); }
+.pathSlow .mono { color: var(--warn); }
+.pathAway .pathWhat { color: var(--fg-muted); }
+.pathHint { margin: 0; padding: var(--s-2) var(--s-3) var(--s-3); color: var(--fg-muted); font-size: var(--fs-12); line-height: 1.5; }

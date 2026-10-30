@@ -727,5 +727,20 @@
   "hist.atThatTime.help": "The node's problems at the chosen moment, and changes on it within half an hour either side.",
   "hist.noProblems": "No problems.",
   "hist.range": "Over what time",
-  "hist.hours": "{count, plural, one {# hour} other {# hours}}"
+  "hist.hours": "{count, plural, one {# hour} other {# hours}}",
+  "path.menu": "Request path",
+  "path.show": "Request path",
+  "path.hide": "Hide the path",
+  "path.tip": "What a visitor passes through to get here, and where requests go next — with each step's delay where it is known.",
+  "path.title": "Request path → {name}",
+  "path.total": "total {ms} ms",
+  "path.ms": "ms",
+  "path.start": "where requests come from",
+  "path.inside": "inside the machine",
+  "path.slowest": "The slowest step is \"{name}\": {ms} ms.",
+  "path.why.db": "Usually a slow database query or too little memory; check its log.",
+  "path.why.net": "Usually the link is busy, losing packets or far away; check the link.",
+  "path.why.app": "Usually too little CPU or slow code; check the program's log.",
+  "path.noTimes": "Delays appear where Gridlume measures them: on network links with an agent and on nodes the core checks.",
+  "path.alone": "Neither a domain nor the internet leads to this node along links — draw where requests come from."
 }

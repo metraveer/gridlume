@@ -129,13 +129,14 @@ function Map() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (typingIn(e.target) || (e.target as HTMLElement).closest?.('[role="dialog"], [role="menu"]')) return
-      const { selection, askDelete, select, editing, impact, showImpact, past, setPast } = useApp.getState()
+      const { selection, askDelete, select, editing, impact, showImpact, path, showPath, past, setPast } = useApp.getState()
       if (editing) return
       if (is(e, 'remove') && selection && !viewer) {
         e.preventDefault()
         askDelete(selection)
       } else if (is(e, 'cancel') && past !== null) setPast(null) // back to now first
-      else if (is(e, 'cancel') && impact) showImpact(null) // then the impact view, then the selection
+      else if (is(e, 'cancel') && impact) showImpact(null) // then the impact view or path, then the selection
+      else if (is(e, 'cancel') && path) showPath(null)
       else if (is(e, 'cancel') && selection) select(null)
       else if (is(e, 'fit') && plain(e)) setFocus('*')
     }

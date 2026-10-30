@@ -107,6 +107,27 @@ func parseNetDev(text string) map[string][2]uint64 {
 	return out
 }
 
+// defaultIface returns the interface of the default IPv4 route from /proc/net/route ("" if none).
+// The route with the lowest metric wins, as the kernel picks it.
+func defaultIface(text string) string {
+	best, metric := "", -1
+	sc := bufio.NewScanner(strings.NewReader(text))
+	for sc.Scan() {
+		f := strings.Fields(sc.Text())
+		if len(f) < 8 || f[1] != "00000000" || f[7] != "00000000" {
+			continue
+		}
+		m, err := strconv.Atoi(f[6])
+		if err != nil {
+			continue
+		}
+		if metric < 0 || m < metric {
+			best, metric = f[0], m
+		}
+	}
+	return best
+}
+
 // skipIface leaves out loopback and the virtual plumbing of Docker, VMs and bridges:
 // their traffic is already counted on the real interfaces.
 func skipIface(name string) bool {

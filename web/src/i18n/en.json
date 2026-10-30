@@ -441,5 +441,22 @@
   "agent.update.failed": "Update to {to} failed",
   "agent.update.rolled_back": "Version {to} did not connect; {from} is back",
   "update.agentAuto": "Update agents automatically",
-  "update.agentAuto.hint": "When the core has a newer agent build, agents install it themselves, with a signature check and rollback. A version that once failed to connect is only retried with the button."
+  "update.agentAuto.hint": "When the core has a newer agent build, agents install it themselves, with a signature check and rollback. A version that once failed to connect is only retried with the button.",
+  "link.traffic.pair": "{cur} / {cap}",
+  "insp.traffic": "Traffic now",
+  "insp.traffic.help": "From the counters of a network card on the machine with the agent at one end of the link, every 5 seconds. If other traffic goes through that card too, it is counted here as well.",
+  "insp.traffic.dir": "{from} → {to}",
+  "insp.traffic.should": "Should carry",
+  "insp.traffic.contract": "{speed} by contract",
+  "insp.traffic.port": "port {speed}",
+  "insp.traffic.load": "Load",
+  "insp.traffic.source": "Measured on",
+  "insp.traffic.on": "{iface} on {node}",
+  "insp.traffic.auto": "picked automatically: it carries the default route",
+  "insp.traffic.none": "Install an agent on a machine at one end of the link to see its traffic here.",
+  "insp.traffic.noIface": "Interface {iface} was not found on the machines of this link.",
+  "f.iface": "Network interface",
+  "f.iface.hint": "Whose counters show as this link's traffic. Automatic: the interface with the default route.",
+  "f.iface.auto": "Automatic ({iface})",
+  "f.iface.autoNone": "Automatic"
 }

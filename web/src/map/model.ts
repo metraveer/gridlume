@@ -25,11 +25,12 @@ export const NODE_META: Record<NodeKind, { icon: IconName; small?: boolean; canC
  * calls: "from" uses "to" (from depends on to) — the arrow points at the one being used.
  * feeds: "from" feeds "to" (internet → router → machine, UPS → device): to depends on from.
  */
-export const LINK_META: Record<LinkKind, { arrow?: boolean; dep: 'calls' | 'feeds' | 'none' }> = {
-  uplink: { dep: 'feeds' },
-  lan: { dep: 'feeds' },
-  wifi: { dep: 'feeds' },
-  vpn: { dep: 'none' },
+// traffic: a network link, so the counters of a network interface tell how much goes over it.
+export const LINK_META: Record<LinkKind, { arrow?: boolean; dep: 'calls' | 'feeds' | 'none'; traffic?: boolean }> = {
+  uplink: { dep: 'feeds', traffic: true },
+  lan: { dep: 'feeds', traffic: true },
+  wifi: { dep: 'feeds', traffic: true },
+  vpn: { dep: 'none', traffic: true },
   power: { dep: 'feeds' },
   runs: { arrow: true, dep: 'calls' },
   depends: { arrow: true, dep: 'calls' },

@@ -41,6 +41,7 @@ export type Link = {
   ifBroken: string
   speedMbit: number | null
   planned: boolean
+  iface?: string // network interface whose counters are the live traffic; '' = the default route
 }
 
 export type MapData = { places: Place[]; nodes: MapNode[]; links: Link[] }
@@ -63,7 +64,8 @@ export type Snapshot = {
   swapUsed: number
   uptime: number // seconds
   disks: { mount: string; fs: string; total: number; used: number }[] | null
-  net: { name: string; rx: number; tx: number }[] | null // bytes per second
+  // Bytes per second; default: carries the default route; speed: Mbit/s the cards agreed on.
+  net: { name: string; rx: number; tx: number; default?: boolean; speed?: number }[] | null
   temps: { name: string; c: number }[] | null
   docker?: { containers: Container[] }
   dockerError?: 'no_access' | 'unavailable'

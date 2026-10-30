@@ -136,6 +136,12 @@
 .edge_dns { stroke: var(--link-dns); stroke-dasharray: 1 4; stroke-linecap: round; stroke-width: 2; }
 .edgePlanned { stroke: var(--planned) !important; stroke-dasharray: 3 5 !important; opacity: 0.6; }
 .edgeSelected { stroke: var(--lume) !important; stroke-width: 2.4; }
+.edgeBusy { stroke: var(--warn) !important; } /* more than 80% of what the link should carry */
+/* Traffic: dots run in the direction the data goes. */
+.flow circle { fill: var(--lume); opacity: 0.85; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .flow { display: none; }
+}
 
 .pill {
   position: absolute;

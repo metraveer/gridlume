@@ -6,6 +6,7 @@ import { useNodeLive } from '../state/live'
 import { usePrefs } from '../state/prefs'
 import { bytes, percent } from './format'
 import { canContain, LINK_META, NODE_META } from './model'
+import { dots, trafficLabel, useLinkTraffic } from './traffic'
 import s from './flow.module.css'
 
 export type ItemData = { node: MapNode; kids: number; portal: boolean; onEnter: (id: string) => void }
@@ -126,6 +127,7 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
   const labels = usePrefs((p) => p.linkLabels)
   const a = useInternalNode(source)
   const b = useInternalNode(target)
+  const traffic = useLinkTraffic(data.link)
   if (!a || !b) return null
   const ra = { ...a.internals.positionAbsolute, w: a.measured.width ?? 0, h: a.measured.height ?? 0 }
   const rb = { ...b.internals.positionAbsolute, w: b.measured.width ?? 0, h: b.measured.height ?? 0 }
@@ -140,8 +142,9 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
   const link = data.link
   const label = link.planned
     ? t('map.planned')
-    : [link.proto.split(' ')[0] || t(`link.${link.kind}`), link.speedMbit ? speed(link.speedMbit, t) : ''].filter(Boolean).join(' · ')
+    : [link.proto.split(' ')[0] || t(`link.${link.kind}`), traffic ? trafficLabel(t, traffic) : link.speedMbit ? speed(link.speedMbit, t) : ''].filter(Boolean).join(' · ')
   const tip = [t(`link.${link.kind}`), link.about].filter(Boolean).join(' — ')
+  const busy = !!traffic && traffic.load >= 80
 
   return (
     <>
@@ -149,9 +152,11 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
         id={id}
         path={path}
         markerEnd={LINK_META[link.kind].arrow ? markerEnd : undefined}
-        className={[s.edge, s[`edge_${link.kind}`], link.planned && s.edgePlanned, selected && s.edgeSelected].filter(Boolean).join(' ')}
+        className={[s.edge, s[`edge_${link.kind}`], link.planned && s.edgePlanned, busy && s.edgeBusy, selected && s.edgeSelected].filter(Boolean).join(' ')}
         interactionWidth={16}
       />
+      {traffic && <Flow path={path} rate={traffic.fwd} />}
+      {traffic && <Flow path={path} rate={traffic.back} reverse />}
       {(labels || selected) && (
         <EdgeLabelRenderer>
           <div
@@ -165,6 +170,29 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
         </EdgeLabelRenderer>
       )}
     </>
+  )
+}
+
+/** Dots running along the line in the direction the data goes. */
+function Flow({ path, rate, reverse }: { path: string; rate: number; reverse?: boolean }) {
+  const d = dots(rate)
+  if (!d) return null
+  return (
+    <g className={s.flow} aria-hidden>
+      {Array.from({ length: d.count }, (_, k) => (
+        <circle key={k} r={2.4}>
+          <animateMotion
+            dur={`${d.dur}s`}
+            begin={`${(-k * d.dur) / d.count}s`}
+            repeatCount="indefinite"
+            path={path}
+            keyPoints={reverse ? '1;0' : '0;1'}
+            keyTimes="0;1"
+            calcMode="linear"
+          />
+        </circle>
+      ))}
+    </g>
   )
 }
 

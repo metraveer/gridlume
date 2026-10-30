@@ -71,3 +71,16 @@ func TestOSRelease(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestDefaultIface(t *testing.T) {
+	route := "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT\n" +
+		"wlan0\t00000000\t0101A8C0\t0003\t0\t0\t600\t00000000\t0\t0\t0\n" +
+		"enp4s0f1\t00000000\t0101A8C0\t0003\t0\t0\t100\t00000000\t0\t0\t0\n" +
+		"enp4s0f1\t0001A8C0\t00000000\t0001\t0\t0\t100\t00FFFFFF\t0\t0\t0\n"
+	if got := defaultIface(route); got != "enp4s0f1" {
+		t.Fatalf("got %q", got)
+	}
+	if got := defaultIface("Iface\tDestination\n"); got != "" {
+		t.Fatalf("no default route: got %q", got)
+	}
+}

@@ -24,6 +24,7 @@ import (
 
 	"github.com/metraveer/gridlume/agent/collect"
 	"github.com/metraveer/gridlume/agent/docker"
+	"github.com/metraveer/gridlume/agent/probe"
 	"github.com/metraveer/gridlume/internal/agentproto"
 	buildinfo "github.com/metraveer/gridlume/internal/version"
 )
@@ -201,6 +202,9 @@ func Once(ctx context.Context, c Config, version string, log *slog.Logger) error
 	// Reading also notices a closed connection and answers pings.
 	sctx, stop := context.WithCancel(ctx)
 	defer stop()
+	// The far ends of network links, as the core lists them; pinged in the background.
+	prober := probe.New()
+	go prober.Run(sctx)
 	readErr := make(chan error, 1)
 	go func() {
 		for {
@@ -208,6 +212,9 @@ func Once(ctx context.Context, c Config, version string, log *slog.Logger) error
 			if err := wsjson.Read(sctx, ws, &m); err != nil {
 				readErr <- err
 				return
+			}
+			if m.Type == "probes" {
+				prober.SetTargets(m.Probes)
 			}
 			if m.Type == "update" && info.Updater {
 				// The agent cannot replace its own file; the root updater picks this up (a systemd path unit).
@@ -235,6 +242,7 @@ func Once(ctx context.Context, c Config, version string, log *slog.Logger) error
 			dctx, dcancel := context.WithTimeout(ctx, Interval)
 			snap.Docker, snap.DockerError = docker.Read(dctx, dk, socket)
 			dcancel()
+			snap.Probes = prober.Results()
 			wctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			err := wsjson.Write(wctx, ws, agentproto.Message{Type: "snapshot", Snapshot: &snap})
 			cancel()

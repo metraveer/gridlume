@@ -10,7 +10,7 @@ import { ContainerSection, DockerSummary, SuggestionsSection } from './DockerPan
 import { speed } from './flow'
 import { percent, rate } from './format'
 import { canContain, dependents, LINK_META, NODE_META, requirements } from './model'
-import { useLinkTraffic } from './traffic'
+import { latencyLabel, useLinkPing, useLinkTraffic } from './traffic'
 import s from './Inspector.module.css'
 
 /** Delete with a confirmation. Danger (something else breaks) asks to type the name. */
@@ -277,33 +277,48 @@ function LinkPanel({ link }: { link: Link }) {
 function TrafficSection({ link, name }: { link: Link; name: (id: string) => string }) {
   const { t } = useTranslation()
   const tr = useLinkTraffic(link)
-  const hasAgent = useLive((st) => !!st.snaps[link.fromId] || !!st.snaps[link.toId])
-  if (!tr) {
-    return (
-      <Section title={t('insp.traffic')} help={t('insp.traffic.help')}>
-        <p className={s.muted}>{link.iface && hasAgent ? t('insp.traffic.noIface', { iface: link.iface }) : t('insp.traffic.none')}</p>
-      </Section>
+  const ping = useLinkPing(link)
+  const fromLive = useLive((st) => !!st.snaps[link.fromId])
+  const hasAgent = useLive((st) => fromLive || !!st.snaps[link.toId])
+  const nodes = useApp((st) => st.map.nodes)
+  const rows: [string, React.ReactNode][] = []
+  if (tr) {
+    const should = [link.speedMbit ? t('insp.traffic.contract', { speed: speed(link.speedMbit, t) }) : '', tr.portMbit ? t('insp.traffic.port', { speed: speed(tr.portMbit, t) }) : '']
+      .filter(Boolean)
+      .join(' · ')
+    rows.push(
+      [t('insp.traffic.dir', { from: name(link.fromId), to: name(link.toId) }), <span className="mono">{rate(t, tr.fwd)}</span>],
+      [t('insp.traffic.dir', { from: name(link.toId), to: name(link.fromId) }), <span className="mono">{rate(t, tr.back)}</span>],
+      [t('insp.traffic.should'), should || '—'],
+    )
+    if (tr.capacityMbit) rows.push([t('insp.traffic.load'), <span className={`mono ${tr.load >= 80 ? s.warnText : ''}`}>{percent(tr.load)}</span>])
+    rows.push([
+      t('insp.traffic.source'),
+      <span data-tip={tr.auto ? t('insp.traffic.auto') : undefined}>{t('insp.traffic.on', { iface: tr.iface, node: name(tr.side === 'from' ? link.fromId : link.toId) })}</span>,
+    ])
+  }
+  if (ping && !ping.error && ping.sent > 0) {
+    rows.push(
+      [t('insp.ping.rtt'), <span className="mono">{latencyLabel(t, ping)}</span>],
+      [t('insp.ping.loss'), <span className={`mono ${ping.loss > 0 ? s.warnText : ''}`}>{percent(ping.loss)}</span>],
+      [t('insp.ping.how'), t('insp.ping.on', { host: ping.host, node: name(ping.side === 'from' ? link.fromId : link.toId) })],
     )
   }
-  const should = [link.speedMbit ? t('insp.traffic.contract', { speed: speed(link.speedMbit, t) }) : '', tr.portMbit ? t('insp.traffic.port', { speed: speed(tr.portMbit, t) }) : '']
-    .filter(Boolean)
-    .join(' · ')
+
+  // Why something is missing, and what to do about it.
+  const hints: string[] = []
+  if (!tr) hints.push(link.iface && hasAgent ? t('insp.traffic.noIface', { iface: link.iface }) : t('insp.traffic.none'))
+  if (ping?.error) hints.push(t(`insp.ping.err.${ping.error}`, { host: ping.host }))
+  else if (!ping && hasAgent) {
+    // The end without an agent needs an address to be pinged.
+    const far = nodes.find((n) => n.id === (fromLive ? link.toId : link.fromId))
+    if (far && !far.address) hints.push(t('insp.ping.noAddress', { node: far.name }))
+  } else if (ping && ping.sent === 0) hints.push(t('insp.ping.starting'))
+
   return (
     <Section title={t('insp.traffic')} help={t('insp.traffic.help')}>
-      <KV
-        rows={[
-          [t('insp.traffic.dir', { from: name(link.fromId), to: name(link.toId) }), <span className="mono">{rate(t, tr.fwd)}</span>],
-          [t('insp.traffic.dir', { from: name(link.toId), to: name(link.fromId) }), <span className="mono">{rate(t, tr.back)}</span>],
-          [t('insp.traffic.should'), should || '—'],
-          ...(tr.capacityMbit ? [[t('insp.traffic.load'), <span className={`mono ${tr.load >= 80 ? s.warnText : ''}`}>{percent(tr.load)}</span>] as [string, React.ReactNode]] : []),
-          [
-            t('insp.traffic.source'),
-            <span data-tip={tr.auto ? t('insp.traffic.auto') : undefined}>
-              {t('insp.traffic.on', { iface: tr.iface, node: name(tr.side === 'from' ? link.fromId : link.toId) })}
-            </span>,
-          ],
-        ]}
-      />
+      {rows.length > 0 && <KV rows={rows} />}
+      {hints.map((h) => <p key={h} className={s.muted}>{h}</p>)}
     </Section>
   )
 }

@@ -40,6 +40,40 @@ export function useLinkTraffic(link: Link) {
   return linkTraffic(link, from, to)
 }
 
+/** Latency and loss of a link: an agent at one end pings the address of the other end every 10 s. */
+export type LinkPing = { host: string; side: 'from' | 'to'; sent: number; rtt: number; loss: number; error?: string }
+
+export function linkPing(link: Link, from: Snapshot | undefined, to: Snapshot | undefined): LinkPing | null {
+  for (const [side, snap] of [['from', from], ['to', to]] as const) {
+    const p = snap?.probes?.find((x) => x.id === link.id)
+    if (p) return { host: p.host, side, sent: p.sent, rtt: p.rtt, loss: p.loss, error: p.error }
+  }
+  return null
+}
+
+export function useLinkPing(link: Link) {
+  const from = useLive((s) => s.snaps[link.fromId])
+  const to = useLive((s) => s.snaps[link.toId])
+  return linkPing(link, from, to)
+}
+
+/**
+ * How the link is doing. With a ping every 10 s a minute holds six of them, so one lost packet is
+ * already 17%: any loss is a warning, and losing most of them (or all) means the link is down.
+ */
+export function linkHealth(tr: LinkTraffic | null, p: LinkPing | null): 'crit' | 'warn' | 'ok' {
+  if (p && !p.error && p.sent >= 2 && p.loss >= 50) return 'crit'
+  if ((p && !p.error && p.loss > 0) || (tr && tr.load >= 80)) return 'warn'
+  return 'ok'
+}
+
+/** "2 ms", "0.4 ms", or "no answer". */
+export function latencyLabel(t: TFunction, p: LinkPing) {
+  if (p.error || !p.sent) return ''
+  if (p.loss >= 100) return t('link.ping.none')
+  return t('link.ping.ms', { n: p.rtt >= 10 ? Math.round(p.rtt) : +p.rtt.toFixed(1) })
+}
+
 /** "312 / 700 Мбит", "12 Мбит / 1 Гбит", or just the rate when the capacity is unknown. */
 export function trafficLabel(t: TFunction, tr: LinkTraffic) {
   const cur = (Math.max(tr.fwd, tr.back) * 8) / 1e6

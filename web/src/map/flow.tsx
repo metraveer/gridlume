@@ -6,7 +6,7 @@ import { useNodeLive } from '../state/live'
 import { usePrefs } from '../state/prefs'
 import { bytes, percent } from './format'
 import { canContain, LINK_META, NODE_META } from './model'
-import { dots, trafficLabel, useLinkTraffic } from './traffic'
+import { dots, latencyLabel, linkHealth, trafficLabel, useLinkPing, useLinkTraffic } from './traffic'
 import s from './flow.module.css'
 
 export type ItemData = { node: MapNode; kids: number; portal: boolean; onEnter: (id: string) => void }
@@ -128,6 +128,7 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
   const a = useInternalNode(source)
   const b = useInternalNode(target)
   const traffic = useLinkTraffic(data.link)
+  const ping = useLinkPing(data.link)
   if (!a || !b) return null
   const ra = { ...a.internals.positionAbsolute, w: a.measured.width ?? 0, h: a.measured.height ?? 0 }
   const rb = { ...b.internals.positionAbsolute, w: b.measured.width ?? 0, h: b.measured.height ?? 0 }
@@ -142,9 +143,15 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
   const link = data.link
   const label = link.planned
     ? t('map.planned')
-    : [link.proto.split(' ')[0] || t(`link.${link.kind}`), traffic ? trafficLabel(t, traffic) : link.speedMbit ? speed(link.speedMbit, t) : ''].filter(Boolean).join(' · ')
+    : [
+        link.proto.split(' ')[0] || t(`link.${link.kind}`),
+        traffic ? trafficLabel(t, traffic) : link.speedMbit ? speed(link.speedMbit, t) : '',
+        ping ? latencyLabel(t, ping) : '',
+      ]
+        .filter(Boolean)
+        .join(' · ')
   const tip = [t(`link.${link.kind}`), link.about].filter(Boolean).join(' — ')
-  const busy = !!traffic && traffic.load >= 80
+  const health = link.planned ? 'ok' : linkHealth(traffic, ping)
 
   return (
     <>
@@ -152,7 +159,7 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
         id={id}
         path={path}
         markerEnd={LINK_META[link.kind].arrow ? markerEnd : undefined}
-        className={[s.edge, s[`edge_${link.kind}`], link.planned && s.edgePlanned, busy && s.edgeBusy, selected && s.edgeSelected].filter(Boolean).join(' ')}
+        className={[s.edge, s[`edge_${link.kind}`], link.planned && s.edgePlanned, health === 'warn' && s.edgeBusy, health === 'crit' && s.edgeDown, selected && s.edgeSelected].filter(Boolean).join(' ')}
         interactionWidth={16}
       />
       {traffic && <Flow path={path} rate={traffic.fwd} />}
@@ -160,7 +167,7 @@ export function LinkEdgeView({ id, source, target, data, selected, markerEnd }: 
       {(labels || selected) && (
         <EdgeLabelRenderer>
           <div
-            className={`${s.pill} ${selected ? s.pillSelected : ''} nodrag nopan`}
+            className={`${s.pill} ${selected ? s.pillSelected : ''} ${health !== 'ok' ? s[`pill_${health}`] : ''} nodrag nopan`}
             style={{ transform: `translate(-50%, -50%) translate(${mx}px, ${my}px)` }}
             data-tip={tip}
             data-edge={id}

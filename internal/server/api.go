@@ -35,6 +35,7 @@ func newAPI(opts Options, log *slog.Logger) *api {
 		limit: newLimiter(10, time.Minute), log: log,
 		dataDir: opts.DataDir, updatesEnabled: opts.UpdatesEnabled, upd: &updates{client: release.Default()}}
 	hub.AutoUpdate = a.autoAgentUpdate
+	hub.Probes = a.probesFor
 	if opts.Context != nil {
 		go a.checkForUpdates(opts.Context)
 	}
@@ -136,6 +137,7 @@ func create[T any](a *api, fn func(*http.Request, T) (any, error)) http.HandlerF
 			a.fail(w, err)
 			return
 		}
+		a.mapChanged()
 		writeJSON(w, http.StatusCreated, out)
 	}
 }
@@ -151,6 +153,7 @@ func update[P any](a *api, fn func(*http.Request, string, P) (any, error)) http.
 			a.fail(w, err)
 			return
 		}
+		a.mapChanged()
 		writeJSON(w, http.StatusOK, out)
 	}
 }
@@ -161,6 +164,7 @@ func remove(a *api, fn func(*http.Request, string) error) http.HandlerFunc {
 			a.fail(w, err)
 			return
 		}
+		a.mapChanged()
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	}
 }

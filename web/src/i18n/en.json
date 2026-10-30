@@ -618,5 +618,12 @@
   "chg.title": "Changes",
   "chg.help": "What changed on the machine and its containers: a new image, a restart, a reboot. Gridlume notices it by comparing what the agent reports. Kept 90 days.",
   "chg.none": "Nothing has changed yet.",
-  "chg.more": "Show more"
+  "chg.more": "Show more",
+  "impact.show": "Show on the map",
+  "impact.hide": "Hide",
+  "impact.menu": "What breaks if…",
+  "impact.bar": "{count, plural, =0 {If \"{name}\" stops, nothing else is affected} one {If \"{name}\" stops, # more node is affected} other {If \"{name}\" stops, # more nodes are affected}}",
+  "impact.elsewhere": "{count, plural, one {# of them on another level of the map} other {# of them on other levels of the map}}",
+  "impact.inside": "{count} inside",
+  "impact.inside.tip": "This many nodes inside are affected too. Open it to see them."
 }

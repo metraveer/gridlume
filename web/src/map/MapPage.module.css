@@ -77,3 +77,22 @@
   color: var(--fg);
   transform: translateX(-50%);
 }
+
+/* "What breaks if": under the breadcrumbs, while the view is on. */
+.impactBar {
+  position: absolute;
+  top: 56px;
+  left: var(--s-3);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: calc(100% - 480px);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  border: 1px solid var(--crit);
+  border-radius: var(--r);
+  background: var(--bg-panel);
+  font-size: var(--fs-13);
+}
+.impactBar > span { display: grid; gap: 2px; }
+.impactElsewhere { color: var(--fg-faint); font-size: var(--fs-12); }

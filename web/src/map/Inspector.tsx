@@ -14,6 +14,18 @@ import { canContain, dependents, LINK_META, NODE_META, requirements } from './mo
 import { latencyLabel, useLinkPing, useLinkTraffic } from './traffic'
 import s from './Inspector.module.css'
 
+/** Shows (or hides) on the map what stops if this node stops. */
+function ImpactButton({ id }: { id: string }) {
+  const { t } = useTranslation()
+  const on = useApp((st) => st.impact === id)
+  const showImpact = useApp((st) => st.showImpact)
+  return (
+    <Button size="sm" icon="impact" className={s.impactBtn} onClick={() => showImpact(on ? null : id)}>
+      {on ? t('impact.hide') : t('impact.show')}
+    </Button>
+  )
+}
+
 /** Delete with a confirmation. Danger (something else breaks) asks to type the name. */
 function ConfirmDelete({ name, risk, consequence, onConfirm, onClose, title, action }: { name: string; risk: Risk; consequence: string; onConfirm: () => void; onClose: () => void; title?: string; action?: string }) {
   const { t } = useTranslation()
@@ -165,6 +177,7 @@ function NodePanel({ node }: { node: MapNode }) {
 
       <Section title={t('insp.breaks')} help={t('insp.breaks.help')}>
         <NodeList ids={breaks} empty={t('insp.breaks.none')} />
+        {breaks.length > 0 && <ImpactButton id={node.id} />}
       </Section>
       <Section title={t('insp.needs')} help={t('insp.needs.help')}>
         <NodeList ids={needs} empty={t('insp.needs.none')} />

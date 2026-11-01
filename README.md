@@ -31,13 +31,23 @@ interface in English and Russian.
 ## What works today
 
 - **The map.** Areas (home, office, cloud), nodes of 15 kinds (router, server, VPS, container, domain, UPS…),
-  typed links with speeds and a note on what breaks if a link is down. Network links show live traffic: `312 / 700 Mbit`, dots running in the direction of the data, amber above 80%. Open any machine to see what is
+  typed links with speeds and a note on what breaks if a link is down. Network links show live traffic: `312 / 700 Mbit`, dots running in the direction of the data, amber above 80%, plus latency and packet loss. Open any machine to see what is
   inside it; breadcrumbs, search, a minimap, right-click menus.
 - **Agents.** A small program on each Linux machine (amd64 and arm64) reports CPU, memory, disks, network
   and temperature, with history. It connects out to the core, so no ports need to be opened on the machine.
 - **Docker.** Containers and Compose projects show up inside their machine by themselves, with state and
   resources. Gridlume notices likely links (`app → db` from `depends_on`, shared networks) and suggests them;
   you confirm.
+- **Problems.** The core finds what is wrong by itself: a machine offline, a container down or restarting
+  in a loop, a disk nearly full, a link losing pings. It waits out blips and shows one line per cause. Nodes
+  without an agent are checked by the core from their address: ping, TCP, HTTP, certificate expiry.
+- **Notifications.** New and solved problems go to Telegram, with rules and quiet hours. Agents or a second,
+  duty core warn you even when the core itself goes down.
+- **Understanding.** A journal of what changed on machines (new image, restart, reboot), shown as "possibly
+  related" before a problem; "what breaks if it stops" lit up on the map; explanations for about thirty known
+  programs; a timeline to see the map as it was in the past.
+- **Request path and the view from outside.** How a visitor reaches a node, with the delay at each step. A
+  duty core checks your public addresses from outside, and risky open ports become problems.
 - **Install and updates.** One command installs the core as a systemd service. Updates are signed releases
   from GitHub, applied from the web panel with a database backup and an automatic rollback if the new
   version does not start. Agents on other machines update from the core the same way, automatically or with a button.
@@ -104,7 +114,7 @@ Design decisions and their reasons are in [`docs/decisions.md`](docs/decisions.m
 | Stage | Status |
 |---|---|
 | Map: areas, nodes, links, levels | ✅ done |
-| Agent, live data, Docker | ✅ done; latency and packet loss on links in progress |
+| Agent, live data, Docker, latency and packet loss on links | ✅ done |
 | Signed releases, updates from the panel | ✅ done |
 | Problems: the core finds what is wrong (machine offline, container down, disk full, packet loss…), one line per cause | ✅ done |
 | Checks by the core for nodes without an agent: ping, TCP, HTTP, certificate expiry | ✅ done |
